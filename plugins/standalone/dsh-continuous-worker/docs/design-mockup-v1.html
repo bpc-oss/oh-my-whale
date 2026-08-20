@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>AI 员工工作台 · 设计稿 v1（拟人化场景）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI','PingFang SC',system-ui,sans-serif; }
+  body { background:#eef2f7; color:#1f2430; }
+
+  /* 顶部栏 */
+  .topbar { display:flex; align-items:center; gap:14px; padding:12px 22px; background:#fff; border-bottom:1px solid #e3e8f0; }
+  .topbar .appname { font-size:15px; font-weight:700; color:#374151; }
+  .topbar .scene-switch { margin-left:auto; display:flex; gap:6px; background:#f1f5f9; padding:4px; border-radius:12px; }
+  .topbar .scene-switch button { border:none; background:transparent; padding:7px 14px; border-radius:9px; font-size:12.5px; color:#64748b; cursor:pointer; }
+  .topbar .scene-switch button.active { background:#fff; color:#2563eb; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .topbar .avatar-mini { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#60a5fa,#a78bfa); display:flex; align-items:center; justify-content:center; font-size:14px; }
+
+  /* 主体: 左员工列表 + 右场景 */
+  .main { display:flex; height:calc(100vh - 57px); }
+
+  /* 左: 员工列表 */
+  .sidebar { width:232px; background:#fff; border-right:1px solid #e3e8f0; display:flex; flex-direction:column; }
+  .sidebar .head { padding:14px 16px 8px; display:flex; align-items:center; gap:8px; }
+  .sidebar .head b { font-size:13.5px; }
+  .sidebar .head .add { margin-left:auto; width:26px; height:26px; border-radius:8px; border:none; background:#eef2ff; color:#4f46e5; font-size:16px; cursor:pointer; }
+  .employee-item { display:flex; flex-direction:column; gap:4px; padding:11px 14px; margin:0 8px 4px; border-radius:12px; cursor:pointer; border:1.5px solid transparent; }
+  .employee-item.active { background:#eef2ff; border-color:#c7d2fe; }
+  .employee-item .row { display:flex; align-items:center; gap:9px; }
+  .employee-item .avatar { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .employee-item .name { font-size:13px; font-weight:600; }
+  .employee-item .sub { font-size:11px; color:#94a3b8; padding-left:43px; }
+  .employee-item .status-dot { width:9px; height:9px; border-radius:50%; margin-left:auto; }
+
+  /* 右: 场景画布 */
+  .stage { flex:1; display:flex; flex-direction:column; overflow:auto; }
+  .scene-header { padding:18px 24px 0; display:flex; align-items:flex-end; gap:14px; }
+  .scene-header .big-avatar { width:64px; height:64px; border-radius:18px; background:linear-gradient(135deg,#60a5fa,#a78bfa); display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 6px 18px rgba(99,102,241,.25); }
+  .scene-header h1 { font-size:22px; font-weight:700; }
+  .scene-header .mood { font-size:13px; color:#64748b; margin-top:4px; }
+  .scene-header .doing { margin-left:auto; background:#fff; border:1px solid #e3e8f0; padding:9px 16px; border-radius:14px; font-size:13px; color:#374151; display:flex; align-items:center; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+  .scene-header .doing .live { width:9px; height:9px; border-radius:50%; background:#22c55e; animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)} 50%{box-shadow:0 0 0 6px rgba(34,197,94,0)} }
+
+  /* 场景视觉 (办公室桌面) */
+  .desk { margin:16px 24px; background:#fff; border-radius:20px; border:1px solid #e3e8f0; min-height:380px; position:relative; overflow:hidden; padding:26px; }
+  .desk .desk-bg { position:absolute; inset:0; background:linear-gradient(180deg,#f8fafc 0%,#eef2ff 60%,#e0e7ff 100%); }
+  .desk .desk-item { position:absolute; font-size:26px; opacity:.9; }
+  .desk .coffee { left:26px; bottom:20px; }
+  .desk .plant { right:30px; bottom:14px; font-size:34px; }
+  .desk .lamp { right:26px; top:18px; font-size:24px; }
+  .desk .sticky { left:24px; top:16px; font-size:20px; }
+
+  /* 内容网格 */
+  .grid { position:relative; display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:14px; margin-top:14px; }
+  .card { background:#fff; border:1px solid #e3e8f0; border-radius:16px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.03); }
+  .card h3 { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px; }
+
+  /* 任务列表 */
+  .task { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:11px; border:1px solid #eef2f6; margin-bottom:7px; }
+  .task .ico { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .task .t-body { flex:1; min-width:0; }
+  .task .t-name { font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .task .t-meta { font-size:10.5px; color:#94a3b8; margin-top:2px; }
+  .task .t-status { font-size:10.5px; padding:3px 9px; border-radius:999px; font-weight:600; }
+  .task.running .t-status { background:#eff6ff; color:#2563eb; }
+  .task.done .t-status { background:#f0fdf4; color:#16a34a; }
+  .task.warn .t-status { background:#fffbeb; color:#d97706; }
+  .task .ico.blue { background:#eff6ff; } .task .ico.green { background:#f0fdf4; } .task .ico.amber { background:#fffbeb; }
+
+  /* 动态 feed */
+  .feed { display:flex; flex-direction:column; gap:9px; }
+  .feed-item { display:flex; gap:9px; align-items:flex-start; font-size:12px; }
+  .feed-item .dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+  .feed-item .txt { color:#475569; line-height:1.5; }
+  .feed-item .time { color:#94a3b8; font-size:10.5px; white-space:nowrap; }
+
+  /* 监控 */
+  .monitor { display:flex; flex-direction:column; gap:8px; }
+  .monitor-item { display:flex; align-items:center; gap:9px; font-size:12.5px; }
+  .monitor-item .gauge { width:7px; height:7px; border-radius:50%; }
+  .monitor-item .ok { color:#64748b; }
+
+  /* 底部提示 */
+  .hint { margin:16px 24px 20px; font-size:12px; color:#94a3b8; display:flex; gap:14px; align-items:center; }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <span class="appname">🤖 AI 员工 · 工作台</span>
+  <div class="scene-switch">
+    <button class="active">🏢 办公室</button>
+    <button>🧪 实验室</button>
+    <button>🖥 机房</button>
+    <button>🌿 工位</button>
+  </div>
+  <div class="avatar-mini">👤</div>
+</div>
+
+<div class="main">
+  <!-- 左: 员工列表 -->
+  <div class="sidebar">
+    <div class="head"><b>员工</b><button class="add">+</button></div>
+    <div class="employee-item active">
+      <div class="row">
+        <div class="avatar" style="background:#eff6ff">🧑‍💻</div>
+        <span class="name">小戴</span>
+        <span class="status-dot" style="background:#22c55e"></span>
+      </div>
+      <div class="sub">📁 Open Omics · 3 任务</div>
+    </div>
+    <div class="employee-item">
+      <div class="row">
+        <div class="avatar" style="background:#fdf4ff">🧪</div>
+        <span class="name">小研</span>
+        <span class="status-dot" style="background:#22c55e"></span>
+      </div>
+      <div class="sub">📁 实验室 · 2 任务</div>
+    </div>
+    <div class="employee-item">
+      <div class="row">
+        <div class="avatar" style="background:#f0fdf4">🛠</div>
+        <span class="name">小维</span>
+        <span class="status-dot" style="background:#94a3b8"></span>
+      </div>
+      <div class="sub">📁 服务器 · 空闲</div>
+    </div>
+  </div>
+
+  <!-- 右: 场景画布 -->
+  <div class="stage">
+    <!-- 场景头 -->
+    <div class="scene-header">
+      <div class="big-avatar">🧑‍💻</div>
+      <div>
+        <h1>小戴</h1>
+        <div class="mood">在办公室里工作 · 负责 Open Omics 项目</div>
+      </div>
+      <div class="doing"><span class="live"></span> 正在检查磁盘空间…</div>
+    </div>
+
+    <!-- 办公室场景 -->
+    <div class="desk">
+      <div class="desk-bg"></div>
+      <span class="desk-item coffee">☕</span>
+      <span class="desk-item plant">🪴</span>
+      <span class="desk-item lamp">💡</span>
+      <span class="desk-item sticky">📌</span>
+
+      <div class="grid">
+        <!-- 任务看板 -->
+        <div class="card">
+          <h3>📋 手头的任务</h3>
+          <div class="task running"><div class="ico blue">💾</div><div class="t-body"><div class="t-name">检查磁盘空间</div><div class="t-meta">每小时 · 已执行 3 次</div></div><span class="t-status">进行中</span></div>
+          <div class="task running"><div class="ico blue">🌐</div><div class="t-body"><div class="t-name">盯官网可用性</div><div class="t-meta">每 30 分钟 · 已执行 2 次</div></div><span class="t-status">进行中</span></div>
+          <div class="task done"><div class="ico green">✅</div><div class="t-body"><div class="t-name">整理项目周报</div><div class="t-meta">已完成</div></div><span class="t-status">已完成</span></div>
+          <div class="task warn"><div class="ico amber">⚠️</div><div class="t-body"><div class="t-name">日志清理</div><div class="t-meta">发现异常</div></div><span class="t-status">需关注</span></div>
+        </div>
+
+        <!-- 最近动态 -->
+        <div class="card">
+          <h3>🕐 最近在忙什么</h3>
+          <div class="feed">
+            <div class="feed-item"><span class="dot" style="background:#22c55e"></span><span class="txt">检查了磁盘空间，一切正常</span><span class="time">刚刚</span></div>
+            <div class="feed-item"><span class="dot" style="background:#22c55e"></span><span class="txt">完成了项目周报整理</span><span class="time">1 小时前</span></div>
+            <div class="feed-item"><span class="dot" style="background:#f59e0b"></span><span class="txt">发现日志目录偏大，标记需关注</span><span class="time">3 小时前</span></div>
+            <div class="feed-item"><span class="dot" style="background:#22c55e"></span><span class="txt">例行巡检完成</span><span class="time">昨天</span></div>
+          </div>
+        </div>
+
+        <!-- 正在监控 -->
+        <div class="card">
+          <h3>👁 正在盯着</h3>
+          <div class="monitor">
+            <div class="monitor-item"><span class="gauge" style="background:#22c55e"></span><span>磁盘空间</span><span class="ok" style="margin-left:auto">一切正常</span></div>
+            <div class="monitor-item"><span class="gauge" style="background:#22c55e"></span><span>官网可用性</span><span class="ok" style="margin-left:auto">正常</span></div>
+            <div class="monitor-item"><span class="gauge" style="background:#f59e0b"></span><span>日志目录</span><span class="ok" style="margin-left:auto">偏大</span></div>
+          </div>
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8">
+            <span>今日消耗 1.2k token</span><span>状态良好</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">
+      <span>💬 右下角对话小窗（点开下指令）</span>
+      <span>📂 工作区：E:\proj\open-omics</span>
+      <span style="margin-left:auto">设计稿 v1 — 拟人化场景 · 待确认</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

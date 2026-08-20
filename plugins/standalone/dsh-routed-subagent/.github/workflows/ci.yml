@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax check
+        run: node --check lib/index.js
+      - name: package.json valid
+        run: node -e "const p=require('./package.json'); if(!p.name||!p.version||!p.license) process.exit(1); console.log('package ok:', p.name, p.version)"
+      - name: License present
+        run: test -f LICENSE && echo ok
+      - name: READMEs present
+        run: test -f README.md && test -f README.zh.md && echo ok
+      # M3: install the real published peers and load the plugin — catches API drift
+      - name: Install peers
+        run: npm install --no-audit --no-fund
+      - name: Smoke (load + apply + schema + boundaries)
+        run: node scripts/smoke.mjs
+      # M2/N6: guard over git-tracked files; ERE must match SINGLE backslashes
+      # (C:\Users in prose). `\\` in the ERE matches one literal backslash.
+      - name: No secrets / machine paths in tracked files
+        run: |
+          if grep -rniE 'api[_-]?key|password|secret|gho_|ghp_|C:[\\/]Users|E:[\\/]ai-files|/Users/|/home/' $(git ls-files) | grep -v '^\.github/workflows/ci.yml:'; then
+            echo "FAIL: sensitive content or machine-specific paths found" && exit 1
+          else
+            echo ok
+          fi

@@ -1,0 +1,8 @@
+name: AI TUBE Daily Operator
+description: >-
+  AI TUBE 项目专属每日执行 preset。基座 = anchored-standard（干净首轮、最小
+  resident 工具、按需解锁），叠加 AI TUBE 运行使命注入：先读项目手册/交接、
+  先 doctor/status、恢复优先、证据闭环、WorkBuddy hy3-only、用户已确认口径。
+  用于日常“抖音收藏 -> TikTok/YouTube 排期发布”的长程运行，不叠加其他 preset。
+order: 9
+

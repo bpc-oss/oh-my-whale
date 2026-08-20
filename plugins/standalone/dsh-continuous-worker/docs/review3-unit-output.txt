@@ -1,0 +1,68 @@
+﻿registry: fold
+  鉁?create + fold returns one active record
+  鉁?fold rejects reused id
+  鉁?dispatch increments runCount and reaches done at maxRuns
+  鉁?fault marks record faulted
+  鉁?delete removes record
+  鉁?corrupt payload rejected loudly
+  鉁?seedLength excludes inherited prefix
+watcher: counters & gates
+  鉁?heartbeat liveness
+  鉁?FATAL after N consecutive failures + backoff
+  鉁?success resets failure streak
+  鉁?idle counter crosses threshold
+  鉁?loop counter detects same-tool rounds
+  鉁?budget gate blocks over ceiling
+  鉁?downgrade tiers in order
+waker: message shape
+  鉁?buildTaskMessage carries plugin source
+registry (M2): state transitions
+  鉁?pauseRecord sets state paused and rejects done/faulted
+  鉁?resumeRecord restores active and rejects non-paused
+  鉁?advanceHeartbeat moves scheduledAt and reaches done at maxRuns
+  鉁?isDispatchable only for active
+checkpoint: intent ledger
+  鉁?begin/complete/classify round-trip
+guardrails (M2): supply chain + supervision
+  鉁?install patterns classified as T3 ask
+  鉁?non-install calls allowed as T1
+  鉁?generic shell tool name is not itself install-like (echo passes)
+  鉁?installer tool name alone is T3 ask
+  鉁?supervision presets map task types
+tools (M2): id allocation
+  鉁?allocateId skips existing
+skill (M3): growth loop
+  鉁?learn lands pending with review, accepted without
+  鉁?confidence computed from ledger stats, not self-report
+  鉁?review accept promotes to T2; reject marks rejected
+  鉁?markUsed tracks counts
+memory (M3): layered memory
+  鉁?retain lands pending with review; recall excludes pending by default
+  鉁?retain rejects missing source and empty fact
+  鉁?forget removes entry
+report (M3): cadence
+  鉁?routine reports capped; urgency is host-decided (M3 H3 fix)
+  鉁?builders produce evidence-referencing payloads
+loop (M4): bounded worker-verifier
+  鉁?createLoop requires bounds
+  鉁?start/advance/stop state machine
+  鉁?advanceLoop marks timeout when maxTimeMs exceeded
+  鉁?advanceLoop marks passed on verifier pass
+  鉁?evaluateVerifier: shell exit 0 pass, non-zero fail, null verifier accepts
+  鉁?LoopStore persists across instances
+handover (M4): Paseo-style work order
+  鉁?buildHandoverWorkOrder requires task, carries sections
+replay (M4): intent-ledger audit
+  鉁?replayIntents filters by recordId and window
+
+M4 unit tests complete.
+remediation: interval / expiry / supply-chain / accounting
+  鉁?parseTtlMs parses common units
+  鉁?isExpired flags records past their TTL (M2 H1 fix)
+  鉁?recordView surfaces expired state and never due (M2 H1 fix)
+  鉁?supply chain: npx/docker/iwr|iex/git clone blocked; git status allowed (M2 C4 fix)
+  鉁?supply chain: T4 reachable via forceT4 (M2 C4 fix)
+  鉁?verifyOnInstall:false is opt-out not verified (M2 琛ュ厖 fix)
+  鉁?pacemaker estimateTokens is non-zero (M1 H2 fix)
+
+Remediation verification complete.

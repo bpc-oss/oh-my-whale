@@ -1,0 +1,2 @@
+name: Dev
+description: 产品开发团队的专业工程师 agent — Standard 工具目录 + 借鉴 deepseek 工程师的 21 技能集（11 原版 dsh-* + 10 通用化 dev-*）+ 团队工程师定位使命段（persona + dev-mission 注入系统提示词）。面向各种软件，不绑定任何特定仓库；技能集随 preset 携带、仅对本 preset 的 agent 生效。

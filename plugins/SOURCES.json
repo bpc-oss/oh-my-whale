@@ -1,0 +1,153 @@
+{
+  "version": "1",
+  "notes": "plugin sources inventory. install_type maps to package.json specifier: vendor-archive->file:vendor-archives/<tgz>; link->link:<path>; file-dir->file:<path>; github->github:<org>/<repo>#<ref>; npm->semver; local-tgz->file:<abs>",
+  "plugins": [
+    {
+      "id": "@agentos/dsh-lco",
+      "type": "local",
+      "source": "{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
+      "package_spec": "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
+      "install_type": "file-dir",
+      "description": "Agent OS LCO adapter (local tgz in AgentOS bundles dir)"
+    },
+    {
+      "id": "@bpc-oss/dsh-client-ui-verification",
+      "type": "vendor",
+      "source": "profile/vendor/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
+      "package_spec": "file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
+      "install_type": "vendor-archive",
+      "description": "Verification client UI"
+    },
+    {
+      "id": "@bpc-oss/dsh-evidence",
+      "type": "vendor",
+      "source": "profile/vendor/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
+      "package_spec": "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
+      "install_type": "vendor-archive",
+      "description": "Evidence package (schema lives here!)"
+    },
+    {
+      "id": "@bpc-oss/dsh-plugin-chrome-faithful",
+      "type": "local",
+      "source": "{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
+      "package_spec": "file:{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
+      "install_type": "file-dir",
+      "description": "Chrome automation (clone from github bpc-oss/chrome-faithful)"
+    },
+    {
+      "id": "@bpc-oss/dsh-verification",
+      "type": "vendor",
+      "source": "profile/vendor/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
+      "package_spec": "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
+      "install_type": "vendor-archive",
+      "description": "Verification engine (enforce/advisory)"
+    },
+    {
+      "id": "@bpshil/litkit-dsh",
+      "type": "github",
+      "repo": "bpc-oss/litkit-search",
+      "ref": "main",
+      "package_spec": "github:bpc-oss/litkit-search",
+      "install_type": "github",
+      "description": "LitKit search"
+    },
+    {
+      "id": "@dsh-external/dsh-super-injector",
+      "type": "vendor",
+      "source": "profile/vendor/dsh-external-dsh-super-injector-0.3.3.tgz",
+      "package_spec": "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
+      "install_type": "vendor-archive",
+      "description": "Runtime plugin injector (REBUILT tgz includes P5 gateway gate)"
+    },
+    {
+      "id": "@dsh-external/dsh-vision-toolkit",
+      "type": "github",
+      "repo": "Anionex/dsh-vision-toolkit",
+      "ref": "main",
+      "package_spec": "github:Anionex/dsh-vision-toolkit#main",
+      "install_type": "github",
+      "description": "Vision toolkit"
+    },
+    {
+      "id": "@liustack/modlens",
+      "type": "npm",
+      "version": "^3.11.0",
+      "package_spec": "^3.11.0",
+      "install_type": "npm",
+      "description": "Code lens (currently disabled in plugin-management state)"
+    },
+    {
+      "id": "@liustack/modsearch",
+      "type": "npm",
+      "version": "^5.3.0",
+      "package_spec": "^5.3.0",
+      "install_type": "npm",
+      "description": "Search (currently disabled in plugin-management state)"
+    },
+    {
+      "id": "@omdsh-dev/dsh-genui",
+      "type": "github",
+      "repo": "omdsh-dev/dsh-genui",
+      "ref": "main",
+      "package_spec": "github:omdsh-dev/dsh-genui",
+      "install_type": "github",
+      "description": "Generate UI"
+    },
+    {
+      "id": "dsh-bash-terminal",
+      "type": "npm",
+      "version": "^0.3.11",
+      "package_spec": "^0.3.11",
+      "install_type": "npm",
+      "description": "Bash terminal"
+    },
+    {
+      "id": "dsh-better-sidebar",
+      "type": "vendor",
+      "source": "profile/vendor/dsh-better-sidebar-0.12.2-fix108.tgz",
+      "package_spec": "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
+      "install_type": "vendor-archive",
+      "description": "Better sidebar (fixed tgz)"
+    },
+    {
+      "id": "dsh-continuous-worker",
+      "type": "standalone",
+      "path": "plugins/standalone/dsh-continuous-worker",
+      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
+      "install_type": "link",
+      "description": "Background continuous worker (local git, no remote)"
+    },
+    {
+      "id": "dsh-plugin-manager",
+      "type": "npm",
+      "version": "^0.1.0",
+      "package_spec": "^0.1.0",
+      "install_type": "npm",
+      "description": "Plugin manager"
+    },
+    {
+      "id": "dsh-routed-subagent",
+      "type": "standalone",
+      "path": "plugins/standalone/dsh-routed-subagent",
+      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
+      "install_type": "link",
+      "description": "Routed subagent (bpc-oss github, local clone)"
+    },
+    {
+      "id": "dsh-token-meter-hermes",
+      "type": "standalone",
+      "path": "plugins/standalone/dsh-token-meter-hermes",
+      "package_spec": "file:{{USER_HOME}}/dsh-token-meter-hermes",
+      "install_type": "file-dir",
+      "description": "Token meter Hermes style"
+    },
+    {
+      "id": "dsh-voice-input",
+      "type": "standalone",
+      "path": "plugins/standalone/dsh-voice-input",
+      "package_spec": "link:{{USER_HOME}}/dsh-voice-input",
+      "install_type": "link",
+      "description": "Voice input (models dir separate)"
+    }
+  ]
+}

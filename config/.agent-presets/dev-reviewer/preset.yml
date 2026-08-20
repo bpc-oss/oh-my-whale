@@ -1,0 +1,2 @@
+name: Dev Reviewer
+description: 独立评审工程师 — Standard 工具目录 + 评审专用技能集（5 个 dev-* 通用版：dev-code-review / dev-prose-standard / dev-trim-cot-leakage / dev-find-simplifications / dev-doc-standards）+ 独立评审使命段。只读分析、证据驱动、缺陷优先；面向各种软件，不绑定任何仓库。可用全局 subagent_as_preset 从任意会话派发。

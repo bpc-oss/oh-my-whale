@@ -1,0 +1,34 @@
+{
+  "name": "dsh-token-meter-hermes",
+  "description": "Hermes-style context breakdown for DeepSeek Harness: CJK-aware token estimation, flat image cost, and an 8-category contextBreakdownHermes projection",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./estimate": {
+      "default": "./lib/estimate.js"
+    },
+    "./breakdown-projection": {
+      "default": "./lib/breakdown-projection.js"
+    },
+    "./surface-fold": {
+      "default": "./lib/surface-fold.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.5",
+    "@deepseek-ai/dsh-session-projection": "^0.1.0-rc.5"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

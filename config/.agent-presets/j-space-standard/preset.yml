@@ -1,0 +1,7 @@
+name: J-Space Standard（推荐设置 + J-Space）
+description: >-
+  Anchored Standard 推荐基线（干净首轮、最小 resident 工具目录、按需解锁、无无关 skill
+  目录注入）+ J-Space 持续计算治理（fast/full/loop 门控、账本、checkpoint、验证恢复）。
+  入口条件由 anchored 机制保证，进入轨迹后的长程状态、验证与恢复由 j-space skill 维持。
+  与 anchored-standard / router-standard 互斥，勿叠加。
+order: 7

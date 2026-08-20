@@ -1,0 +1,144 @@
+# dsh-routed-subagent
+
+
+![License](https://img.shields.io/badge/license-MIT-blue) ![Version](https://img.shields.io/github/v/release/bpc-oss/dsh-routed-subagent) ![CI](https://github.com/bpc-oss/dsh-routed-subagent/actions/workflows/ci.yml/badge.svg)
+
+一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 全局插件：让**任意会话**都能派一个**完整挂载到任意 agent preset** 的一次性（one-shot）子代理，支持**按次指定模型/provider** 和**模型可用性预检**。
+
+官方 `subagent` / `subagent_fork` 工具强制子代理**继承父方 preset**。本插件用自定义 subagent provider 替代：其 **async 子代理 setup** 调用 `agentPresets.mount(childCtx, <preset>)`——子代理获得**目标 preset 的完整组装**（persona、提示词段、技能目录、工具），而不是 persona 拷贝。
+
+## 特性
+
+- **任意 preset、任意会话**：注册在 host 平面（全局层），所有 preset 的会话都有该工具；**新增 preset 零配置**。
+
+- **运行中实时进度**：后台子代理暴露 eadOutput hook——job_output 读 job 时返回实时快照（耗时/idle、事件数、最近的工具/步骤/文本），2 分钟无新事件时标记「可能卡住」，据此判断方向并及时 job_kill。
+- **完整挂载**：子代理运行在目标 preset 的 standing 组装下（身份、使命段、技能、工具全用目标 preset 的）。
+- **按次指定模型**：`model` / `provider` 参数把子代理的 LLM 调用路由到与当前会话不同的模型（走官方 `resolveChildAgentOptions` 通道）。
+- **模型预检**：无效模型**快速失败**并列出该 provider 的候选模型，而不是等到子代理晦涩地失败。
+- **官方子代理生态**：one-shot 生命周期事件、UI 行、轨迹可见；返回子代理最终输出。
+- **provider 注册幂等**：多 preset 并存不会重复注册 host 平面 provider。
+
+## 分发
+
+**仅 GitHub**。本插件**不发布到 npm**，通过挂载包目录安装（见下）。`peerDependencies` 以真实 semver 声明、仅作元数据，不参与 npm 解析。
+
+**兼容性**：目标为 DeepSeek Harness **rc.7**（行为已对照 rc.7 源码核实）（本插件依赖的 async 子代理 setup 是较新的 harness 行为）。
+
+## 安装
+
+纯 ESM 包，带 `cordis.patch.yml` bundle 声明。
+
+### 1. 把包链接进 harness 安装
+
+插件静态 import `@deepseek-ai/*` 包（Node ESM 按 realpath 解析）。在包目录创建指向 harness 安装的 `node_modules` junction/软链：
+
+```bat
+:: Windows
+mklink /J "<plugin-dir>\node_modules" "<harness>\resources\host\node_modules"
+```
+
+```sh
+# POSIX (Linux/macOS)
+ln -s "<harness>/resources/host/node_modules" "<plugin-dir>/node_modules"
+```
+
+### 2. 把 bundle 加进 profile
+
+把包加进 profile 的 `dsh.profile.bundles` 列表（如 `<dshHome>/profiles/web/package.json`）：
+
+```json
+{
+  "dependencies": { "dsh-routed-subagent": "link:<plugin-dir>" },
+  "dsh": { "profile": { "bundles": ["...", "dsh-routed-subagent"] } }
+}
+```
+
+仓库里的 `cordis.patch.yml` 就是注册插件的 bundle 层；包被列入 `bundles` 时自动应用。
+
+> 提示：若你的部署提供热装配工具（如 super-injector 风格的 `dev_install_package(dir=...)`），可代替上面的手动步骤；重启后两种方式都由 `bundles` 列表自动装配。
+
+## 用法
+
+三种形态（一个工具）：
+
+| 模式 | 用法 | 返回 |
+|---|---|---|
+| 后台 one-shot（默认） | `run_in_background: true`（默认） | 立即返回 job id；`job_output`（实时进度）收 / `job_kill` 停；中止主对话不影响子代理 |
+| 前台 one-shot | `run_in_background: false` | 阻塞到子代理返回最终输出 |
+| fork | `fork: true` | 子代理继承本对话已完成轮次（上下文），再挂载目标 preset |
+| continuable | `continuable: true` | 返回持久 subagent id；之后用 `send_message(subagentId, ...)` 续话；子代理挂载目标 preset 并在续话/重启后保持 |
+
+```
+subagent_routed(prompt="用 dev 标准审查本仓库", preset="dev", description="dev 审查")          # 后台 one-shot
+subagent_routed(prompt="继续审查", preset="dev-reviewer", description="跟进", fork=true)       # 继承本对话
+subagent_routed(preset="dev", prompt="审计本仓库", description="审计", continuable=true)       # 之后 send_message 续话
+```
+
+## 平台补丁（continuable + preset 挂载）
+
+`continuable` 模式让子代理挂载目标 preset 并在续话/重启后保持——需要对开源的 `@deepseek-ai/dsh-subagent` 做**纯增量**补丁：
+- **安装级 junction**（唯一装配点）：`resources\host\node_modules\@deepseek-ai\dsh-subagent` → 补丁 fork `E:\ai-files\@deepseek-ai\dsh-subagent`（纯净原包备份于 `E:\ai-files\@deepseek-ai\dsh-subagent.orig`）；插件启动断言在补丁未生效时 fail loud；**不要**给 `@deepseek-ai/dsh-subagent` 加 profile-local `link:`（会分裂模块身份、补丁失效）
+- **补丁面**（只做加法，无 preset 的官方路径逐字节不变）：`applyChildComposition` 的 `composition.preset` 挂载目标 preset（跳过 composeFrom 防双绑定；保留 delegation/persona/toolFilter）+ append `agent-preset/selected(target)`（防 fork seed 遮蔽 header）；`materializeTracked` setup 变 async（工厂 await，保持 `{commit}` 契约）；continuable descriptor 加可选 `preset`（continuable 版本 2→3，one-shot 保持 2——回滚时 v3 干净 NOT_RESUMABLE，旧 v2 仍可解析）；`coldResume` 从 `descriptor.preset` 重建同一 preset，preset 缺失时报指名错误
+- **回滚**：删安装 junction、把 `E:\ai-files\@deepseek-ai\dsh-subagent.orig` 复制回安装位、重启——官方行为恢复（已建的 preset-continuable 子代理按设计 NOT_RESUMABLE）。注意：若其他 profile 树（如 `dsh-continuous-worker\node_modules\@deepseek-ai\dsh-subagent`）仍指向 fork，需一并处理避免悬空
+
+## 禁用官方 subagent
+
+全部官方能力移植完成后，`subagent_routed` 成为唯一委派入口：全局 `tools.guard` 在执行期拒绝 `subagent` / `subagent_fork` 并引导到 routed（`config.disableStockSubagent ?? true`；设 `false` 保留）。范围：挂载本插件行的 preset。
+
+
+```
+subagent_routed(
+  prompt="用 dev 工程师标准审查这个仓库",
+  preset="dev",                    # roster 中的任意 preset id
+  description="dev 审查",          # 显示名
+  max_depth=2,                     # 递归预算（默认 3；正整数 >= 1）
+  run_in_background=true,       # 默认 true：后台 job，主对话继续
+  model="deepseek-v4-flash-free",  # 可选：子代理本次使用的模型
+  provider="opencode",             # 可选：该模型所属 provider
+)
+```
+
+| 输入 | 行为 |
+|---|---|
+| `preset` 无效/无法解析 | 报错并透传 roster 可用 preset id |
+| `model` 在 provider 下无效 | 快速失败，列出该 provider 的候选模型（原始错误保留在 `cause`） |
+| `model` 省略 | 子代理继承当前会话模型（向后兼容） |
+| max_depth 非正整数 | 工具层校验报错 |
+| un_in_background（默认 true） | 立即返回后台 job id；job_output 收结果 / job_kill 停止；中止主对话不影响子代理 |
+| 正常调用 | 子代理完整挂载目标 preset，跑一轮，返回最终输出 |
+
+## 原理
+
+1. 自定义 subagent provider（`routed-mount`）复刻官方 one-shot 进程内驱动（`dsh-subagent-in-process-driver` 的 `startInProcessRun`），**唯一关键改动**：子代理 setup 改为 `async` 并 `await agentPresets.mount(childCtx, targetPreset)`（替代认父）。
+2. `agents.create` 会 await setup（`dsh-agent-loop` 已确认）——async mount 在未发布的创建窗口内执行，失败整体回滚。
+3. 子代理会话 header 记录 `agentPreset: <目标>`（覆盖父方值）——冷读按真实运行的组装重建。
+4. 工具分两段顺序收尾：**先 result 后 dispose**（与官方 `settleForegroundRun` 顺序一致）——若并行会把 dispose 的取消标志抢先，导致子代理"一启动就 aborted"。
+
+## 已知限制
+
+- **preset generation drift（已知限制）**：`mount` 在每次创建/续话时按 id 重解析 preset——两次续话之间编辑 preset 文件会让后续轮次挂到该 preset 的**新一代**（官方 `composeFrom` 加入父的 standing 实例、不重解析）。文档化行为；保持 preset 不变即可维持轮次一致。
+- **失败语义**：与官方前台 subagent 工具一致——子代理以 `error` / `refusal` / `max-tokens` 结束时工具调用**抛错**（附部分输出）；仅 `completed` 与调用方取消的 `aborted` 作为返回值。底层 LLM 错误细节见子代理会话日志。
+- **预检是有条件的**：仅当 harness 暴露 `llm` 服务**且**存在 provider 路由（显式 `provider` 或继承父方）时才执行预检；否则跳过、直接派发。
+- **provider 可用性取决于环境**：预检只校验模型目录；真正调用仍需 provider 可达且 key 有效。
+
+## 开发
+
+```bash
+node --check lib/index.js   # 语法检查
+```
+
+插件为单个 ~350 行文件、零构建。CI 每次推送执行 `node --check`。
+
+## License
+
+MIT
+
+
+
+
+
+
+
+
+
+

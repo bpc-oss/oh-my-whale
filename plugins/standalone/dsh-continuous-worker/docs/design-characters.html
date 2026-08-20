@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>AI 员工 · 角色风格选择</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI','PingFang SC',system-ui,sans-serif; }
+  body { background:#0b0e16; color:#e2e8f0; min-height:100vh; padding:32px 40px; }
+
+  h1 { font-size:22px; font-weight:700; color:#f8fafc; margin-bottom:6px; }
+  .sub { font-size:13px; color:#94a3b8; margin-bottom:28px; }
+  .sub b { color:#a5b4fc; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; max-width:1200px; }
+
+  .style-card { background:rgba(15,23,42,.7); border:1.5px solid rgba(148,163,184,.16); border-radius:18px; padding:22px 18px 18px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
+  .style-card:hover { border-color:rgba(99,102,241,.45); transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,.35); }
+  .style-card.selected { border-color:#6366f1; background:rgba(99,102,241,.1); box-shadow:0 0 0 1px #6366f1, 0 12px 30px rgba(0,0,0,.35); }
+  .style-card.selected::after { content:'✓ 已选'; position:absolute; top:12px; right:12px; font-size:10.5px; font-weight:700; color:#a5b4fc; background:rgba(99,102,241,.2); padding:3px 10px; border-radius:999px; }
+
+  .stage { height:150px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:14px; position:relative; }
+  /* 地面线 */
+  .stage::after { content:''; position:absolute; bottom:8px; left:20%; right:20%; height:1px; background:rgba(148,163,184,.2); }
+
+  .s-name { font-size:14px; font-weight:600; color:#e2e8f0; margin-top:14px; text-align:center; }
+  .s-desc { font-size:11px; color:#94a3b8; margin-top:4px; text-align:center; line-height:1.6; }
+  .s-tag { display:flex; justify-content:center; gap:5px; margin-top:10px; flex-wrap:wrap; }
+  .s-tag span { font-size:9.5px; padding:2px 8px; border-radius:999px; background:rgba(148,163,184,.1); color:#94a3b8; }
+
+  /* ===== 风格1: 像素小人 (8-bit) ===== */
+  .pixel { position:relative; width:40px; height:56px; }
+  .pixel .px { position:absolute; width:8px; height:8px; background:#6366f1; border-radius:1px; }
+  /* 头 (3x3) */
+  .px-h { top:0; left:8px; } .px-h2 { top:0; left:16px; } .px-h3 { top:0; left:24px; }
+  .px-h4 { top:8px; left:8px; } .px-h5 { top:8px; left:16px; } .px-h6 { top:8px; left:24px; }
+  .px-h7 { top:16px; left:8px; } .px-h8 { top:16px; left:24px; }
+  /* 身体 */
+  .px-b { top:24px; left:12px; } .px-b2 { top:24px; left:20px; } .px-b3 { top:24px; left:28px; }
+  .px-b4 { top:32px; left:12px; } .px-b5 { top:32px; left:20px; } .px-b6 { top:32px; left:28px; }
+  /* 腿 */
+  .px-l1 { top:40px; left:12px; background:#475569; } .px-l2 { top:40px; left:20px; background:#475569; } .px-l3 { top:40px; left:28px; background:#475569; }
+  .px-l4 { top:48px; left:12px; background:#3b4a6b; } .px-l5 { top:48px; left:20px; background:#3b4a6b; } .px-l6 { top:48px; left:28px; background:#3b4a6b; }
+  /* 像素小人走路动画 (左右摆动) */
+  .pixel.anim-walk { animation:pixel-walk 1.2s ease-in-out infinite; }
+  @keyframes pixel-walk { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px) rotate(-2deg)} 50%{transform:translateY(0)} 75%{transform:translateY(-4px) rotate(2deg)} }
+  .pixel .shadow { position:absolute; bottom:-6px; left:50%; transform:translateX(-50%); width:36px; height:5px; border-radius:50%; background:rgba(0,0,0,.4); }
+
+  /* ===== 风格2: 简约线稿小人 ===== */
+  .line { position:relative; width:60px; height:70px; }
+  .line svg { position:absolute; inset:0; }
+
+  /* ===== 风格3: 圆润吉祥物 ===== */
+  .mascot { position:relative; width:64px; height:64px; }
+  .mascot .head { width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg,#8b5cf6,#6d28d9); position:absolute; top:0; left:6px; box-shadow:0 6px 18px rgba(139,92,246,.4); display:flex; align-items:center; justify-content:center; }
+  .mascot .face { position:relative; width:26px; height:16px; }
+  .mascot .eye { position:absolute; width:6px; height:8px; border-radius:50%; background:#1e1b4b; top:0; }
+  .mascot .eye.l { left:0; } .mascot .eye.r { right:0; }
+  .mascot .smile { position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:14px; height:7px; border-bottom:2.5px solid #1e1b4b; border-radius:0 0 14px 14px; }
+  .mascot .body { width:40px; height:26px; border-radius:14px 14px 8px 8px; background:linear-gradient(135deg,#a78bfa,#7c3aed); position:absolute; bottom:0; left:12px; display:flex; align-items:center; justify-content:center; }
+  .mascot .arm { position:absolute; width:8px; height:20px; border-radius:6px; background:#8b5cf6; }
+  .mascot .arm.l { left:-6px; top:4px; transform:rotate(12deg); }
+  .mascot .arm.r { right:-6px; top:4px; transform:rotate(-12deg); }
+  .mascot.anim-wave .arm.r { animation:wave 1s infinite; transform-origin:top; }
+  @keyframes wave { 0%,100%{transform:rotate(-12deg)} 50%{transform:rotate(28deg)} }
+  .mascot.anim-bounce { animation:mascot-bounce 1.6s ease-in-out infinite; }
+  @keyframes mascot-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+  /* ===== 风格4: 工位半身像 ===== */
+  .desk-worker { position:relative; width:90px; height:74px; }
+  .desk-worker .head { position:absolute; top:0; left:50%; transform:translateX(-50%); width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#fbbf24,#d97706); box-shadow:0 4px 12px rgba(217,119,6,.35); z-index:2; }
+  .desk-worker .hair { position:absolute; top:0; left:50%; transform:translateX(-50%); width:34px; height:12px; background:#78350f; border-radius:12px 12px 4px 4px; z-index:3; }
+  .desk-worker .eyes { position:absolute; top:16px; left:50%; transform:translateX(-50%); display:flex; gap:9px; z-index:4; }
+  .desk-worker .eyes .e { width:4px; height:5px; border-radius:50%; background:#451a03; }
+  .desk-worker .torso { position:absolute; top:32px; left:50%; transform:translateX(-50%); width:46px; height:26px; border-radius:10px 10px 4px 4px; background:linear-gradient(135deg,#6366f1,#4f46e5); z-index:1; }
+  .desk-worker .collar { position:absolute; top:32px; left:50%; transform:translateX(-50%); width:24px; height:6px; background:#312e81; border-radius:0 0 6px 6px; z-index:2; }
+  .desk-worker .monitor { position:absolute; top:6px; left:50%; transform:translateX(-50%); width:52px; height:34px; background:#1e293b; border-radius:4px; border:2px solid #475569; z-index:0; display:flex; align-items:center; justify-content:center; }
+  .desk-worker .monitor::after { content:''; width:30px; height:18px; background:linear-gradient(135deg,rgba(96,165,250,.5),rgba(99,102,241,.4)); border-radius:2px; animation:screen 3s infinite; }
+  @keyframes screen { 0%,100%{opacity:.7} 50%{opacity:1} }
+  .desk-worker .desk { position:absolute; bottom:0; left:0; right:0; height:8px; background:linear-gradient(180deg,#334155,#1e293b); border-radius:3px; z-index:0; }
+  .desk-worker .arms { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:36px; height:14px; background:#fbbf24; border-radius:6px 6px 3px 3px; z-index:2; opacity:.9; }
+  .desk-worker.anim-typing .arms { animation:type-arms .8s infinite; transform-origin:center; }
+  @keyframes type-arms { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-2px)} }
+
+  .pick-hint { margin-top:30px; text-align:center; font-size:12.5px; color:#64748b; }
+  .pick-hint b { color:#a5b4fc; }
+</style>
+</head>
+<body>
+<h1>🎭 员工角色风格 · 选一个你喜欢的</h1>
+<div class="sub">每种都是纯 CSS/SVG 画的（轻量无图片），带动作动画。点击卡片选择，选完告诉我编号。</div>
+
+<div class="grid">
+
+  <!-- 风格 1: 像素小人 -->
+  <div class="style-card" id="s1" onclick="pick(1)">
+    <div class="stage">
+      <div class="pixel anim-walk" style="transform:scale(1.6)">
+        <div class="shadow"></div>
+        <div class="px px-h"></div><div class="px px-h2"></div><div class="px px-h3"></div>
+        <div class="px px-h4"></div><div class="px px-h5" style="background:#a5b4fc"></div><div class="px px-h6"></div>
+        <div class="px px-h7"></div><div class="px px-h8"></div>
+        <div class="px px-b"></div><div class="px px-b2"></div><div class="px px-b3"></div>
+        <div class="px px-b4"></div><div class="px px-b5" style="background:#818cf8"></div><div class="px px-b6"></div>
+        <div class="px px-l1"></div><div class="px px-l2"></div><div class="px px-l3"></div>
+        <div class="px px-l4"></div><div class="px px-l5"></div><div class="px px-l6"></div>
+      </div>
+    </div>
+    <div class="s-name">① 像素小人</div>
+    <div class="s-desc">8-bit 复古游戏风<br>在场景里走动/工作像小游戏角色</div>
+    <div class="s-tag"><span>复古</span><span>有趣</span><span>动感</span></div>
+  </div>
+
+  <!-- 风格 2: 简约线稿 -->
+  <div class="style-card" id="s2" onclick="pick(2)">
+    <div class="stage">
+      <div class="line" style="transform:scale(1.2)">
+        <svg viewBox="0 0 60 70" fill="none">
+          <circle cx="30" cy="16" r="11" stroke="#e2e8f0" stroke-width="2.5"/>
+          <line x1="30" y1="27" x2="30" y2="50" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="30" y1="34" x2="15" y2="46" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="30" y1="34" x2="45" y2="46" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="30" y1="50" x2="20" y2="68" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="30" y1="50" x2="40" y2="68" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="26" cy="14" r="1.5" fill="#e2e8f0"/>
+          <circle cx="34" cy="14" r="1.5" fill="#e2e8f0"/>
+          <path d="M26 20 Q30 23 34 20" stroke="#e2e8f0" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <style>
+          #s2 .line svg line:nth-of-type(3) { animation:swing 1.4s ease-in-out infinite; transform-origin:30px 34px; }
+          #s2 .line svg line:nth-of-type(4) { animation:swing 1.4s ease-in-out infinite reverse; transform-origin:30px 34px; }
+          @keyframes swing { 0%,100%{transform:rotate(0)} 50%{transform:rotate(18deg)} }
+        </style>
+      </div>
+    </div>
+    <div class="s-name">② 简约线稿</div>
+    <div class="s-desc">极简扁平线条<br>干净克制，像现代插画</div>
+    <div class="s-tag"><span>极简</span><span>高级</span><span>克制</span></div>
+  </div>
+
+  <!-- 风格 3: 圆润吉祥物 -->
+  <div class="style-card" id="s3" onclick="pick(3)">
+    <div class="stage">
+      <div class="mascot anim-bounce anim-wave" style="transform:scale(1.5)">
+        <div class="head"><div class="face"><div class="eye l"></div><div class="eye r"></div><div class="smile"></div></div></div>
+        <div class="body"><div class="arm l"></div><div class="arm r"></div></div>
+      </div>
+    </div>
+    <div class="s-name">③ 圆润吉祥物</div>
+    <div class="s-desc">可爱大圆头 + 小身体<br>亲切有人情味，会挥手打招呼</div>
+    <div class="s-tag"><span>可爱</span><span>亲切</span><span>活泼</span></div>
+  </div>
+
+  <!-- 风格 4: 工位半身像 -->
+  <div class="style-card" id="s4" onclick="pick(4)">
+    <div class="stage">
+      <div class="desk-worker anim-typing" style="transform:scale(1.35)">
+        <div class="monitor"></div>
+        <div class="head"><div class="hair"></div><div class="eyes"><div class="e"></div><div class="e"></div></div></div>
+        <div class="torso"><div class="collar"></div></div>
+        <div class="arms"></div>
+        <div class="desk"></div>
+      </div>
+    </div>
+    <div class="s-name">④ 工位半身像</div>
+    <div class="s-desc">坐在工位前对着电脑<br>打字动画，最像"上班的员工"</div>
+    <div class="s-tag"><span>写实</span><span>办公室</span><span>代入感</span></div>
+  </div>
+
+</div>
+
+<div class="pick-hint">点击卡片选择，或直接回复我编号（①像素小人 / ②简约线稿 / ③圆润吉祥物 / ④工位半身像）。也可以说"混合"让我组合。</div>
+
+<script>
+function pick(n) {
+  document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('s' + n).classList.add('selected');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>AI 员工 · 项目区场景 v2</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI','PingFang SC',system-ui,sans-serif; }
+  body { background:#10131c; color:#e2e8f0; height:100vh; overflow:hidden; }
+
+  /* 顶部栏 */
+  .topbar { display:flex; align-items:center; gap:14px; padding:11px 20px; background:rgba(16,19,28,.9); border-bottom:1px solid rgba(148,163,184,.14); position:relative; z-index:10; }
+  .topbar .logo { font-size:14px; font-weight:700; color:#f8fafc; display:flex; align-items:center; gap:8px; }
+  .topbar .logo .orb { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,#60a5fa,#a78bfa); display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .topbar .proj-name { margin-left:14px; font-size:13px; color:#94a3b8; }
+  .topbar .right { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:12px; color:#94a3b8; }
+
+  /* 主: 左项目区 + 右场景 */
+  .main { display:flex; height:calc(100vh - 49px); }
+
+  /* 左: 项目区列表 (每个项目 = 一个场景) */
+  .zones { width:200px; flex-shrink:0; border-right:1px solid rgba(148,163,184,.14); background:rgba(16,19,28,.6); padding:12px 10px; overflow:auto; }
+  .zones .label { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; padding:4px 8px 10px; }
+  .zone { display:flex; flex-direction:column; gap:3px; padding:10px 12px; border-radius:12px; cursor:pointer; border:1.5px solid transparent; margin-bottom:6px; }
+  .zone.active { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.4); }
+  .zone .z-top { display:flex; align-items:center; gap:8px; }
+  .zone .z-ico { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .zone .z-name { font-size:12.5px; font-weight:600; color:#e2e8f0; }
+  .zone .z-meta { font-size:10.5px; color:#64748b; padding-left:36px; }
+  .zone .z-workers { font-size:10px; color:#94a3b8; padding-left:36px; }
+
+  /* 右: 场景画布 (当前项目区的空间) */
+  .stage { flex:1; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+
+  /* 场景背景 (实验室) */
+  .scene { flex:1; position:relative; overflow:hidden; }
+  .scene-bg { position:absolute; inset:0; }
+  .scene-lab { background:linear-gradient(180deg,#121a2e 0%,#0d1524 55%,#0a101c 100%); }
+  .scene-lab .floor { position:absolute; left:0; right:0; bottom:0; height:34%; background:linear-gradient(180deg,transparent,rgba(15,23,42,.6)); }
+  .scene-lab .grid-floor { position:absolute; left:0; right:0; bottom:0; height:34%;
+    background-image:linear-gradient(rgba(96,165,250,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(96,165,250,.07) 1px,transparent 1px);
+    background-size:46px 46px; }
+
+  /* 场景元素 (实验室: 实验台/仪器/白板) */
+  .prop { position:absolute; display:flex; flex-direction:column; align-items:center; font-size:15px; color:#94a3b8; }
+  .prop .p-emoji { font-size:34px; filter:drop-shadow(0 4px 8px rgba(0,0,0,.4)); }
+  .prop .p-label { font-size:9.5px; margin-top:3px; color:#64748b; }
+  .bench { left:8%; bottom:18%; }
+  .microscope { left:34%; bottom:17%; }
+  .monitor-wall { right:9%; bottom:20%; font-size:30px; }
+  .whiteboard { right:30%; top:14%; font-size:38px; }
+  .shelf { left:14%; top:12%; font-size:30px; }
+
+  /* 员工角色 (在场景中, 有动作) */
+  .worker { position:absolute; display:flex; flex-direction:column; align-items:center; cursor:pointer; transition:left 1.2s ease, bottom 1.2s ease; }
+  .worker .w-body { width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:26px; position:relative;
+    box-shadow:0 6px 20px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06); }
+  .worker .w-name { font-size:10.5px; font-weight:600; color:#cbd5e1; margin-top:5px; background:rgba(15,23,42,.8); padding:2px 8px; border-radius:999px; }
+  .worker .w-status { font-size:9px; color:#94a3b8; margin-top:2px; }
+
+  /* 状态圈 */
+  .w-busy .w-body { background:linear-gradient(135deg,#60a5fa,#818cf8); animation:busy-breathe 2.4s ease-in-out infinite; }
+  .w-idle .w-body { background:linear-gradient(135deg,#475569,#64748b); }
+  .w-alert .w-body { background:linear-gradient(135deg,#fbbf24,#f59e0b); animation:alert-pulse 1.2s infinite; }
+  .w-done .w-body { background:linear-gradient(135deg,#34d399,#10b981); }
+  @keyframes busy-breathe { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+  @keyframes alert-pulse { 0%,100%{box-shadow:0 6px 20px rgba(0,0,0,.4)} 50%{box-shadow:0 6px 30px rgba(245,158,11,.5)} }
+
+  /* 说话气泡 (员工动作: 正在说什么) */
+  .bubble { position:absolute; top:-44px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.95); color:#1e293b; font-size:11px; padding:5px 11px; border-radius:10px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.3); opacity:0; transition:opacity .4s; }
+  .worker:hover .bubble, .worker.show-bubble .bubble { opacity:1; }
+  .bubble::after { content:''; position:absolute; bottom:-5px; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:rgba(255,255,255,.95); }
+
+  /* 动作粒子 (正在干活的光效) */
+  .spark { position:absolute; width:4px; height:4px; border-radius:50%; background:#93c5fd; opacity:0; }
+  .worker.w-busy .spark { animation:spark-fly 1.8s infinite; }
+  @keyframes spark-fly { 0%{opacity:0;transform:translate(0,0)} 30%{opacity:1} 100%{opacity:0;transform:translate(24px,-26px)} }
+
+  /* 场景切换 (项目区内子场景) */
+  .scene-tabs { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:5px; background:rgba(15,23,42,.85); padding:4px; border-radius:11px; border:1px solid rgba(148,163,184,.18); z-index:5; }
+  .scene-tabs button { border:none; background:transparent; color:#94a3b8; font-size:11.5px; padding:6px 13px; border-radius:8px; cursor:pointer; }
+  .scene-tabs button.active { background:rgba(96,165,250,.2); color:#e2e8f0; font-weight:600; }
+
+  /* 可折叠面板 (右下角, 不占场景) */
+  .panel-toggle { position:absolute; right:18px; bottom:18px; z-index:20; display:flex; gap:6px; }
+  .panel-toggle button { border:none; padding:9px 15px; border-radius:11px; font-size:12px; font-weight:600; cursor:pointer; background:rgba(15,23,42,.9); color:#cbd5e1; border:1px solid rgba(148,163,184,.25); display:flex; align-items:center; gap:6px; }
+  .panel-toggle button.on { background:rgba(96,165,250,.2); color:#e2e8f0; border-color:rgba(96,165,250,.4); }
+  .panel { position:absolute; right:18px; bottom:62px; width:330px; background:rgba(15,23,42,.95); border:1px solid rgba(148,163,184,.22); border-radius:16px; z-index:20; box-shadow:0 16px 50px rgba(0,0,0,.5); backdrop-filter:blur(10px); overflow:hidden; }
+  .panel .p-head { padding:11px 15px; border-bottom:1px solid rgba(148,163,184,.14); display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; }
+  .panel .p-body { padding:12px 15px; max-height:320px; overflow:auto; }
+  .panel .p-close { margin-left:auto; border:none; background:transparent; color:#64748b; cursor:pointer; font-size:13px; }
+  .task { display:flex; align-items:center; gap:9px; padding:8px 9px; border-radius:10px; border:1px solid rgba(148,163,184,.12); margin-bottom:6px; background:rgba(255,255,255,.02); }
+  .task .t-ico { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .task .t-name { font-size:12px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .task .t-st { font-size:10px; padding:2px 8px; border-radius:999px; font-weight:600; }
+  .task.run .t-st { background:rgba(96,165,250,.15); color:#93c5fd; }
+  .task.done .t-st { background:rgba(52,211,153,.15); color:#34d399; }
+  .task.warn .t-st { background:rgba(251,191,36,.15); color:#fbbf24; }
+  .feed-item { display:flex; gap:8px; font-size:11.5px; padding:5px 0; align-items:flex-start; }
+  .feed-item .dot { width:7px; height:7px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+  .feed-item .txt { color:#cbd5e1; line-height:1.5; }
+  .feed-item .tm { color:#64748b; font-size:10px; white-space:nowrap; margin-left:auto; }
+
+  .hint { position:absolute; left:20px; bottom:14px; font-size:11px; color:#64748b; z-index:5; }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <div class="logo"><span class="orb">🤖</span> AI 员工</div>
+  <span class="proj-name">当前项目区：<b style="color:#e2e8f0">🧪 分子模拟实验室</b></span>
+  <div class="right">
+    <span>🟢 系统正常</span>
+    <span>今日 1.2k token</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- 左: 项目区列表 (每个项目 = 一个场景) -->
+  <div class="zones">
+    <div class="label">项目区（场景）</div>
+
+    <div class="zone active">
+      <div class="z-top"><span class="z-ico" style="background:rgba(96,165,250,.15)">🧪</span><span class="z-name">分子模拟实验室</span></div>
+      <div class="z-meta">2 员工 · 3 任务</div>
+      <div class="z-workers">🧑‍💻小戴 · 🧑‍🔬小研</div>
+    </div>
+
+    <div class="zone">
+      <div class="z-top"><span class="z-ico" style="background:rgba(52,211,153,.15)">🖥</span><span class="z-name">数据机房</span></div>
+      <div class="z-meta">1 员工 · 2 任务</div>
+      <div class="z-workers">🛠小维</div>
+    </div>
+
+    <div class="zone">
+      <div class="z-top"><span class="z-ico" style="background:rgba(251,191,36,.15)">📚</span><span class="z-name">文献研究组</span></div>
+      <div class="z-meta">1 员工 · 空闲</div>
+      <div class="z-workers">🔍小查</div>
+    </div>
+
+    <div style="margin-top:10px;padding:8px 12px;border:1.5px dashed rgba(148,163,184,.25);border-radius:12px;color:#64748b;font-size:11.5px;text-align:center;cursor:pointer">＋ 新建项目区</div>
+  </div>
+
+  <!-- 右: 场景画布 (实验室空间, 员工有动作) -->
+  <div class="stage">
+    <div class="scene">
+      <div class="scene-bg scene-lab"></div>
+      <div class="grid-floor"></div>
+      <div class="floor"></div>
+
+      <!-- 场景内子场景切换 -->
+      <div class="scene-tabs">
+        <button class="active">🧫 实验台</button>
+        <button>💻 分析区</button>
+        <button>📋 白板区</button>
+      </div>
+
+      <!-- 场景元素 -->
+      <div class="prop bench"><span class="p-emoji">🧪</span><span class="p-label">实验台</span></div>
+      <div class="prop microscope" style="left:38%;bottom:16%"><span class="p-emoji">🔬</span><span class="p-label">显微镜</span></div>
+      <div class="prop monitor-wall"><span class="p-emoji">🖥</span><span class="p-label">分析屏</span></div>
+      <div class="prop whiteboard"><span class="p-emoji">📋</span><span class="p-label">白板</span></div>
+      <div class="prop shelf"><span class="p-emoji">🗄</span><span class="p-label">资料架</span></div>
+
+      <!-- 员工 1: 小戴 (在实验台, 忙碌, 有动作) -->
+      <div class="worker w-busy show-bubble" style="left:13%;bottom:30%">
+        <div class="bubble">正在跑分子模拟…</div>
+        <div class="w-body">🧑‍💻<span class="spark"></span><span class="spark" style="animation-delay:.6s"></span></div>
+        <div class="w-name">小戴</div>
+        <div class="w-status">🧫 实验台 · 忙碌</div>
+      </div>
+
+      <!-- 员工 2: 小研 (在白板前, 空闲) -->
+      <div class="worker w-idle" style="left:55%;bottom:42%">
+        <div class="w-body">🧑‍🔬</div>
+        <div class="w-name">小研</div>
+        <div class="w-status">📋 白板 · 空闲</div>
+      </div>
+
+      <!-- 员工 3: 小查 (在资料架, 有警报) -->
+      <div class="worker w-alert show-bubble" style="left:76%;bottom:28%">
+        <div class="bubble">发现一篇关键文献！</div>
+        <div class="w-body">🔍</div>
+        <div class="w-name">小查</div>
+        <div class="w-status">🗄 资料架 · 有发现</div>
+      </div>
+
+      <div class="hint">点击员工角色查看详情 · 面板可折叠</div>
+
+      <!-- 可折叠面板 -->
+      <div class="panel" id="panel">
+        <div class="p-head">📋 小戴 · 手头任务 <button class="p-close" onclick="document.getElementById('panel').style.display='none'">✕</button></div>
+        <div class="p-body">
+          <div class="task run"><span class="t-ico" style="background:rgba(96,165,250,.12)">💾</span><span class="t-name">跑分子模拟</span><span class="t-st">进行中</span></div>
+          <div class="task run"><span class="t-ico" style="background:rgba(96,165,250,.12)">📊</span><span class="t-name">分析结果数据</span><span class="t-st">进行中</span></div>
+          <div class="task done"><span class="t-ico" style="background:rgba(52,211,153,.12)">📄</span><span class="t-name">整理模拟报告</span><span class="t-st">已完成</span></div>
+          <div class="task warn"><span class="t-ico" style="background:rgba(251,191,36,.12)">⚠️</span><span class="t-name">参数校准</span><span class="t-st">需关注</span></div>
+          <div style="font-size:10.5px;color:#64748b;padding-top:8px;border-top:1px solid rgba(148,163,184,.12);margin-top:6px">
+            🕐 最近：刚刚跑完一次模拟 · 1 小时前整理报告 · 昨天例行巡检
+          </div>
+        </div>
+      </div>
+
+      <!-- 面板开关 -->
+      <div class="panel-toggle">
+        <button class="on" onclick="var p=document.getElementById('panel');p.style.display=p.style.display==='none'?'block':'none'">📋 任务</button>
+        <button>👁 监控</button>
+        <button>💬 对话</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

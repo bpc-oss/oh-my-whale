@@ -1,0 +1,10 @@
+name: Verifier Standard
+description: >-
+  anchored-standard 性能机制（context-gate + 首轮锚定 tool-bootstrap + 发现式解锁）
+  + llm-as-a-verifier 验证器工具（verifier_select / compare / track / progress /
+  usage / doctor / context / dsh_trajectory），仅本 preset 会话可见。首轮目录 =
+  bash + str_replace_editor + verifier_doctor（后端自检）；首个工具调用/回复后
+  提升，verifier-guide 近距离注入「默认调用」规则，其余 verifier_* 经
+  dev_tool_search 解锁后常驻。验证器模型跟随当前对话（deepseek-v4-flash，
+  走 b.ai 端点，DeepSeek 风格调用获取 logprobs；不落回官方 API）。
+order: 8
