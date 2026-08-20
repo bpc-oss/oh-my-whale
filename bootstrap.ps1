@@ -96,7 +96,7 @@ if (-not $SkipInstall) {
   # Prepare link/file-dir targets from SOURCES.json
   $sources = Get-Content "$Repo\plugins\SOURCES.json" -Raw | ConvertFrom-Json
   $vars = @{
-    "{{PLUGIN_SOURCES_DIR}}" = "E:\ai-files"
+    "{{PLUGIN_SOURCES_DIR}}" = $env:OMW_PLUGIN_SOURCES_DIR
     "{{USER_HOME}}" = $env:USERPROFILE
     "{{DSH_USER_HOME}}" = $DshHome
     "{{CHROME_FAITHFUL_DIR}}" = "$env:USERPROFILE\chrome-faithful"

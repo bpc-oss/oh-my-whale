@@ -18,7 +18,7 @@ $Vars = @{
   "{{USER_HOME}}"           = $UserHome
   "{{LOCAL_APP_DATA}}"      = "$UserHome\AppData\Local"
   "{{USER_NAME}}"           = $User
-  "{{PLUGIN_SOURCES_DIR}}"  = "E:\ai-files"
+    "{{PLUGIN_SOURCES_DIR}}"  = $env:OMW_PLUGIN_SOURCES_DIR
   "{{TAILSCALE_HOST}}"      = ""
   "{{UV_PYTHON_PATH}}"      = ""
   "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
@@ -34,7 +34,7 @@ if ($uvPython) { $Vars["{{UV_PYTHON_PATH}}"] = $uvPython.FullName }
 # Interactive prompts for values that differ per machine (skip with -DefaultsOnly)
 if (-not $DefaultsOnly) {
   $prompts = @(
-    @("{{PLUGIN_SOURCES_DIR}}", "Plugin sources dir (e.g. E:\ai-files or ~\ai-files)"),
+    @("{{PLUGIN_SOURCES_DIR}}", "Plugin sources dir (set OMW_PLUGIN_SOURCES_DIR, e.g. D:\ai-files)"),
     @("{{TAILSCALE_HOST}}", "Tailscale hostname (optional, e.g. host.tailXXXX.ts.net)"),
     @("{{UV_PYTHON_PATH}}", "uv python executable path (optional)"),
     @("{{CHROME_FAITHFUL_DIR}}", "chrome-faithful source dir"),
