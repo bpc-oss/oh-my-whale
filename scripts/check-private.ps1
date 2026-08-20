@@ -7,7 +7,9 @@ if (-not $RepoDir) { $RepoDir = Split-Path -Parent $PSScriptRoot }
 $fail = 0
 $SelfScripts = @(
   (Join-Path $RepoDir "scripts\check-private.ps1"),
-  (Join-Path $RepoDir "scripts\template-render.ps1")
+  (Join-Path $RepoDir "scripts\template-render.ps1"),
+  (Join-Path $RepoDir "scripts\pre-commit"),
+  (Join-Path $RepoDir ".github\workflows\ci.yml")
 )
 # Standalone plugin sources may contain legitimate path references in their docs
 $AllowedDirs = @(

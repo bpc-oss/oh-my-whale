@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  privacy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for machine-private data
+        run: |
+          # Case-sensitive scan for real machine paths & secrets
+          if grep -rnE "C:\\\\Users\\\\Administrator|C:/Users/Administrator|E:\\\\ai-files|E:/ai-files|C:\\\\ProgramData\\\\AgentOS" \
+            --include="*.md" --include="*.yml" --include="*.yaml" --include="*.json" --include="*.toml" --include="*.ps1" --include="*.mjs" --include="*.js" \
+            --exclude-dir=".git" .; then
+            echo "FAIL: machine-private path found"
+            exit 1
+          fi
+          echo "paths: clean"
+
+      - name: Scan for secrets
+        run: |
+          if grep -rnE "sk-[a-zA-Z0-9]{16,}|password['\"]?\s*[:=]\s*['\"][^'\"]{6,}['\"]|@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}" \
+            --include="*.yml" --include="*.yaml" --include="*.json" --include="*.toml" --include="*.mjs" --include="*.js" \
+            --exclude-dir=".git" --exclude-dir="standalone" .; then
+            echo "FAIL: possible secret found"
+            exit 1
+          fi
+          echo "secrets: clean"
+
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: node --check all mjs
+        run: |
+          for f in $(find . -name "*.mjs" -not -path "./.git/*"); do
+            node --check "$f" || exit 1
+          done
+          echo "all mjs syntax OK"
+
+      - name: JSON valid
+        run: |
+          for f in plugins/SOURCES.json patches/manifest.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1
+          done
+          echo "JSON OK"
+
+      - name: Patches non-empty and git-apply format
+        run: |
+          for f in patches/host/*.patch patches/profile/*.patch; do
+            [ -s "$f" ] || { echo "EMPTY: $f"; exit 1; }
+            head -1 "$f" | grep -q "^# From:" || { echo "BAD HEADER: $f"; exit 1; }
+          done
+          echo "patches OK"
+
+  template-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Template placeholders consistent
+        run: |
+          # Every {{VAR}} used in templates must be defined in template-render.ps1
+          VARS=$(grep -oE "\{\{[A-Z_]+\}\}" config/settings.yaml.template profile/*.template plugins/SOURCES.json 2>/dev/null | sort -u)
+          DEFINED=$(grep -oE "\{\{[A-Z_]+\}\}" scripts/template-render.ps1 | sort -u)
+          for v in $VARS; do
+            echo "$DEFINED" | grep -qF "$v" || { echo "UNDEFINED VAR: $v"; exit 1; }
+          done
+          echo "template vars OK"
