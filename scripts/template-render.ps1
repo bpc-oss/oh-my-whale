@@ -24,7 +24,7 @@ $Vars = @{
   "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
   "{{AGENT_OS_BRIDGE}}"     = "C:\ProgramData\AgentOS\LCO-Client\agentos-lco-dsh-bridge.exe"
   "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
-  "{{VOICE_MODEL_DIR}}"     = "$UserHome\dsh-voice-input\dsh-voice-models"
+  "{{VOICE_MODEL_DIR}}"     = "$UserHome/dsh-voice-input/dsh-voice-models"
 }
 
 # Auto-detect uv python if present (plan: UV_PYTHON_PATH 自动探测)
