@@ -1,0 +1,212 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+permission:
+  defaultPreset: danger-full-access
+llm-deepseek:
+  retryPolicy:
+    mode: normal
+    maxRetries: 5
+ui-theme:
+  preference: light
+agent-default-model:
+  provider: bai
+  model: deepseek-v4-flash
+  reasoningEffort: max
+llm-pi-ai:
+  providers:
+    dgx-spark-vllm:
+      displayName: DGX Spark DeepSeek V4 (Responses)
+      api: openai-responses
+      baseURL: http://127.0.0.1:18008/v1
+      reasoning: high
+      streamIdleTimeoutMs: 1800000
+      retryPolicy:
+        mode: normal
+        maxRetries: 5
+      models:
+        - id: deepseek-v4-flash-0731-ablit
+          name: Local DeepSeek V4 Flash
+          contextWindow: 1048576
+          maxTokens: 256000
+          reasoningEfforts:
+            'off': null
+            high: high
+            max: max
+        - id: deepseek-v4-flash-0731-ablit (256K)
+          name: 256-Local DeepSeek V4 Flash
+          contextWindow: 256000
+          maxTokens: 64000
+      apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+    dgx-spark-qwen-vl:
+      displayName: DGX Spark Qwen3-VL Vision
+      api: openai-completions
+      baseURL: http://127.0.0.1:18010/v1
+      defaultInput:
+        - text
+        - image
+      models:
+        - id: Qwen/Qwen3-VL-2B-Instruct
+          name: Local Qwen3-VL 2B FP8
+          contextWindow: 6145
+          maxTokens: 512
+      apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+    opencode-go:
+      models:
+        - id: minimax-m3
+          name: MiniMax-M3
+          contextWindow: 1000000
+          maxTokens: 131072
+        - id: qwen3.7-max
+          name: Qwen3.7 Max
+          contextWindow: 1000000
+          maxTokens: 65536
+        - id: qwen3.7-plus
+          name: Qwen3.7 Plus
+          contextWindow: 1000000
+          maxTokens: 65536
+        - id: deepseek-v4-flash
+          name: DeepSeek V4 Flash
+          contextWindow: 1000000
+          maxTokens: 384000
+        - id: deepseek-v4-pro
+          name: DeepSeek V4 Pro
+          contextWindow: 1000000
+          maxTokens: 384000
+        - id: glm-5.1
+          name: GLM-5.1
+          contextWindow: 202752
+          maxTokens: 32768
+        - id: glm-5.2
+          name: GLM-5.2
+          contextWindow: 1000000
+          maxTokens: 131072
+        - id: hy3
+          name: Hy3
+          contextWindow: 256000
+          maxTokens: 64000
+        - id: kimi-k2.6
+          name: Kimi K2.6
+          contextWindow: 262144
+          maxTokens: 65536
+        - id: kimi-k2.7-code
+          name: Kimi K2.7 Code
+          contextWindow: 262144
+          maxTokens: 262144
+        - id: kimi-k3
+          name: Kimi K3 (2x usage)
+          contextWindow: 1048576
+          maxTokens: 131072
+        - id: mimo-v2.5
+          name: MiMo V2.5
+          contextWindow: 1000000
+          maxTokens: 128000
+        - id: mimo-v2.5-pro
+          name: MiMo V2.5 Pro
+          contextWindow: 1048576
+          maxTokens: 128000
+        - id: minimax-m2.7
+          name: MiniMax-M2.7
+          contextWindow: 204800
+          maxTokens: 131072
+        - id: qwen3.6-plus
+          name: Qwen3.6 Plus
+          contextWindow: 1000000
+          maxTokens: 65536
+        - id: grok-4.5
+          name: Grok 4.5
+          contextWindow: 500000
+          maxTokens: 500000
+      apiKeyEnv: OPENCODE_GO_API_KEY
+    opencode:
+      models:
+        - id: deepseek-v4-flash-free
+          name: DeepSeek V4 Flash Free
+          contextWindow: 200000
+          maxTokens: 128000
+        - id: laguna-s-2.1-free
+          name: Laguna S 2.1 Free
+          contextWindow: 256000
+          maxTokens: 32000
+        - id: ling-3.0-flash-free
+          name: Ling-3.0-flash Free
+          contextWindow: 262144
+          maxTokens: 32768
+        - id: mimo-v2.5-free
+          name: MiMo V2.5 Free
+          contextWindow: 200000
+          maxTokens: 32000
+        - id: nemotron-3-ultra-free
+          name: Nemotron 3 Ultra Free
+          contextWindow: 1000000
+          maxTokens: 128000
+        - id: north-mini-code-free
+          name: North Mini Code Free
+          contextWindow: 256000
+          maxTokens: 64000
+      apiKeyEnv: OPENCODE_API_KEY
+    bai:
+      displayName: B.AI
+      apiKeyEnv: BAI_API_KEY
+      api: openai-completions
+      baseURL: https://api.b.ai/v1/
+      retryPolicy:
+        mode: always
+      models:
+        - id: deepseek-v4-flash
+          name: deepseek-v4-flash
+          contextWindow: 1000000
+          maxTokens: 256000
+          # 2026-08-20：bai 是 DeepSeek 兼容 API——thinking 模式必须回传 reasoning_content。
+          # 思考挡位对齐 DeepSeek 官方（reasoning_effort 仅 low/high/max 三档，见官方 thinking_mode 文档）。
+          # 挡位数由键决定：off + high + max = 三档可选（与官方 deepseek 模型一致）。
+          reasoningEfforts:
+            'off': null
+            high: high
+            max: max
+    dgx-spark-qwen27b:
+      displayName: DGX Spark Qwen 3.8-27B (Responses)
+      api: openai-responses
+      baseURL: http://127.0.0.1:18009/v1
+      streamIdleTimeoutMs: 1800000
+      retryPolicy:
+        mode: normal
+        maxRetries: 5
+      apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+      models:
+        - id: qwen3.8-27b-sglang
+          name: Local Qwen 3.8-27B SGLang
+          contextWindow: 262144
+          maxTokens: 32768
+          # 2026-08-20：思考强度映射（模型级，provider 级会 schema 校验失败导致整个 llm-pi-ai 拒载）
+          reasoningEfforts:
+            'off': null
+            low: low
+            medium: medium
+            high: xhigh
+dsh-better-sidebar:
+  defaultWidthPercent: 30
+  openByDefault: false
+  interceptOpenPath: true
+  titleBarCompat: true
+bash-terminal:
+  defaultShell: gitbash
+agent-presets:
+  default: anchored-standard
+dsh-community-market:
+  sources:
+    - sourceRecordId: 348f55d8-cee9-44b4-974c-a1941e16c6d7
+      registrationKind: built-in
+      adapterId: market.dsh-1024store-v1
+      providerId: com.deepseek1024.catalog
+      builtInProviderKey: dsh-1024store
+      enabled: true
+      order: 0
+    - sourceRecordId: e6aae627-d78e-4277-8eba-327d17881a82
+      registrationKind: built-in
+      adapterId: market.dshfind-v1
+      providerId: com.dshfind.catalog
+      builtInProviderKey: dshfind
+      enabled: false
+      order: 1
+dsh-desktop:
+  mode: advanced

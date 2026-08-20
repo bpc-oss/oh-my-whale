@@ -1,0 +1,22 @@
+packages:
+  - .
+
+overrides:
+  '@bpc-oss/dsh-client-ui-verification': file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz
+  '@bpc-oss/dsh-evidence': file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz
+  '@bpc-oss/dsh-verification': file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz
+  chrome-faithful: file:{{CHROME_FAITHFUL_DIR}}
+
+nodeLinker: hoisted
+autoInstallPeers: false
+minimumReleaseAgeExclude:
+  - '@deepseek-ai/cosmokit@1.8.2'
+  - '@deepseek-ai/schemastery@3.18.1'
+  - dsh-bash-terminal@0.3.11
+  - dsh-better-sidebar@0.10.3
+  - dsh-plugin-manager@0.1.0
+  - '@liustack/modlens'
+  - '@liustack/modsearch'
+allowBuilds:
+  node-pty: true
+  protobufjs: true

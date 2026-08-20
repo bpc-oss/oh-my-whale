@@ -1,0 +1,189 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+#
+# dsh-web-billing 已作为 bundle 安装（见 package.json 的 dsh.profile.bundles），
+# 其自带 cordis.patch.yml 提供默认配置，本层无需重复 insert。
+# 如需覆盖其配置，按 id 覆写整行即可（覆盖会替换整份 config）：
+#
+# - id: web-billing
+#   config:
+#     currency: CNY
+#     symbol: '¥'
+#     displayCurrency: auto
+#     # 注意：给某个模型配置 prices 会「冻结」该模型价格（覆盖官方政策，含峰谷），一般不需要。
+#     # prices:
+#     #   my-custom-model: { input: 1, cacheRead: 0.05, output: 2 }
+#     # policyOverrides:
+#     #   - since: '2026-09-01T00:00:00+08:00'
+#     #     label: 示例
+#     #     prices:
+#     #       deepseek-v4-flash: { input: 5, cacheRead: 0.1, output: 10 }
+# 本地模型按官方价计费（省了多少钱）：localProviders 里的 provider 按官方价格表计算
+# 名义价值，实际成本按 localCostPerM（默认 0 = 免费），差值计入「已节省」。
+- id: web-billing
+  config:
+    currency: CNY
+    symbol: '¥'
+    symbolUsd: '$'
+    displayCurrency: auto
+    localProviders:
+      - dgx-spark-vllm
+      - dgx-spark-qwen-vl
+    # 2026-08-20 降载：默认 maxRecent=100000 导致 detail 账本 52MB、30s 全量序列化
+    # 卡事件循环（宿主死循环诱因之一）。20000 条 ≈ 满足常规对账，滚剪不丢统计聚合。
+    maxRecent: 20000
+    maxMessagesPerSession: 500
+    # 明细文件防抖写间隔 ms（默认 30000）。调大到 60000 进一步降写频率；
+    # 明细在内存全量，仅落盘更慢（掉电最多丢 60s 明细，统计聚合不丢）。
+    detailWriteIntervalMs: 60000
+    # localCostPerM: 0        # 本地实际单价（¥/1M，默认 0；可填电费/算力成本）
+# 2026-08-20 卡顿优化（§1 首选）：session-projection-cache 每 5s/200 事件全量重写
+# 26MB projcache，7 活跃会话 → 每 5s 最多 7 次整文件写（~36MB/s）占满事件循环。
+# 覆盖为 30s/500 事件：6 倍降载；projcache 是投影缓存（源数据 session.jsonl.zstd
+# 永在），崩溃最多丢最后 30s 缓存，coldSnapshot 自动从持久层重建，质量零丢。
+- id: session-projection-cache
+  config:
+    writeEveryEvents: 500
+    writeIntervalMs: 30000
+- id: vision-toolkit
+  config:
+    provider:
+      baseUrl: http://127.0.0.1:18005/v1
+      credential: DGX_SPARK_VLLM_API_KEY
+      model: Qwen/Qwen3-VL-2B-Instruct
+    language: zh
+    timeoutMs: 180000
+    maxImageBytes: 10485760
+    maxImagePixels: 40000000
+    concurrency: 1
+    runtime:
+      mode: managed
+      python: '{{UV_PYTHON_PATH}}'
+    allowedDirs: []
+# P0-1 verification 插件（2026-08-20 重构：全局引擎移除，只保留客户端）。
+# 引擎改为只在 enforce-standard preset 挂载（enforce 模式）——其他会话零验证开销。
+# 客户端保持全局：仅在会话有验证状态时渲染 UI（无引擎的会话无状态、无 UI）。
+- insert:
+    # P0-1 verification 插件：引擎全局（advisory）+ 客户端。
+# 引擎按 session.header.agentPreset 激活 enforce（modeOf），enforce-standard 会话进 enforce。
+# 其他会话保持 advisory 不拦截（仅记录；不调用验证工具时无状态写入）。
+- insert:
+    - id: bpc-verification-engine
+      name: "@bpc-oss/dsh-verification"
+      config:
+        mode: advisory
+        intent:
+          provider: bai
+          model: deepseek-v4-flash
+- insert:
+    - id: bpc-verification-client
+      name: "@bpc-oss/dsh-client-ui-verification"
+# 手机远程访问（2026-08-16 配置）：Tailscale Serve 把 127.0.0.1:<web端口>
+# 暴露为 https://{{TAILSCALE_HOST}}（仅 tailnet 内可访问）。
+# /api 信任围栏按 Host 放行；web-runtime 行把受信 authority 并入 webRuntime.trustedHosts，
+# connection 行已引用该值（无端口=匹配任意端口）。
+# 注意：js-yaml 不支持 !!js 直接作用在流式数组上，须用带引号的整体 js 表达式。
+# 撤销远程访问时删除本块，并执行：tailscale serve reset
+- id: web-runtime
+  config:
+    printUrl: true
+    surfaceContext: true
+    trustedHosts: !!js "['{{TAILSCALE_HOST}}', ...ctx.webStartup.trustedHosts]"
+# dsh-voice-input 语音输入插件（本地离线识别模型目录；覆盖 bundle 层默认值。
+# 撤销时删除本块即可回退到「浏览器识别」模式）。
+- id: voice
+  config:
+    engine: auto
+    modelDir: '{{DSH_USER_HOME}}/dsh-voice-input/dsh-voice-models'
+    asrDir: 'asr-zh'
+    vadThreshold: 0.3
+    tailPadSeconds: 0.6
+    hotkey: 'ctrl+space'
+    lang: auto
+    autoSend: false
+    punct: smart
+# dsh-token-meter-hermes：Hermes 风格上下文分解投影（contextBreakdownHermes），
+# CJK 密度感知估算 + 图片 flat cost + 8 类 breakdown。不碰 token-meter 现有投影。
+# 撤销时删除本块即可（package.json 依赖可留可删）。
+- insert:
+    - id: token-meter-hermes
+      name: dsh-token-meter-hermes
+      config:
+        imageTokenCost: 1500
+
+
+# 全局会话级工具解锁：所有 preset/对话统一获得 dev_tool_search（搜索 + 当前会话解锁记录）
+# 注意：文件入口必须用 file:// URL（Windows 裸路径 c:/... 会被 ESM loader 拒绝，host 启动即崩）
+- insert:
+    - id: session-tool-unlock
+      name: file:///{{DSH_USER_HOME}}/profiles/web/session-tool-unlock.mjs
+      config: {}
+
+# 全局 Skills 工具：所有启用 preset/对话统一获得 skill_search / skill_load
+# 注意：文件入口必须用 file:// URL；employee-ops 等 worker preset 默认禁用
+- insert:
+    - id: global-skill-tools
+      name: file:///{{DSH_USER_HOME}}/profiles/web/global-skill-tools.mjs
+      config:
+        disabledPresets:
+          - employee-ops
+        maxResults: 20
+        maxBodyChars: 120000
+
+# 研究编排 + 知识内化（M1 最小闭环）：research_orchestrator + knowledge_ingest
+# 注意：文件入口必须用 file:// URL
+- insert:
+    - id: research-orchestrator
+      name: file:///{{DSH_USER_HOME}}/profiles/web/research-orchestrator.mjs
+      config: {}
+- insert:
+    - id: knowledge-ingest
+      name: file:///{{DSH_USER_HOME}}/profiles/web/knowledge-ingest.mjs
+      config: {}
+
+# 2026-08-18：用户已授予 full access——verifyOnInstall:false 将未验证安装类命令从 T3-ask 降为 T2 直接放行。
+- id: continuous-worker
+  config:
+    supplyChain:
+      verifyOnInstall: false
+
+
+# 已卸载插件（@dsh-external/test-run-plugin）：disabled 阻断其 bundle patch 自装配
+- id: test-run-plugin
+  disabled: true
+
+# Agent OS LCO adapter — observer stage（插件当前仅接受 observer|store；canary 模式尚未在插件实现）
+- id: agentos-dsh-lco
+  config:
+    mode: store
+    expectSpillPolicyAbove: 50000
+    sampleRate: 1.0
+    thresholdChars: 8192
+    headChars: 4096
+    tailChars: 1024
+    bridgePath: {{AGENT_OS_BRIDGE}}
+
+
+# 2026-08-20 v2.0.1 compatibility: chrome-faithful-mcp MCP spawn fails on new shell (Electron main process)
+# failOnStartupError: false makes it warn/retry instead of fatal boot.
+- id: chrome-faithful-mcp
+  config:
+    serverName: chrome_faithful
+    transport: stdio
+    command: !!js process.execPath
+    args:
+      - !!js >-
+          process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@bpc-oss/dsh-plugin-chrome-faithful/mcp-server')
+    env: !!js >-
+      ({ ...Object.fromEntries(['AGENTOS_CHROME_CONFIG', 'CHROME_FAITHFUL_PYTHON', 'CHROME_FAITHFUL_PPOCR_DET_MODEL_DIR', 'CHROME_FAITHFUL_PPOCR_REC_MODEL_DIR', 'CHROME_FAITHFUL_VLM_BACKEND', 'CHROME_FAITHFUL_OCR_BACKEND'].flatMap((key) => typeof process.env[key] === 'string' ? [[key, process.env[key]]] : [])), ELECTRON_RUN_AS_NODE: '1' })
+    toolCallTimeoutMs: 60000
+    failOnStartupError: false
+
+# 2026-08-20 plugin-gateway P2 audit: dsh-web-billing #8 write-amplification
+# maxRecent=100000 exceeds the 50000 heuristic threshold. Covering to a safe
+# value (50000 = 10x the max-observations-per-session ceiling, well above the
+# 4k-8k typical turns). User can remove/adjust this override.
+- id: web-billing
+  config:
+    detailMaxRecent: 50000
