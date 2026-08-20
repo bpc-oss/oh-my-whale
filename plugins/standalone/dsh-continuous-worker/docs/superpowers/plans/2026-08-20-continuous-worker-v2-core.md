@@ -12,7 +12,7 @@
 
 **Global Constraints:** Work only in `.worktrees/v2-core`; do not edit active DSH config/state, restart DSH, switch the active plugin, install packages, or activate v2. Preserve v1 APIs and all 123 legacy tests. Never infer completion from `idle`. Never auto-retry an ambiguous side effect. Use explicit schemas, bounded inputs, canonical paths, one-use approvals, and immutable audit events. Do not store raw chain-of-thought. After each task, a separate reviewer checks the committed diff; findings are fixed by the same implementer before the next task.
 
-**Node command used below:** `'/mnt/c/Users/Administrator/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'`
+**Node command used below:** `'/mnt/c/Users/{{USER_NAME}}/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'`
 
 ---
 
