@@ -1,0 +1,11 @@
+# Loader-internal access patterns (check #7, discipline layer).
+# Each line: pattern|description
+# These are WARNING-level: they flag risk, the authoritative guard is the
+# loader anti-cycle patch (visited-set + parentEntry, applied 2026-08-20).
+entry\.parent\.data|direct mutation of loader entry parent data (reload-cycle risk)
+\.subgroup\b|direct loader group structure access
+\.tree\.store\b|direct loader entry tree store access
+ctx\.fiber\.entry|direct fiber entry access (parent-chain cycle risk)
+loader\.internal|loader internals access
+loadCache|module cache manipulation (reload breakage risk)
+registry\.plugin\b|direct fiber creation bypassing loader contract

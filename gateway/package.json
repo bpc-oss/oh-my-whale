@@ -1,0 +1,8 @@
+{
+  "name": "dsh-plugin-gateway",
+  "version": "1.0.0",
+  "description": "DSH plugin admission gateway: validates plugins before they enter a profile. Zero-dependency (node builtins only).",
+  "private": true,
+  "type": "module",
+  "license": "MIT"
+}

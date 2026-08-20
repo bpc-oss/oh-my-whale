@@ -27,7 +27,9 @@ $patterns = @(
   "file:///C:/Users/Administrator",
   "file:///C:\\Users\\Administrator",
   "sk-[a-zA-Z0-9]{20,}",
-  "api[_-]?key['""]?\s*[:=]\s*['""][^'""]{8,}['""]"
+  "api[_-]?key['""]?\s*[:=]\s*['""][^'""]{8,}['""]",
+  "@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}",
+  "password['""]?\s*[:=]\s*['""][^'""]{6,}['""]"
 )
 
 $files = Get-ChildItem -Path $RepoDir -Recurse -File |
