@@ -11,7 +11,7 @@
 
 - The active `web` and `headless` DSH profiles may resolve this repository through symlinks. Do not develop directly in the active checkout; use an isolated Git worktree under `.worktrees/`.
 - Do not restart DSH, switch the active plugin, edit DSH profile/global configuration, or install a persistent background service without explicit user approval.
-- Treat `C:\Users\Administrator\.dsh\profiles\*\continuous-worker\` as user-owned live state. Do not mutate, delete, or migrate it during development. A future migration requires a dry-run, backup, hashes, and explicit activation approval.
+- Treat `{{DSH_USER_HOME}}\profiles\*\continuous-worker\` as user-owned live state. Do not mutate, delete, or migrate it during development. A future migration requires a dry-run, backup, hashes, and explicit activation approval.
 - Preserve credentials, caches, sessions, existing employees, schedules, checkpoints, and unrelated dirty work.
 - The v2 control plane owns permissions, budgets, approvals, hidden verification, promotion, rollback, and emergency stop. A model may propose changes but may not expand its own authority.
 - Do not store or display raw chain-of-thought. Persist concise plan, decision, tool, evidence, and outcome summaries only.
@@ -23,8 +23,8 @@
 - Build client: `npm run build:client`
 - Run v2 tests: `node --test test/v2/*.test.mjs`
 - Run all source tests: `npm test && node --test test/v2/*.test.mjs`
-- Validate Agent OS project metadata (PowerShell): `C:\Users\Administrator\.agent-os\bin\agent-os.ps1 validate-project E:\ai-files\dsh-continuous-worker`
-- Close out a development session (PowerShell): `C:\Users\Administrator\.agent-os\bin\agent-lessons.ps1 closeout -Project E:\ai-files\dsh-continuous-worker`
+- Validate Agent OS project metadata (PowerShell): `{{USER_HOME}}\.agent-os\bin\agent-os.ps1 validate-project {{PLUGIN_SOURCES_DIR}}\dsh-continuous-worker`
+- Close out a development session (PowerShell): `{{USER_HOME}}\.agent-os\bin\agent-lessons.ps1 closeout -Project {{PLUGIN_SOURCES_DIR}}\dsh-continuous-worker`
 
 The WSL shell currently exposes Node 20, while production v2 storage requires Node 22. Use the Codex bundled Node executable reported by `load_workspace_dependencies`, or the DSH host Node 22 runtime, for `node:sqlite` tests. Record the exact executable used.
 

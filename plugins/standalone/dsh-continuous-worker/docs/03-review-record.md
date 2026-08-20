@@ -281,7 +281,7 @@ Medium（M1-M7）建议同批返修；Low/Nit 可随实现阶段消化。复审�
 ### 审查范围与方法
 
 - 审查对象：`docs/02-design.md` v0.6 增量 §13.11-13.15（安全三角），对照 §13.1 总览、§7 工具面、§8 配置面、§12 里程碑、§14 风险与 §3（单一持久身份）/§6/§9 既有语义；逐条核对四个平台安全原语 README（宿主 node_modules 实测）；参考 `docs/03-review-record`（R1-R4 已闭环项，避免重复提）与 `docs/04-evidence-kimi-claw.md`。
-- 方法：§13.12-13.14 每个"复用平台原语"的声称与 README 原文比对；每个 fail-closed / 防越权 / 禁自降级承诺追问"强制点在哪、由谁执行、能否绕过"；配置/工具/里程碑/风险编号一致性核对。环境实测：`$DSH_HOME = C:\Users\Administrator\.dsh` 即会话工作区根（PWD 相同），`$DSH_HOME\.credentials.yaml` 存在且位于工作区内（workspace-write 沙箱可读/可写）。
+- 方法：§13.12-13.14 每个"复用平台原语"的声称与 README 原文比对；每个 fail-closed / 防越权 / 禁自降级承诺追问"强制点在哪、由谁执行、能否绕过"；配置/工具/里程碑/风险编号一致性核对。环境实测：`$DSH_HOME = {{DSH_USER_HOME}}` 即会话工作区根（PWD 相同），`$DSH_HOME\.credentials.yaml` 存在且位于工作区内（workspace-write 沙箱可读/可写）。
 
 ### 发现（按严重度）
 

@@ -72,7 +72,7 @@ Agent 实例公开下列宿主侧方法，**插件可调用它们主动驱动 ag
 
 ## 6. 模型工具注册：ctx.tools + defineTool（已装插件实证）
 
-来源：`C:\Users\Administrator\.dsh\profiles\web\node_modules\dsh-bash-terminal\`
+来源：`{{DSH_USER_HOME}}\profiles\web\node_modules\dsh-bash-terminal\`
 
 - 宿主插件 `apply(ctx, config)` 内用 `ctx.tools.register(defineTool({ name, description, parameters, output, execute, presentCall, presentResult }))`
 - `inject: ["tools", "systemPrompt", "shellEnv", "subprocess", "settings", "sandbox", ...]`
@@ -103,7 +103,7 @@ Agent 实例公开下列宿主侧方法，**插件可调用它们主动驱动 ag
 
 ## 8. X 项目（治理强度最高的现有参照）
 
-来源：`E:\ai-files\X\deploy\dsh-profile\cordis.patch.yml`（已读全量）
+来源：`{{PLUGIN_SOURCES_DIR}}\X\deploy\dsh-profile\cordis.patch.yml`（已读全量）
 
 - bpc-operator profile = "DSH 认知受限 + 确定性 Python 控制面主导发布"的最高治理形态
 - MCP stdio 桥：`@deepseek-ai/dsh-mcp-client` 拉起 `bpc_operator.mcp_server`，`failOnStartupError: true`

@@ -64,7 +64,7 @@
 
 ## 任意会话按 preset 派子代理（`subagent_as_preset`）——全局插件
 
-**全局插件 `dsh-preset-subagent`**（源码 `E:\ai-files\dsh-preset-subagent`，已热装配到 web profile、`bundles` 持久装配）——**任何 preset 的任意会话**都有 `subagent_as_preset` 工具，包括内置 standard：
+**全局插件 `dsh-preset-subagent`**（源码 `{{PLUGIN_SOURCES_DIR}}\dsh-preset-subagent`，已热装配到 web profile、`bundles` 持久装配）——**任何 preset 的任意会话**都有 `subagent_as_preset` 工具，包括内置 standard：
 
 ```
 subagent_as_preset(prompt="用 dev 工程师标准审查这个仓库", preset="dev", description="dev 审查")
@@ -78,7 +78,7 @@ subagent_as_preset(prompt="用 dev 工程师标准审查这个仓库", preset="d
 
 ### 部署注意
 
-- **全局插件**：源码 `E:\ai-files\dsh-preset-subagent`（含 `node_modules` junction → host node_modules，包内静态 import 依赖它）。热装配：`dev_install_package(dir=E:\ai-files\dsh-preset-subagent)`；重启后由 `bundles` 列表自动装配。移动源码目录需同步重建 junction。
+- **全局插件**：源码 `{{PLUGIN_SOURCES_DIR}}\dsh-preset-subagent`（含 `node_modules` junction → host node_modules，包内静态 import 依赖它）。热装配：`dev_install_package(dir={{PLUGIN_SOURCES_DIR}}\dsh-preset-subagent)`；重启后由 `bundles` 列表自动装配。移动源码目录需同步重建 junction。
 - **dev 自身零依赖**：不涉及 junction；唯一本地插件 `dev-mission.mjs` 无外部 import。
 - **已知耦合点**：`verifier-standard` preset 里有一份旧的 `dev-subagent-preset.mjs` 副本（persona 版插件的残留，已从 dev 移除）。它和全局插件共享 host 平面扩展点——如果给它配置 `extraSkills`，会影响所有子代理。建议确认其来源后删除该副本，全局能力已完全覆盖它。
 

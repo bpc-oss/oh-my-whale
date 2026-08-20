@@ -19,7 +19,7 @@
   提升后 resident 集 + 发现式解锁）、`instruction-hint`（AGENTS.md 存在性提示）、
   `dev-tool-search` / `skill-search`（按需解锁）、compaction-epoch 等。
 - **验证器**（本 preset 专属）：
-  - `dsh-llm-verifier` 行：绝对路径挂载插件（`C:/Users/Administrator/dsh-llm-verifier/lib/index.js`），
+  - `dsh-llm-verifier` 行：绝对路径挂载插件（`{{DSH_USER_HOME}}/dsh-llm-verifier/lib/index.js`），
     工具只对本 preset 会话可见；
   - `verifier-guide.mjs`：提升后**近距离一次性注入**「默认调用」规则——多路 rollout
     后自动 verifier_select 选优、长任务每 8-10 步 verifier_progress 止损、收尾
@@ -49,5 +49,5 @@ VERTEX_API_KEY 环境变量仍可作为用户主动覆盖。
 
 - 基座升级：anchored-standard 的机制 mjs（context-gate / tool-bootstrap /
   compaction-epoch 等）为本地副本，可整体重新克隆刷新。
-- dev 基座旧版备份：`C:\Users\Administrator\dsh-llm-verifier\preset-backups\verifier-standard-dev-base`。
-- 插件本体：`C:\Users\Administrator\dsh-llm-verifier`（bridge/ + python/ + lib/）。
+- dev 基座旧版备份：`{{DSH_USER_HOME}}/dsh-llm-verifier\preset-backups\verifier-standard-dev-base`。
+- 插件本体：`{{DSH_USER_HOME}}/dsh-llm-verifier`（bridge/ + python/ + lib/）。

@@ -131,7 +131,7 @@
   name: '@deepseek-ai/dsh-skill-filesystem'
   config:
     customSkillDirs:
-      - C:/Users/Administrator/.dsh/.agent-presets/dev/skills
+      - {{DSH_USER_HOME}}/.agent-presets/dev/skills
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'

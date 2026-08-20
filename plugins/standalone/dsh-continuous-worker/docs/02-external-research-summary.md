@@ -1,6 +1,6 @@
 # 证据笔记：外部设计模式调研结论（来自独立调研子代理 bfa8a809，已核验来源）
 
-> 完整原文：`C:\Users\Administrator\.dsh\dsh-resident-agent-design-patterns.md`
+> 完整原文：`{{DSH_USER_HOME}}\dsh-resident-agent-design-patterns.md`
 > 以下为与本设计直接相关的核心结论摘录（供设计文档引用，独立审查可溯源到原文）。
 
 ## 1. 最高优先级设计铁律（P0）

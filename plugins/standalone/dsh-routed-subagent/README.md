@@ -10,7 +10,8 @@ The stock `subagent` / `subagent_fork` tools force children to inherit the PAREN
 ## Features
 
 
-- **Background by default, parallel dispatch** — the call returns a job id immediately (like the stock subagent tool); the conversation stays free to do other work or dispatch more children in parallel, and aborting the conversation does NOT cancel the child (stop it with job_kill). Set un_in_background: false to wait inline.**
+- **Background by default, parallel dispatch** — the call returns a job id immediately (like the stock subagent tool); the conversation stays free to do other work or dispatch more children in parallel, and aborting the conversation does NOT cancel the child (stop it with job_kill). Set 
+un_in_background: false to wait inline.**
 - **Full preset mount** — the child runs under the target preset's standing composition (not a persona copy): identity, mission section, skills, tools.
 - **Per-call model override** — `model` / `provider` arguments route the child's LLM call to a different model than this session's (via the official `resolveChildAgentOptions` channel).
 - **Model pre-check** — an invalid model fails fast with the provider's candidate list instead of an opaque child failure.
@@ -112,7 +113,8 @@ Parameters:
   - `materializeTracked` setup is async (awaited by the agent factory) and still returns the `{ commit }` contract
   - continuable descriptors gain an optional `preset` field (version 2 → 3 for continuable only; one-shot stays 2 — a rollback rejects v3 descriptors cleanly as NOT_RESUMABLE, and legacy v2 continuable descriptors still parse)
   - `coldResume` rebuilds the child under the SAME preset from `descriptor.preset`; a missing/broken preset surfaces a named-preset error instead of a generic "unavailable"
-- **rollback**: delete the install junction (esources\host\node_modules\@deepseek-ai\dsh-subagent), copy E:\ai-files\@deepseek-ai\dsh-subagent.orig back into place, restart — official behavior returns (pre-existing preset-continuable children become NOT_RESUMABLE, as designed). Note: keep the fork directory present if any other profile tree junctions to it (dsh-continuous-worker\node_modules\@deepseek-ai\dsh-subagent) still exist, or re-point them.
+- **rollback**: delete the install junction (
+esources\host\node_modules\@deepseek-ai\dsh-subagent), copy {{PLUGIN_SOURCES_DIR}}\@deepseek-ai\dsh-subagent.orig back into place, restart — official behavior returns (pre-existing preset-continuable children become NOT_RESUMABLE, as designed). Note: keep the fork directory present if any other profile tree junctions to it (dsh-continuous-worker\node_modules\@deepseek-ai\dsh-subagent) still exist, or re-point them.
 
 ## Disabling the stock subagent tools
 

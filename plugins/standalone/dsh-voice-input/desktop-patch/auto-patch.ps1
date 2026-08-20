@@ -14,7 +14,7 @@
 # ============================================================
 $ErrorActionPreference = 'Continue'
 $res  = 'C:\Program Files\DeepSeek Harness\resources'
-$proj = 'C:\Users\Administrator\dsh-voice-input\desktop-patch'
+$proj = '{{USER_HOME}}/dsh-voice-input\desktop-patch'
 $ref  = Join-Path $proj 'app.asar.patched'
 $log  = Join-Path $proj 'patch.log'
 

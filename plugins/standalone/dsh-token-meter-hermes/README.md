@@ -30,12 +30,12 @@ token 估算与上下文构成分析方法，移植为 DSH 的独立会话投影
 
 ## 装载（web profile）
 
-把本目录作为本地依赖接入 `C:\Users\Administrator\.dsh\profiles\web`：
+把本目录作为本地依赖接入 `{{DSH_USER_HOME}}\profiles\web`：
 
 1. `package.json` 的 `dependencies` 增加：
 
    ```json
-   "dsh-token-meter-hermes": "file:C:/Users/Administrator/dsh-token-meter-hermes"
+   "dsh-token-meter-hermes": "file:{{USER_HOME}}/dsh-token-meter-hermes"
    ```
 
 2. 在 profile 目录执行 `pnpm install`（生成 node_modules 链接）。

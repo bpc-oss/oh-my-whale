@@ -11,7 +11,8 @@
 
 - **任意 preset、任意会话**：注册在 host 平面（全局层），所有 preset 的会话都有该工具；**新增 preset 零配置**。
 
-- **运行中实时进度**：后台子代理暴露 eadOutput hook——job_output 读 job 时返回实时快照（耗时/idle、事件数、最近的工具/步骤/文本），2 分钟无新事件时标记「可能卡住」，据此判断方向并及时 job_kill。
+- **运行中实时进度**：后台子代理暴露 
+eadOutput hook——job_output 读 job 时返回实时快照（耗时/idle、事件数、最近的工具/步骤/文本），2 分钟无新事件时标记「可能卡住」，据此判断方向并及时 job_kill。
 - **完整挂载**：子代理运行在目标 preset 的 standing 组装下（身份、使命段、技能、工具全用目标 preset 的）。
 - **按次指定模型**：`model` / `provider` 参数把子代理的 LLM 调用路由到与当前会话不同的模型（走官方 `resolveChildAgentOptions` 通道）。
 - **模型预检**：无效模型**快速失败**并列出该 provider 的候选模型，而不是等到子代理晦涩地失败。
@@ -77,9 +78,9 @@ subagent_routed(preset="dev", prompt="审计本仓库", description="审计", co
 ## 平台补丁（continuable + preset 挂载）
 
 `continuable` 模式让子代理挂载目标 preset 并在续话/重启后保持——需要对开源的 `@deepseek-ai/dsh-subagent` 做**纯增量**补丁：
-- **安装级 junction**（唯一装配点）：`resources\host\node_modules\@deepseek-ai\dsh-subagent` → 补丁 fork `E:\ai-files\@deepseek-ai\dsh-subagent`（纯净原包备份于 `E:\ai-files\@deepseek-ai\dsh-subagent.orig`）；插件启动断言在补丁未生效时 fail loud；**不要**给 `@deepseek-ai/dsh-subagent` 加 profile-local `link:`（会分裂模块身份、补丁失效）
+- **安装级 junction**（唯一装配点）：`resources\host\node_modules\@deepseek-ai\dsh-subagent` → 补丁 fork `{{PLUGIN_SOURCES_DIR}}\@deepseek-ai\dsh-subagent`（纯净原包备份于 `{{PLUGIN_SOURCES_DIR}}\@deepseek-ai\dsh-subagent.orig`）；插件启动断言在补丁未生效时 fail loud；**不要**给 `@deepseek-ai/dsh-subagent` 加 profile-local `link:`（会分裂模块身份、补丁失效）
 - **补丁面**（只做加法，无 preset 的官方路径逐字节不变）：`applyChildComposition` 的 `composition.preset` 挂载目标 preset（跳过 composeFrom 防双绑定；保留 delegation/persona/toolFilter）+ append `agent-preset/selected(target)`（防 fork seed 遮蔽 header）；`materializeTracked` setup 变 async（工厂 await，保持 `{commit}` 契约）；continuable descriptor 加可选 `preset`（continuable 版本 2→3，one-shot 保持 2——回滚时 v3 干净 NOT_RESUMABLE，旧 v2 仍可解析）；`coldResume` 从 `descriptor.preset` 重建同一 preset，preset 缺失时报指名错误
-- **回滚**：删安装 junction、把 `E:\ai-files\@deepseek-ai\dsh-subagent.orig` 复制回安装位、重启——官方行为恢复（已建的 preset-continuable 子代理按设计 NOT_RESUMABLE）。注意：若其他 profile 树（如 `dsh-continuous-worker\node_modules\@deepseek-ai\dsh-subagent`）仍指向 fork，需一并处理避免悬空
+- **回滚**：删安装 junction、把 `{{PLUGIN_SOURCES_DIR}}\@deepseek-ai\dsh-subagent.orig` 复制回安装位、重启——官方行为恢复（已建的 preset-continuable 子代理按设计 NOT_RESUMABLE）。注意：若其他 profile 树（如 `dsh-continuous-worker\node_modules\@deepseek-ai\dsh-subagent`）仍指向 fork，需一并处理避免悬空
 
 ## 禁用官方 subagent
 
@@ -104,7 +105,8 @@ subagent_routed(
 | `model` 在 provider 下无效 | 快速失败，列出该 provider 的候选模型（原始错误保留在 `cause`） |
 | `model` 省略 | 子代理继承当前会话模型（向后兼容） |
 | max_depth 非正整数 | 工具层校验报错 |
-| un_in_background（默认 true） | 立即返回后台 job id；job_output 收结果 / job_kill 停止；中止主对话不影响子代理 |
+| 
+un_in_background（默认 true） | 立即返回后台 job id；job_output 收结果 / job_kill 停止；中止主对话不影响子代理 |
 | 正常调用 | 子代理完整挂载目标 preset，跑一轮，返回最终输出 |
 
 ## 原理

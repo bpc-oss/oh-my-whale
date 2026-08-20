@@ -1,7 +1,7 @@
 # dsh-continuous-worker — 常驻"电子打工人"自主执行插件·设计方案
 
 > 状态：**v0.6 定稿（R5 FAIL→返修 + R6 复审 PASS，全体通过）**
-> 目标仓库：`E:\ai-files\dsh-continuous-worker\`
+> 目标仓库：`{{PLUGIN_SOURCES_DIR}}\dsh-continuous-worker\`
 > 依据证据（均本机/独立调研实证）：
 > - [docs/01-evidence-dsh-native-capabilities.md](./01-evidence-dsh-native-capabilities.md)（DSH 宿主原生能力：agent-loop 唤醒管道、agents 注册表、session 折叠、jobs、tools）
 > - [docs/02-external-research-summary.md](./02-external-research-summary.md)（外部设计模式结论摘要）

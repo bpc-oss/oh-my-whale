@@ -2,7 +2,7 @@
 
 > 目标：验证 dsh-continuous-worker 在长生命周期会话中的真实行为（周期 tick、
 > expired、监督档位、预算）——headless 一次性会话无法覆盖的部分。
-> 载体：headless profile（link 到 E:\ai-files\dsh-continuous-worker，自动用最新代码）
+> 载体：headless profile（link 到 {{PLUGIN_SOURCES_DIR}}\dsh-continuous-worker，自动用最新代码）
 > 方法：真实 headless 会话 + 模型驱动工具调用，观察运行证据。
 
 ## 验证结果
@@ -34,5 +34,5 @@
 
 ## 待办（如需完整常驻验证）
 
-- 在 web profile 安装插件（`dsh plugin --profile web add E:\ai-files\dsh-continuous-worker`），创建 schedule 后让会话 idle，观察 tick 自动派发
+- 在 web profile 安装插件（`dsh plugin --profile web add {{PLUGIN_SOURCES_DIR}}\dsh-continuous-worker`），创建 schedule 后让会话 idle，观察 tick 自动派发
 - 验证 loop 在常驻会话中按 interval 迭代直至 PASS/LIMIT/TIMEOUT

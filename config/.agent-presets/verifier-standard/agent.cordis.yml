@@ -156,7 +156,7 @@
 # dev_tool_search away and then resident for the session. Tools-only row: no
 # service, no realm needed.
 - id: dsh-llm-verifier
-  name: 'C:/Users/Administrator/dsh-llm-verifier/lib/index.js'
+  name: '{{DSH_USER_HOME}}/dsh-llm-verifier/lib/index.js'
   config: {}
 
 # ── shell ───────────────────────────────────────────────────────────────────

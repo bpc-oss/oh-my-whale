@@ -90,7 +90,7 @@
       - ✅ `cbc -p --model hy3 "任务"`（WorkBuddy 官方腾讯混元 Hy3）
       - ✅ WorkBuddy 子 agent 定义 `model: default`（继承全局 `"model": "hy3"`）
       - ❌ 禁止 Laguna / GLM / Kimi / AEON 作 worker（DeepSeek 仅 bridge ai_engine 的 AI 审核层使用）
-      - 全局配置：`C:\Users\Administrator\.workbuddy\settings.json` → `"model": "hy3"`
+      - 全局配置：`{{USER_HOME}}\.workbuddy\settings.json` → `"model": "hy3"`
 
       ### 第 0.0 条：总指挥派发强制检查清单（每次派发 worker 前用代码门禁校验）
 
@@ -98,7 +98,7 @@
 
       ```powershell
       cd "e:\ai-files\AI Hacker"
-      & "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe" -m bridge guard --action blocked-reasons
+      & "{{LOCAL_APP_DATA}}\Programs\Python\Python311\python.exe" -m bridge guard --action blocked-reasons
       # 1. worker 提示词必须含四条铁律 → 缺则拒绝派发:
       & "...python.exe" -m bridge guard --action check-prompt --prompt-file <worker_prompt.txt> --stage <1-5>
       # 2. worker 汇报必须符合契约 → blocked 原因白名单:
@@ -262,7 +262,7 @@
 
       | 项 | 结论 |
       |----|------|
-      | CLI 位置 | `cbc` / `codebuddy` v2.127.2（npm shim：`C:\Users\Administrator\AppData\Roaming\npm\cbc`；内置：`E:\Workbuddy\resources\app.asar.unpacked\cli\bin\codebuddy`）|
+      | CLI 位置 | `cbc` / `codebuddy` v2.127.2（npm shim：`{{USER_HOME}}\AppData\Roaming\npm\cbc`；内置：`{{PLUGIN_SOURCES_DIR}}/Workbuddy\resources\app.asar.unpacked\cli\bin\codebuddy`）|
       | 认证 | **WSL bash 直跑 cbc 报 `Authentication required`（认证墙）**；必须从 Windows 侧 `cmd.exe` 调用。WSL 侧一律走 `cmd.exe /c "cbc ..."` 桥接 |
       | 模型 | **每次显式 `--model hy3`**。命令行派发以 `hy3` 为准；`.codebuddy/settings.json` 默认 model 可能指向已卸载的 custom-local，不要依赖默认 |
       | 探针 | 每轮开始先验证：`cbc -p --model hy3 回复 OK` → 期望输出 `OK` |
@@ -585,7 +585,7 @@
 
       - revenue-trial: `e:\ai-files\StudioOS-track-workspaces\revenue-trial\revenue-trial`（CLI 需 `$env:PYTHONPATH = "src"`）
       - AI Hacker: `e:\ai-files\AI Hacker`（bridge 技术执行层）
-      - **bridge 必须从 Windows 侧 Python 3.11 调用**：`& "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe" -m bridge ...`
+      - **bridge 必须从 Windows 侧 Python 3.11 调用**：`& "{{LOCAL_APP_DATA}}\Programs\Python\Python311\python.exe" -m bridge ...`
       - WorkBuddy CLI: `cbc`（Windows 侧认证；WSL 侧 `cmd.exe /c "cbc ..."` 桥接）
       - 5 平台数据: `bridge scope`（923 程序）+ Intigriti API（213 程序实时）
       - 攻击能力: 30 工具 + Strix deep + reverse-skill 45 场景 + Shannon + LeoAI
@@ -600,7 +600,7 @@
       ```powershell
       # 第 0 步: 工具自检
       cd "e:\ai-files\AI Hacker"
-      & "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe" -m bridge list-tools
+      & "{{LOCAL_APP_DATA}}\Programs\Python\Python311\python.exe" -m bridge list-tools
       wsl -d Ubuntu -e bash -c 'export PATH="$PATH:/root/go/bin"; which subfinder httpx nuclei nmap gobuster dirsearch ffuf sqlmap dalfox'
       # 第 0.5 步: 人机验证能力自检
       & "...python.exe" -m bridge captcha --action status

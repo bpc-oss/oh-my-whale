@@ -9,6 +9,10 @@ $SelfScripts = @(
   (Join-Path $RepoDir "scripts\check-private.ps1"),
   (Join-Path $RepoDir "scripts\template-render.ps1")
 )
+# Standalone plugin sources may contain legitimate path references in their docs
+$AllowedDirs = @(
+  (Join-Path $RepoDir "plugins\standalone")
+)
 
 # Privacy patterns (case-sensitive matching). Double-backslash JSON-escaped forms included.
 $patterns = @(
@@ -28,9 +32,11 @@ $patterns = @(
 
 $files = Get-ChildItem -Path $RepoDir -Recurse -File |
   Where-Object {
+    $f = $_
     $_.FullName -notin $SelfScripts -and
+    -not ($AllowedDirs | Where-Object { $f.FullName.StartsWith($_) }) -and
     $_.Name -notmatch '\.(bak|log|exe|tgz|tar|png|jpg|ico)$' -and
-    $_.Name -notmatch '^(\.git|node_modules)'
+    $_.Name -notmatch '^(\.git|node_modules)$'
   }
 
 foreach ($f in $files) {
