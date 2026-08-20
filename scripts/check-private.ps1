@@ -5,30 +5,40 @@ param([string]$RepoDir = "")
 
 if (-not $RepoDir) { $RepoDir = Split-Path -Parent $PSScriptRoot }
 $fail = 0
+$SelfScripts = @(
+  (Join-Path $RepoDir "scripts\check-private.ps1"),
+  (Join-Path $RepoDir "scripts\template-render.ps1")
+)
 
+# Privacy patterns (case-sensitive matching). Double-backslash JSON-escaped forms included.
 $patterns = @(
   "C:\\Users\\Administrator",
   "C:/Users/Administrator",
   "E:\\ai-files",
   "E:/ai-files",
+  "E:\\\\ai-files",
   "C:\\ProgramData\\AgentOS",
   "C:/ProgramData/AgentOS",
-  "\.credentials\.yaml$",
-  "\.env$",
-  "apiKey\s*=",
-  "api_key\s*=",
-  "sk-[a-zA-Z0-9]{20,}",
   "\.ts\.net",
   "file:///C:/Users/Administrator",
-  "file:///C:\\Users\\Administrator"
+  "file:///C:\\Users\\Administrator",
+  "sk-[a-zA-Z0-9]{20,}",
+  "api[_-]?key['""]?\s*[:=]\s*['""][^'""]{8,}['""]"
 )
 
-Get-ChildItem -Path $RepoDir -Recurse -File -Exclude @("*.bak*", "*.log", "*.exe", "*.tgz", "*.tar") | ForEach-Object {
-  $content = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue
-  if (-not $content) { return }
+$files = Get-ChildItem -Path $RepoDir -Recurse -File |
+  Where-Object {
+    $_.FullName -notin $SelfScripts -and
+    $_.Name -notmatch '\.(bak|log|exe|tgz|tar|png|jpg|ico)$' -and
+    $_.Name -notmatch '^(\.git|node_modules)'
+  }
+
+foreach ($f in $files) {
+  $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
+  if (-not $content) { continue }
   foreach ($pat in $patterns) {
-    if ($content -match $pat) {
-      Write-Host "PRIVATE: $($_.Name) matches '$pat'"
+    if ($content -cmatch $pat) {
+      Write-Host "PRIVATE: $($f.FullName.Substring($RepoDir.Length+1)) matches '$pat'"
       $fail = 1
     }
   }

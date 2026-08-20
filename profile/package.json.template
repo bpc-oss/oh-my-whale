@@ -17,9 +17,9 @@
     "dsh-better-sidebar": "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
     "dsh-continuous-worker": "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
     "dsh-plugin-manager": "^0.1.0",
-    "dsh-routed-subagent": "link:E:\\ai-files\\dsh-routed-subagent",
-    "dsh-token-meter-hermes": "file:{{DSH_USER_HOME}}/dsh-token-meter-hermes",
-    "dsh-voice-input": "link:{{DSH_USER_HOME}}/dsh-voice-input"
+    "dsh-routed-subagent": "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
+    "dsh-token-meter-hermes": "file:{{USER_HOME}}/dsh-token-meter-hermes",
+    "dsh-voice-input": "link:{{USER_HOME}}/dsh-voice-input"
   },
   "dsh": {
     "profile": {

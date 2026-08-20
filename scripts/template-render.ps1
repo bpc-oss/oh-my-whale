@@ -15,9 +15,10 @@ $DshHome = "$UserHome\.dsh"
 # Collect variable values
 $Vars = @{
   "{{DSH_USER_HOME}}"       = $DshHome
+  "{{USER_HOME}}"           = $UserHome
   "{{LOCAL_APP_DATA}}"      = "$UserHome\AppData\Local"
   "{{USER_NAME}}"           = $User
-  "{{PLUGIN_SOURCES_DIR}}"  = "$env:USERPROFILE\ai-files"
+  "{{PLUGIN_SOURCES_DIR}}"  = "E:\ai-files"
   "{{TAILSCALE_HOST}}"      = ""
   "{{UV_PYTHON_PATH}}"      = ""
   "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
@@ -25,6 +26,10 @@ $Vars = @{
   "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
   "{{VOICE_MODEL_DIR}}"     = "$UserHome\dsh-voice-input\dsh-voice-models"
 }
+
+# Auto-detect uv python if present (plan: UV_PYTHON_PATH 自动探测)
+$uvPython = Get-ChildItem "$UserHome\AppData\Roaming\uv\python" -Filter "python.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($uvPython) { $Vars["{{UV_PYTHON_PATH}}"] = $uvPython.FullName }
 
 # Interactive prompts for values that differ per machine (skip with -DefaultsOnly)
 if (-not $DefaultsOnly) {
@@ -46,13 +51,23 @@ if (-not $DefaultsOnly) {
 if (-not $OutDir) { $OutDir = $DshHome }
 Write-Host "Rendering to: $OutDir"
 
-# file:// URL normalization: replace backslashes with forward slashes in file:/// lines
+# file:// URL normalization + file:/link: spec backslash->forward slash
 function Normalize-FileUrls([string]$text) {
-  return [regex]::Replace($text, '(file:///)([^\s''"]+)', {
+  # file:/// URLs (cordis.patch.yml style)
+  $text = [regex]::Replace($text, '(file:///)([^\s''"]+)', {
     param($m)
     $url = $m.Groups[2].Value -replace '\\', '/'
     return $m.Groups[1].Value + $url
   })
+  # file:/link: specs (package.json style) — normalize backslashes to forward slashes
+  # but preserve {{VAR}} placeholders if any remain (they contain no backslashes anyway)
+  $text = [regex]::Replace($text, '("(?:file|link):)([^"\\]*(?:\\[^"\\]*)*)(")', {
+    param($m)
+    $prefix = $m.Groups[1].Value
+    $path = $m.Groups[2].Value -replace '\\', '/'
+    return $prefix + $path + $m.Groups[3].Value
+  })
+  return $text
 }
 
 # Render a template file

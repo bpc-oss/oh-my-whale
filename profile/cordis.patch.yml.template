@@ -95,7 +95,7 @@
 - id: voice
   config:
     engine: auto
-    modelDir: '{{DSH_USER_HOME}}/dsh-voice-input/dsh-voice-models'
+    modelDir: '{{VOICE_MODEL_DIR}}'
     asrDir: 'asr-zh'
     vadThreshold: 0.3
     tailPadSeconds: 0.6
