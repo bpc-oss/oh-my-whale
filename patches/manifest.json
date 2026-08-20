@@ -1,0 +1,71 @@
+{
+  "version": "1",
+  "baseline": {
+    "shell": "DSH Desktop 2.0.1",
+    "kernel": "0.1.0-rc.8",
+    "kernelDir": "{{DSH_INSTALL_DIR}}",
+    "notes": "cordis 4.0.1 / cordis-plugin-loader 1.0.2 / pi-ai 0.82.1 / dsh-session 0.1.0-rc.8; dsh-client-schema-form + dsh-client-web-react no rc.8, kept at rc.7"
+  },
+  "patches": [
+    {
+      "id": "P1",
+      "file": "host",
+      "target": "@deepseek-ai/cordis-plugin-loader/lib/index.js",
+      "patchFile": "host/001-cordis-loader-cycle-guard.patch",
+      "source": "bak",
+      "sourcePath": "@deepseek-ai/cordis-plugin-loader/lib/index.js.bak-20260820-cycle-guard",
+      "diffTarget": "current",
+      "purpose": "loader parent chain cycle guard + parentEntry snapshot",
+      "status": "active",
+      "note": "rc.8 loader still 1.0.2; npm install preserved this patch. Re-verify on next loader bump."
+    },
+    {
+      "id": "P2",
+      "file": "host",
+      "target": "@deepseek-ai/cordis/lib/index.js",
+      "patchFile": "host/002-cordis-gpd-cache.patch",
+      "source": "bak",
+      "sourcePath": "@deepseek-ai/cordis/lib/index.js.bak-20260820-cordis-gpd-cache",
+      "diffTarget": "patched-gpd",
+      "diffTargetPath": "@deepseek-ai/cordis/lib/index.js.patched-gpd",
+      "purpose": "getPropertyDescriptor location cache (CPU 52% -> 25-35%)",
+      "status": "active"
+    },
+    {
+      "id": "P3",
+      "file": "host",
+      "target": "@earendil-works/pi-ai/dist/api/openai-completions.js",
+      "patchFile": "host/003-pi-ai-bai-compat.patch",
+      "source": "bak",
+      "sourcePath": "@earendil-works/pi-ai/dist/api/openai-completions.js.bak-20260820-bai",
+      "diffTarget": "current",
+      "purpose": "bai special-case: isDeepSeek inclusion + developerRole exclusion",
+      "status": "active"
+    },
+    {
+      "id": "P4",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-session/lib/index.js",
+      "patchFile": "host/004-dsh-session-known-events.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-session@0.1.0-rc.8",
+      "sourceFile": "lib/index.js",
+      "diffTarget": "current",
+      "purpose": "KNOWN_SESSION_EVENT_TYPES: verification/change + continuous-worker/change",
+      "status": "active",
+      "note": "rc.8 still lacks these events. No .bak snapshot; use npm pack original as diff baseline."
+    },
+    {
+      "id": "P5",
+      "file": "profile",
+      "target": "@dsh-external/dsh-super-injector/lib/index.js",
+      "patchFile": "profile/005-super-injector-gateway.patch",
+      "source": "bak",
+      "sourcePath": "@dsh-external/dsh-super-injector/lib/index.js.bak-gateway-20260820",
+      "diffTarget": "current",
+      "purpose": "dev_install_package + plugin-gateway spawnSync gate",
+      "status": "active",
+      "note": "Preferred fix: rebuild vendor tgz with gateway baked in. P5 patch is archive/audit only."
+    }
+  ]
+}

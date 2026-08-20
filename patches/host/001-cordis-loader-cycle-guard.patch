@@ -1,0 +1,63 @@
+# From: oh-my-whale
+# Target: @deepseek-ai/cordis-plugin-loader/lib/index.js
+# Status: active
+
+--- a/@deepseek-ai/cordis-plugin-loader/lib/index.js
++++ b/@deepseek-ai/cordis-plugin-loader/lib/index.js
+@@ -40,6 +40,10 @@
+ 		this.ctx = ctx;
+ 		this.tree = tree;
+ 		const entry = ctx.fiber.entry;
++		// 2026-08-20 根治：缓存稳定父 entry 引用。reload 重建 fiber 后
++		// ctx.fiber.entry 会指向新 entry，遍历 parent 链经该动态值会与
++		// 旧链错配成环。parentEntry 是构造时快照，遍历优先用它。
++		this.parentEntry = entry ?? null;
+ 		if (entry) entry.subgroup = this;
+ 	}
+ 	get context() {
+@@ -343,7 +347,8 @@
+ 	}
+ 	get id() {
+ 		let id = this.options.id;
+-		if (this.parent.tree.ctx.fiber.entry) id = this.parent.tree.ctx.fiber.entry.id + EntryTree.sep + id;
++		const parent = this.parent.parentEntry ?? this.parent.tree.ctx.fiber.entry;
++		if (parent) id = parent.id + EntryTree.sep + id;
+ 		return id;
+ 	}
+ 	/** True when this entry or any owning parent entry is disabled. */
+@@ -353,10 +358,18 @@
+ 	_disabled(options) {
+ 		if (options.group) return false;
+ 		if (this.disabledOf(options)) return true;
+-		let entry = this.parent.ctx.fiber.entry;
+-		while (entry) {
++		// 2026-08-20 防环补丁：parent 链自环（cordis:group 结构被 reload 破坏时）
++		// 会无限循环烧满 CPU。用 visited 集合兜底：成环时按"未禁用"处理并告警，
++		// 只让插件加载失败，绝不让 host 事件循环饿死。
++		const visited = /* @__PURE__ */ new Set();
++		let entry = this.parent.parentEntry ?? this.parent.ctx.fiber.entry;
++		while (entry && !visited.has(entry)) {
++			visited.add(entry);
+ 			if (this.disabledOf(entry.options)) return true;
+-			entry = entry.parent.ctx.fiber.entry;
++			entry = entry.parent.parentEntry ?? entry.parent.ctx.fiber.entry;
++		}
++		if (entry && visited.has(entry)) {
++			console.warn("[cordis-plugin-loader] entry parent chain cycle detected for", this.options?.id ?? this.options?.name, "- treating as enabled");
+ 		}
+ 		return false;
+ 	}
+@@ -483,10 +496,11 @@
+ 	getOuterStack = () => {
+ 		let entry = this;
+ 		const result = [];
++		const visited = /* @__PURE__ */ new Set();
+ 		do {
+ 			result.push(`    at ${entry.parent.tree.ctx.baseUrl}#${entry.options.id}`);
+-			entry = entry.parent.ctx.fiber.entry;
+-		} while (entry);
++			entry = entry.parent.parentEntry ?? entry.parent.ctx.fiber.entry;
++		} while (entry && !visited.has(entry) && (visited.add(entry), true));
+ 		return result;
+ 	};
+ 	/** Import and start the configured plugin if it is not already running. */

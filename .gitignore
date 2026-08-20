@@ -1,0 +1,16 @@
+# credentials
+.credentials.yaml
+.env
+**/node_modules/
+
+# runtime state
+settings.yaml
+profiles/web/node_modules/
+
+# OS artifacts
+Thumbs.db
+*.bak*
+*.log
+
+# temp
+tmp/

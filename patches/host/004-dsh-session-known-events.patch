@@ -1,0 +1,22 @@
+# From: oh-my-whale
+# Target: @deepseek-ai/dsh-session/lib/index.js
+# Status: active
+
+--- a/@deepseek-ai/dsh-session/lib/index.js
++++ b/@deepseek-ai/dsh-session/lib/index.js
+@@ -1065,6 +1065,7 @@
+ 	"compaction/prune",
+ 	"compaction/start",
+ 	"compaction/summary",
++	"continuous-worker/change",
+ 	"feedback/record",
+ 	"goal/change",
+ 	"hook/invoked",
+@@ -1099,6 +1100,7 @@
+ 	"turn/end",
+ 	"turn/start",
+ 	"user/message",
++	"verification/change",
+ 	"web/deepseek-search-llm-request"
+ ]);
+ //#endregion
