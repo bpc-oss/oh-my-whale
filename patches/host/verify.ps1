@@ -48,6 +48,7 @@ foreach ($p in $Manifest.patches) {
         "P1" = "parentEntry";
         "P3" = "api.b.ai";
         "P4" = "continuous-worker/change";
+        "P6" = "registerTransitionGuard";
       }
       $m = $markers[$p.id]
       if ($m) {

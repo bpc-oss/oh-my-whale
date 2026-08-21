@@ -66,6 +66,18 @@
       "purpose": "dev_install_package + plugin-gateway spawnSync gate",
       "status": "active",
       "note": "Preferred fix: rebuild vendor tgz with gateway baked in. P5 patch is archive/audit only."
+    },
+    {
+      "id": "P6",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-goal/lib/index.js",
+      "patchFile": "host/006-dsh-goal-verification-seam.patch",
+      "source": "bak",
+      "sourcePath": "@deepseek-ai/dsh-goal/lib/index.js.bak-permitfix",
+      "diffTarget": "current",
+      "purpose": "verification-seam (GoalTransitionGuard + permitRef): sync pre-commit guard for goal complete",
+      "status": "active",
+      "note": "rc.5-era patch migrated through rc.7, LOST in rc.8 (official has no seam). verification goal-guard degrades gracefully without it; patch restores sync interception. Applied 2026-08-21."
     }
   ]
 }
