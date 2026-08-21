@@ -180,6 +180,14 @@
       "package_spec": "^0.1.0-rc.8",
       "install_type": "npm",
       "description": "Subagent client UI (rc.8, dependency only, not a bundle)"
+    },
+    {
+      "id": "dsh-fork-to-preset",
+      "type": "local",
+      "source": "{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
+      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
+      "install_type": "link",
+      "description": "Fork any session into a chosen agent preset (header UI; host presets route; requires P9-P12 kernel patches)"
     }
   ]
 }

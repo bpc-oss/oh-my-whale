@@ -209,4 +209,7 @@ dsh-community-market:
       enabled: false
       order: 1
 dsh-desktop:
-  mode: advanced
+  # ⚠️ 2026-08-21 教训：mode: advanced 会让 Desktop launcher 追加禁用 ui-layout
+  # （{ id: "ui-layout", disabled: true }）→ 桌面版打不开或 UI 残缺（Failed to load plugins）。
+  # 使用 compatibility；上游确认 advanced 行为前不要改回。
+  mode: compatibility

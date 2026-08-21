@@ -8,18 +8,6 @@
       "acknowledgedAt": "2026-08-21"
     },
     {
-      "type": "unregistered-bundle",
-      "path": "dsh-fork-to-preset",
-      "reason": "项目 agent 10:32 恢复进 bundles（client-ui-subagent 修复后）；renderer 崩溃根因未定位，重启验证 pending，闪退则移出",
-      "acknowledgedAt": "2026-08-21"
-    },
-    {
-      "type": "config-semantic",
-      "path": "added dsh-fork-to-preset",
-      "reason": "模板 bundles 未同步（本机项目 agent 已加回）；待重启验证 renderer 后决定模板是否跟随",
-      "acknowledgedAt": "2026-08-21"
-    },
-    {
       "type": "config-runtime",
       "path": "settings.yaml",
       "reason": "运行态配置（凭据 env 引用 + 用户模型/provider 演化），模板只保证新机骨架",
@@ -41,6 +29,12 @@
       "type": "config-runtime",
       "path": "profiles\\web\\pnpm-workspace.yaml",
       "reason": "斜杠方向差异（C:\\ vs C:/），不影响功能",
+      "acknowledgedAt": "2026-08-21"
+    },
+    {
+      "type": "unknownModified",
+      "path": "@deepseek-ai/dsh-web-app/cordis.patch.yml.bak-layout-disable-20260821",
+      "reason": "web-app patch 的 ui-layout disabled:false 修改前备份（升级后恢复清单用）",
       "acknowledgedAt": "2026-08-21"
     }
   ]

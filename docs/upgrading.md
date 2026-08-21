@@ -63,6 +63,30 @@
 | P3 | pi-ai | pi-ai 原生支持 bai | 继续/迁移/退役 |
 | P4 | dsh-session | rc.x 内置两事件 | 继续/迁移/退役 |
 | P5 | super-injector | 与内核无关 | 不受影响 |
+| P6 | dsh-goal | 官方合入 verification-seam | 继续/迁移/退役 |
+| P7 | dsh-host-apiproxy | 官方 session.list 降载 | 继续/迁移/退役 |
+| P8 | dsh-client-ui-subagent | 官方合入 input-triggers | 继续/迁移/退役 |
+| P9 | dsh-host-apiproxy | fork 原生支持 agentPreset | 继续/迁移/退役 |
+| P10 | dsh-client-runtime | fork 原生支持 agentPreset | 继续/迁移/退役 |
+| P11 | dsh-agent-presets | resolver 原生支持 seedLength | 继续/迁移/退役 |
+| P12 | dsh-client-connection | fork schema 原生支持 agentPreset | 继续/迁移/退役 |
+
+## 升级恢复检查清单
+
+### ui-layout 禁用（`dsh-desktop.mode: advanced` 陷阱）
+`settings.yaml` 的 `dsh-desktop.mode: advanced` 会让 Desktop launcher 追加禁用 `ui-layout`（`{ id: "ui-layout", disabled: true }`）→ 桌面版打不开或 UI 残缺（Failed to load plugins / sidebar/conversation pending layout 服务）。本机 8/21 事故。
+
+- **升级后如果桌面打不开**：检查 `settings.yaml` 的 `dsh-desktop.mode`，改为 `compatibility` 后重启。
+- 如果 `web-app/cordis.patch.yml` 的 `ui-layout disabled: false` 被升级覆盖（手动修改），在 profile 层 `cordis.patch.yml` 加：
+  ```yaml
+  - id: ui-layout
+    disabled: false
+  ```
+
+### dsh web 并发（watcher 自动拉起 CLI）
+本地 `dgx-hermes-stack` 项目的 `local/scripts/watch-dgx-local-services.ps1` watcher 可能自动拉起 `dsh web`（通过 npm 全局 dsh），与 Desktop 并发读写同一 profile → id collision + 状态污染。
+- **检查**：`npm root -g` 下的 `@deepseek-ai/dsh` 是否存在（本机已改名 `dsh.bak-watcher-block-20260821` 阻断）
+- 本机处置：`mv $APPDATA/npm/node_modules/@deepseek-ai/dsh $APPDATA/npm/node_modules/@deepseek-ai/dsh.bak-watcher-block-20260821`
 
 ## 升级节奏建议
 

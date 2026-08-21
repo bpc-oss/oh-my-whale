@@ -48,7 +48,8 @@
         "@agentos/dsh-lco",
         "@deepseek-ai/dsh-subagent-codex",
         "@deepseek-ai/dsh-subagent-claude-code",
-        "dsh-global-tool-discovery"
+        "dsh-global-tool-discovery",
+        "dsh-fork-to-preset"
       ]
     }
   }
