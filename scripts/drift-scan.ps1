@@ -49,7 +49,7 @@ function Write-JsonReport($path, $report) {
 # ── Section 1: Patch layer ──
 Write-Host "[1] Patches" -ForegroundColor Yellow
 $ManifestPath = Join-Path $Repo "patches\manifest.json"
-$Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+$Manifest = [System.IO.File]::ReadAllText($ManifestPath) | ConvertFrom-Json
 
 # Load allowlist (acknowledged known drift)
 $allowlistEntries = @{}
@@ -79,6 +79,7 @@ foreach ($p in $Manifest.patches) {
     "P4" { "continuous-worker/change" }
     "P6" { "registerTransitionGuard" }
     "P7" { "LIST_PROJECTION_EXCLUDED" }
+    "P8" { "ui-subagent: @ source" }
     default { "" }
   }
 
@@ -137,7 +138,8 @@ foreach ($bf in $bakFiles) {
     if ($base -eq $t) { $isKnownPatch = $true; break }
   }
   if (-not $isKnownPatch) {
-    $key = "unknownModified:$rel"
+    $relFwd = $rel -replace '\\', "/"   # allowlist 键统一正斜杠（unknownModified 类型）
+    $key = "unknownModified:$relFwd"
     if ($allowlistEntries.ContainsKey($key)) {
       Write-Host "  ACKED: $rel (allowlist)" -ForegroundColor DarkGray
       continue
@@ -145,7 +147,7 @@ foreach ($bf in $bakFiles) {
     Write-Host "  UNKNOWN: $rel" -ForegroundColor Yellow
     $unknownModified += @{
       "type" = "bak_without_manifest"
-      "bakFile" = $rel
+      "bakFile" = $relFwd
       "suggestion" = "review: new patch to capture or clean up"
     }
   }
@@ -177,15 +179,9 @@ try {
   & "$Repo\scripts\template-render.ps1" -OutDir $tmpRender -DefaultsOnly 2>&1 | Out-Null
   $DshHome = "$env:USERPROFILE\.dsh"
 
-  # Load credential patterns from check-private.ps1
+  # 脱敏函数（迭代 2 配置层输出 diff 摘要时接入：先 diff 后脱敏，终端 + JSON 报告双路径）
+  # 当前配置层只报文件名差异不输出内容，暂不调用。凭据模式继承自 check-private.ps1
   $credPatterns = @('api[_-]?key', 'sk-[a-zA-Z0-9]{20,}', 'password', 'token', 'secret', 'credential', 'auth')
-  function Redact-Credentials($text) {
-    foreach ($pat in $credPatterns) {
-      $text = $text -replace "($pat):\s*\S+", "`$1: [REDACTED]"
-      $text = $text -replace "($pat)\s*=\s*\S+", "`$1 = [REDACTED]"
-    }
-    return $text
-  }
 
   $mappings = @(
     @("settings.yaml", "$DshHome\settings.yaml"),
@@ -221,8 +217,8 @@ try {
       try {
         $rObj = $rText | ConvertFrom-Json
         $aObj = $aText | ConvertFrom-Json
-        $rDeps = @{}; foreach ($p in $rObj.dependencies.PSObject.Properties) { $rDeps[$p.Name] = $p.Value -replace "\\\\", "/" -replace "\\", "/" }
-        $aDeps = @{}; foreach ($p in $aObj.dependencies.PSObject.Properties) { $aDeps[$p.Name] = $p.Value -replace "\\\\", "/" -replace "\\", "/" }
+        $rDeps = @{}; foreach ($p in $rObj.dependencies.PSObject.Properties) { $rDeps[$p.Name] = $p.Value -replace '\\\\', '/' -replace '\\', '/' }
+        $aDeps = @{}; foreach ($p in $aObj.dependencies.PSObject.Properties) { $aDeps[$p.Name] = $p.Value -replace '\\\\', '/' -replace '\\', '/' }
         $rBundles = @($rObj.dsh.profile.bundles | Sort-Object)
         $aBundles = @($aObj.dsh.profile.bundles | Sort-Object)
         $depsDiff = @()
@@ -236,10 +232,26 @@ try {
           Write-Host "  $($m[0]): match (semantic)" -ForegroundColor Green
           $configMatches += $m[0]
         } else {
-          Write-Host "  $($m[0]): DIFFERS (semantic)" -ForegroundColor Yellow
-          foreach ($d in $depsDiff) { Write-Host "    $d" -ForegroundColor DarkGray }
-          foreach ($d in $bundleDiff) { Write-Host "    $d" -ForegroundColor DarkGray }
-          $configDiffers += @{ "file" = $m[0]; "reason" = "semantic_differs"; "details" = ($depsDiff + $bundleDiff) }
+          # 语义差异逐项 allowlist 豁免（config-semantic:<类型>:<id>）
+          $semanticBlocking = @()
+          foreach ($d in ($depsDiff + $bundleDiff)) {
+            $parts = $d -split " ", 2
+            $type = $parts[0]; $id = if ($parts.Count -gt 1) { $parts[1] } else { "" }
+            $ackKey = "config-semantic:$d"
+            if ($allowlistEntries.ContainsKey($ackKey)) {
+              Write-Host "    ACKED (semantic): $d" -ForegroundColor DarkGray
+            } else {
+              $semanticBlocking += $d
+            }
+          }
+          if ($semanticBlocking.Count -eq 0) {
+            Write-Host "  $($m[0]): match (semantic, all ack'ed)" -ForegroundColor Green
+            $configMatches += $m[0]
+          } else {
+            Write-Host "  $($m[0]): DIFFERS (semantic)" -ForegroundColor Yellow
+            foreach ($d in $semanticBlocking) { Write-Host "    $d" -ForegroundColor DarkGray }
+            $configDiffers += @{ "file" = $m[0]; "reason" = "semantic_differs"; "details" = $semanticBlocking }
+          }
         }
         continue
       } catch {
@@ -294,6 +306,11 @@ if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
   foreach ($b in $bundles) {
     if ($kernelInternal.ContainsKey($b)) { continue }
     if (-not $sourceMap.ContainsKey($b)) {
+      $key = "unregistered-bundle:$b"
+      if ($allowlistEntries.ContainsKey($key)) {
+        Write-Host "  ACKED (bundle): $b (allowlist)" -ForegroundColor DarkGray
+        continue
+      }
       Write-Host "  UNREGISTERED (bundle): $b" -ForegroundColor Yellow
       $unregistered += @{ "id" = $b; "source" = "bundle" }
     } elseif ($sourceMap[$b] -ne "npm") {
@@ -362,15 +379,22 @@ if (Test-Path $profilePkg) {
   foreach ($dep in $pkg.dependencies.PSObject.Properties) {
     $spec = $dep.Value
     if ($spec -notmatch "^link:") { continue }
-    $srcDir = $spec.Substring(5) -replace "\\\\", "\" -replace "\\", "\"
+    $srcDir = $spec.Substring(5) -replace '\\\\', "\" -replace '\\', "\"
     if (-not (Test-Path $srcDir)) {
       Write-Host "  LINK-SOURCE MISSING: $($dep.Name) -> $srcDir" -ForegroundColor Yellow
       $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "link_source_missing"; "path" = $srcDir }
       continue
     }
     $nmDir = Join-Path $srcDir "node_modules"
+    # 断链检测：Test-Path 跟随链接（断链返回 false），先用 dir /AL 看链接条目本身
+    $linkEntry = cmd /c dir "/AL" $srcDir 2>$null | Select-String "node_modules" | Select-Object -First 1
     if (-not (Test-Path $nmDir)) {
-      Write-Host "  NO node_modules: $($dep.Name) ($srcDir)" -ForegroundColor DarkGray
+      if ($linkEntry) {
+        Write-Host "  BROKEN: $($dep.Name) junction exists but target missing" -ForegroundColor Red
+        $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "broken_junction"; "path" = $srcDir }
+      } else {
+        Write-Host "  NO node_modules: $($dep.Name) ($srcDir)" -ForegroundColor DarkGray
+      }
       continue  # 无 node_modules junction 的 link 插件（自身无宿主依赖）——OK
     }
     $item = Get-Item $nmDir -Force -ErrorAction SilentlyContinue
@@ -391,7 +415,7 @@ if (Test-Path $profilePkg) {
       foreach ($line in $dirOut) { if ($line -match "SYMLINK|JUNCTION|->") { $linkTarget = ($line -split "\[|->")[-1].Trim(); break } }
     }
     if ($linkTarget) {
-      $normTarget = $linkTarget -replace "\\", "/"
+      $normTarget = $linkTarget -replace '\\', "/"
       if ($normTarget -match "DeepSeek Harness/resources/host/node_modules") {
         Write-Host "  STALE: $($dep.Name) junction -> old shell rc.7" -ForegroundColor Red
         $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "stale_old_shell"; "target" = $linkTarget }
@@ -480,11 +504,11 @@ if ($Compare) {
   # 2. gone-from-baseline: baseline UNKNOWN-MODIFIED that are absent in current report
   $baselineUnknown = @{}
   foreach ($u in $baseline.sections.patches.unknownModified) {
-    $baselineUnknown[$u.bakFile] = $true
+    $baselineUnknown[($u.bakFile -replace '\\', "/")] = $true
   }
   $currentUnknown = @{}
   foreach ($u in $report.sections.patches.unknownModified) {
-    $currentUnknown[$u.bakFile] = $true
+    $currentUnknown[($u.bakFile -replace '\\', "/")] = $true
   }
   foreach ($bFile in $baselineUnknown.Keys) {
     if (-not $currentUnknown.ContainsKey($bFile)) {
@@ -507,11 +531,16 @@ if ($Compare) {
   }
 
   # 4. new-removed-baseline: baseline LOST that are gone now (handled or silently drifted)
+  #    EXCLUDE recovered: baseline LOST now in knownApplied/markerPresent = 修复成功，不阻断
   $baselineLost = @{}
   foreach ($l in $baseline.sections.patches.lost) { $baselineLost[$l.id] = $true }
   $currentLostIds = @{}
   foreach ($l in $report.sections.patches.lost) { $currentLostIds[$l.id] = $true }
+  $currentAppliedIds = @{}
+  foreach ($id in $report.sections.patches.knownApplied) { $currentAppliedIds[$id] = $true }
+  foreach ($id in $report.sections.patches.markerPresent) { $currentAppliedIds[$id] = $true }
   foreach ($bId in $baselineLost.Keys) {
+    if ($currentAppliedIds.ContainsKey($bId)) { continue }  # recovered — 不阻断
     if (-not $currentLostIds.ContainsKey($bId)) {
       Write-Host "  new-removed-baseline: $bId (was LOST, now absent)" -ForegroundColor Yellow
       $blocking += @{ "type" = "new-removed-baseline"; "id" = $bId }
@@ -532,7 +561,7 @@ if ($Compare) {
     "blocking" = $blocking
     "allowlist" = $AllowlistPath
   }
-  $deltaPath = [System.IO.Path]::ChangeExtension($ReportPath, $null) + "-delta.json"
+  $deltaPath = ($ReportPath -replace "\.json$", "") + "-delta.json"
   Write-JsonReport $deltaPath $delta
 
   Write-Host ""

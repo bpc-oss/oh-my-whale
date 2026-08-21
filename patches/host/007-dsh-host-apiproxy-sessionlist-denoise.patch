@@ -1,7 +1,7 @@
-diff --git a/package/lib/index.js b/package/lib/index.js
+diff --git a/@deepseek-ai/dsh-host-apiproxy/lib/index.js b/@deepseek-ai/dsh-host-apiproxy/lib/index.js
 index 0bb5994..ab211d2 100644
---- a/package/lib/index.js
-+++ b/package/lib/index.js
+--- a/@deepseek-ai/dsh-host-apiproxy/lib/index.js
++++ b/@deepseek-ai/dsh-host-apiproxy/lib/index.js
 @@ -1415,10 +1415,24 @@ function projectionsFor(ctx, session) {
  * empty value set — yields an absent block: a listing without projections
  * is degraded, never broken.

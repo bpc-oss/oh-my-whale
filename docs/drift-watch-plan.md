@@ -212,6 +212,19 @@ install_type 规范化表（specifier 前缀 → install_type 映射，用于 IN
 | 隐私扫描 | `check-private.ps1` 的 pattern | diff 配置前脱敏 |
 | 内核路径检测 | `check-env.ps1` 的两壳检测 | 已稳定 |
 
+### 2.6 Junction 层（[3.5]，8/21 实施追加）
+
+升级后 junction 丢失/指旧壳已发生 5 次（fork-to-preset / continuous-worker / routed-subagent lib / client-ui-subagent / 新壳 dsh-subagent），故实施时增加第 5 层：
+
+- **数据源**：profile `package.json` 所有 `link:` 依赖 → 插件源目录的 `node_modules`
+- **判定**：
+  - junction/symlink 指向 `app.asar.unpacked/node_modules` → OK（new shell）
+  - 指向 `DeepSeek Harness/resources/host` → STALE（旧壳 rc.7，阻断）
+  - `dir /AL` 有条目但 `Test-Path` false → BROKEN（目标消失，阻断）
+  - 无 node_modules / 真实目录（非 reparse point）→ 放行（插件自身无宿主依赖 / dev 目录合法）
+- **v1 边界**：真实目录不阻断（`real_dir` 记录为 OK）——升级时 pnpm 重建真实目录是合法形态；阻断只针对 STALE/BROKEN
+- 该层进 verdict 与 --compare delta（junction 状态变化为阻断项）
+
 ---
 
 ## 3. 升级门禁集成
