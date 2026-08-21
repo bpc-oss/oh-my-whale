@@ -104,6 +104,58 @@
       "purpose": "subagent UI input triggers: @ mention source + childLabels (rc.5-era patch, lost in rc.8)",
       "status": "active",
       "note": "rc.5-era patch: inject inputTriggers + childLabels + @ trigger source. Dragged through rc.7, lost in rc.8. DSH upgrade wipes both profile dependency and host client.js. Idempotent patch script at dsh-routed-subagent/scripts/_patch_ui_subagent.mjs."
+    },
+    {
+      "id": "P9",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-host-apiproxy/lib/index.js",
+      "patchFile": "host/009-dsh-host-apiproxy-fork-agentpreset.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-host-apiproxy@0.1.0-rc.8",
+      "sourceFile": "lib/index.js",
+      "diffTarget": "current",
+      "purpose": "session.fork supports agentPreset: schema field + composeAgent branch + child meta/selection (rc.5-era capability, lost in rc.8)",
+      "status": "active",
+      "note": "2026-08-21 fork-to-preset e2e fix (Codex CLI). composeAgent is the authoritative resolve+mount path; structured preset errors, no bare HTTP 500."
+    },
+    {
+      "id": "P10",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-client-runtime/lib/client.js",
+      "patchFile": "host/010-dsh-client-runtime-fork-agentpreset.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-client-runtime@0.1.0-rc.8",
+      "sourceFile": "lib/client.js",
+      "diffTarget": "current",
+      "purpose": "public+manager sessions.fork forward agentPreset; SessionForkOptions schema",
+      "status": "active",
+      "note": "2026-08-21 fork-to-preset e2e fix. Without this the field vanishes between public API and wire."
+    },
+    {
+      "id": "P11",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-agent-presets/lib/index.js",
+      "patchFile": "host/011-dsh-agent-presets-resolver-seedlength.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-agent-presets@0.1.0-rc.8",
+      "sourceFile": "lib/index.js",
+      "diffTarget": "current",
+      "purpose": "resolveSessionPreset respects header.seedLength: inherited seed events never override child header",
+      "status": "active",
+      "note": "2026-08-21 deepest semantic bug: fork seed copies parent's agent-preset/selected events which overwrote child header in resolver."
+    },
+    {
+      "id": "P12",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-client-connection/lib/client.js",
+      "patchFile": "host/012-dsh-client-connection-fork-schema.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-client-connection@0.1.0-rc.8",
+      "sourceFile": "lib/client.js",
+      "diffTarget": "current",
+      "purpose": "mirror fork request schema (agentPreset) to match host apiproxy",
+      "status": "active",
+      "note": "2026-08-21 fork-to-preset e2e fix. Schema mirror drift: host and client-connection must stay in sync."
     }
   ]
 }

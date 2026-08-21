@@ -1,0 +1,98 @@
+diff --git a/@deepseek-ai/dsh-host-apiproxy/lib/index.js b/@deepseek-ai/dsh-host-apiproxy/lib/index.js
+index 0bb5994..9f28a3a 100644
+--- a/@deepseek-ai/dsh-host-apiproxy/lib/index.js
++++ b/@deepseek-ai/dsh-host-apiproxy/lib/index.js
+@@ -476,7 +476,8 @@ const sessionRenameValueSchema = z$1.object({
+ /** session.fork request payload (atSeq anchors the completed-turn cut). */
+ const sessionForkRequestSchema = z$1.object({
+ 	sessionId: sessionIdSchema,
+-	atSeq: z$1.number().int().nonnegative().optional()
++	atSeq: z$1.number().int().nonnegative().optional(),
++	agentPreset: z$1.string().min(1).optional()
+ });
+ /** session.fork response value (the child session id). */
+ const sessionForkValueSchema = z$1.object({ sessionId: sessionIdSchema });
+@@ -1415,10 +1416,24 @@ function projectionsFor(ctx, session) {
+ * empty value set — yields an absent block: a listing without projections
+ * is degraded, never broken.
+ */
++// session.list 降载（2026-08-20）：列表视图不需要的重键排除——token 统计/
++// 上下文压力/权限/子代理等（详情页走 projectionsFor 全量，不受影响）。
++// 排除式（denylist）而非白名单：未来新投影键自动保留，不丢数据不破坏兼容。
++const LIST_PROJECTION_EXCLUDED = new Set([
++	"tokenUsage", "contextPressure", "contextBreakdown", "contextBreakdownHermes",
++	"subagentTiming", "subagent", "permissions", "verification",
++	"imageLimits", "todos", "plan"
++]);
++
+ function listProjectionsFor(ctx, meta, session) {
+ 	try {
+ 		const block = session !== void 0 ? ctx.get("sessionProjections")?.snapshot(session) : ctx.get("sessionProjectionCache")?.cachedSnapshot(meta);
+-		return block !== void 0 && Object.keys(block.values).length > 0 ? block : void 0;
++		if (block === void 0 || Object.keys(block.values).length === 0) return void 0;
++		const values = {};
++		for (const [key, value] of Object.entries(block.values)) {
++			if (!LIST_PROJECTION_EXCLUDED.has(key)) values[key] = value;
++		}
++		return Object.keys(values).length > 0 ? { asOfSeq: block.asOfSeq, values } : void 0;
+ 	} catch (error) {
+ 		ctx.logger.warn(`session.list: projection column for "${meta.id}" failed (serving the row without it): ${String(error)}`);
+ 		return;
+@@ -2667,7 +2682,8 @@ function createApiProxy(ctx, defaults) {
+ 				}
+ 			},
+ 			async fork(request) {
+-				const { sessionId, atSeq } = request.payload;
++				const { sessionId, atSeq, agentPreset } = request.payload;
++				ctx.logger?.info?.(`session.fork: agentPreset=${JSON.stringify(agentPreset)} sessionId=${sessionId}`);
+ 				let source;
+ 				try {
+ 					source = await readSessionState(sessionId);
+@@ -2704,9 +2720,13 @@ function createApiProxy(ctx, defaults) {
+ 					});
+ 				}
+ 				const childId = `session-${randomUUID()}`;
+-				const forkComposition = await composeAgent(resolveSessionPreset(source));
+-				try {
+-					await ctx.agents.create({
++					// PATCH (fork-to-preset, rc.5 era): agentPreset (optional) overrides the source
++					// session's preset, so a fork can be created under a DIFFERENT composition.
++					const forkComposition = agentPreset !== void 0
++						? await composeAgent(agentPreset)
++						: await composeAgent(resolveSessionPreset(source));
++					try {
++						await ctx.agents.create({
+ 						sessionId: childId,
+ 						seed: events.slice(0, cut),
+ 						meta: {
+@@ -2716,9 +2736,18 @@ function createApiProxy(ctx, defaults) {
+ 							...forkComposition.agentPreset === void 0 ? {} : { agentPreset: forkComposition.agentPreset }
+ 						},
+ 						agentOptions: agentOptions(),
+-						setup: forkComposition.setup
+-					});
+-				} catch (error) {
++							setup: forkComposition.setup
++						});
++						// A fork inherits the source event prefix, including historical
++						// agent-preset/selected events. The resolver intentionally gives the
++						// latest such event precedence over the header, so commit the explicit
++						// target as the child's newest durable selection as well.
++						if (agentPreset !== void 0 && forkComposition.agentPreset !== void 0) {
++							const child = ctx.agents.get(childId);
++							if (child === void 0) throw new Error(`fork child "${childId}" is not locally addressable`);
++							child.session.append("agent-preset/selected", { agentPreset: forkComposition.agentPreset });
++						}
++					} catch (error) {
+ 					return err(request, {
+ 						code: "internal",
+ 						message: `failed to fork session "${sessionId}": ${String(error)}`,
+@@ -2739,7 +2768,7 @@ function createApiProxy(ctx, defaults) {
+ 				}
+ 				return ok(request, { sessionId: childId });
+ 			},
+-			async prompt(request) {
++				async prompt(request) {
+ 				const { sessionId, mode, content, clientTimeZone } = request.payload;
+ 				const canonicalTimeZone = clientTimeZone === void 0 ? void 0 : canonicalClientTimeZone(clientTimeZone);
+ 				if (clientTimeZone !== void 0 && canonicalTimeZone === void 0) return err(request, {

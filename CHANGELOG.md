@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1] - 2026-08-21
+
+### fork-to-preset 端到端修复补丁（P9–P12，rc.5 时代能力丢失的完整恢复）
+- **P9 `dsh-host-apiproxy`**：`session.fork` 支持 `agentPreset`——Zod schema 字段 + 权威 `composeAgent()` 分支（resolve+mount 单一路径）+ child meta/selection 记录。修复：字段到达 Host 后调用不存在的 `validatePreset()` 导致 HTTP 500。
+- **P10 `dsh-client-runtime`**：public+manager `sessions.fork` 全链转发 `agentPreset`（`SessionForkOptions` schema 同步）。
+- **P11 `dsh-agent-presets`**：`resolveSessionPreset` 尊重 `header.seedLength`——fork seed 继承的母会话 `agent-preset/selected` 事件不再覆盖 child header（最深语义 bug：磁盘 header 正确但 UI 显示母 preset）。
+- **P12 `dsh-client-connection`**：镜像 fork request schema（host/client 同步，防字段剥除）。
+- 完整复盘：`dsh-fork-to-preset/docs/incident-2026-08-21-rc8-fork-to-preset.md`（606 行，含五层断链分析 + 测试建议 + 上游拆分建议，存于插件源码仓库）。
+- **注意**：`dsh-desktop.mode: advanced` 会禁用 `ui-layout`（launcher 行为）→ 桌面打不开/UI 残缺——本机已改 `compatibility`。
+
 ## [0.2.0] - 2026-08-21
 
 ### Drift Watch（迭代 1）：快照式 → 追随式
