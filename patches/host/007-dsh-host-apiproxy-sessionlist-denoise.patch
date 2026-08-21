@@ -1,0 +1,30 @@
+diff --git a/package/lib/index.js b/package/lib/index.js
+index 0bb5994..ab211d2 100644
+--- a/package/lib/index.js
++++ b/package/lib/index.js
+@@ -1415,10 +1415,24 @@ function projectionsFor(ctx, session) {
+ * empty value set — yields an absent block: a listing without projections
+ * is degraded, never broken.
+ */
++// session.list 降载（2026-08-20）：列表视图不需要的重键排除——token 统计/
++// 上下文压力/权限/子代理等（详情页走 projectionsFor 全量，不受影响）。
++// 排除式（denylist）而非白名单：未来新投影键自动保留，不丢数据不破坏兼容。
++const LIST_PROJECTION_EXCLUDED = new Set([
++	"tokenUsage", "contextPressure", "contextBreakdown", "contextBreakdownHermes",
++	"subagentTiming", "subagent", "permissions", "verification",
++	"imageLimits", "todos", "plan"
++]);
++
+ function listProjectionsFor(ctx, meta, session) {
+ 	try {
+ 		const block = session !== void 0 ? ctx.get("sessionProjections")?.snapshot(session) : ctx.get("sessionProjectionCache")?.cachedSnapshot(meta);
+-		return block !== void 0 && Object.keys(block.values).length > 0 ? block : void 0;
++		if (block === void 0 || Object.keys(block.values).length === 0) return void 0;
++		const values = {};
++		for (const [key, value] of Object.entries(block.values)) {
++			if (!LIST_PROJECTION_EXCLUDED.has(key)) values[key] = value;
++		}
++		return Object.keys(values).length > 0 ? { asOfSeq: block.asOfSeq, values } : void 0;
+ 	} catch (error) {
+ 		ctx.logger.warn(`session.list: projection column for "${meta.id}" failed (serving the row without it): ${String(error)}`);
+ 		return;

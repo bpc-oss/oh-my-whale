@@ -148,6 +148,38 @@
       "package_spec": "link:{{USER_HOME}}/dsh-voice-input",
       "install_type": "link",
       "description": "Voice input (models dir separate)"
+    },
+    {
+      "id": "@deepseek-ai/dsh-subagent-codex",
+      "type": "npm",
+      "source": "^0.1.0-rc.8",
+      "package_spec": "^0.1.0-rc.8",
+      "install_type": "npm",
+      "description": "Official Codex external subagent (rc.8 bundle)"
+    },
+    {
+      "id": "@deepseek-ai/dsh-subagent-claude-code",
+      "type": "npm",
+      "source": "^0.1.0-rc.8",
+      "package_spec": "^0.1.0-rc.8",
+      "install_type": "npm",
+      "description": "Official Claude Code external subagent (rc.8 bundle)"
+    },
+    {
+      "id": "dsh-global-tool-discovery",
+      "type": "local",
+      "source": "{{USER_HOME}}/dev/dsh-global-tool-discovery",
+      "package_spec": "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
+      "install_type": "link",
+      "description": "Global tool discovery (local dev link)"
+    },
+    {
+      "id": "@deepseek-ai/dsh-client-ui-subagent",
+      "type": "npm",
+      "source": "^0.1.0-rc.8",
+      "package_spec": "^0.1.0-rc.8",
+      "install_type": "npm",
+      "description": "Subagent client UI (rc.8, dependency only, not a bundle)"
     }
   ]
 }

@@ -75,7 +75,7 @@ oh-my-whale/
 | 桌面壳 | DSH Desktop v2.0.1 |
 | 内核 | @deepseek-ai/dsh 0.1.0-rc.8 |
 | cordis / loader / pi-ai | 4.0.1 / 1.0.2 / 0.82.1 |
-| 补丁 | P1-P6（manifest.json 为权威；rc.8 升级曾丢 dsh-goal verification-seam，8/21 重打为 P6） |
+| 补丁 | P1-P7（manifest.json 为权威；rc.8 升级曾丢 dsh-goal verification-seam 与 apiproxy session.list 降载，8/21 已捕获为 P6/P7） |
 
 ## License
 

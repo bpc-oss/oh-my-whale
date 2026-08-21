@@ -1,0 +1,545 @@
+﻿# drift-scan.ps1 - Detect drift between oh-my-whale repo and local DSH installation
+# Usage:
+#   .\scripts\drift-scan.ps1                     # scan, print to terminal, write drift-report.json
+#   .\scripts\drift-scan.ps1 -Out report.json    # specify output path
+#   .\scripts\drift-scan.ps1 -Compare baseline.json  # compare two reports (delta matrix)
+# Reuses: manifest.json, verify.ps1 markers, capture.sh kernel detection, template-render.ps1
+# Encoding: UTF-8 no-BOM for JSON output (PS 5.1 WriteAllText, not Set-Content)
+param(
+  [string]$Out = "",                        # output report path (default: drift-report.json)
+  [string]$Compare = "",                    # baseline report to compare against
+  [string]$Allowlist = "",                  # drift-allowlist.json path (default: docs/drift-allowlist.json)
+  [switch]$Deep                             # iteration 2: --deep not yet implemented
+)
+
+$ErrorActionPreference = "Continue"
+$Repo = Split-Path -Parent $PSScriptRoot
+$ReportPath = if ($Out) { $Out } else { Join-Path (Get-Location) "drift-report.json" }
+$AllowlistPath = if ($Allowlist) { $Allowlist } else { Join-Path $Repo "docs\drift-allowlist.json" }
+
+# ── Kernel detection (reuse check-env.ps1 logic) ──
+$NewKernel = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
+$OldKernel = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
+$ProfileModules = "$env:USERPROFILE\.dsh\profiles\web\node_modules"
+
+if (Test-Path $NewKernel) { $KernelDir = $NewKernel } else { $KernelDir = $OldKernel }
+$KernelVersion = if (Test-Path "$KernelDir\@deepseek-ai\dsh\package.json") {
+  (Get-Content "$KernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
+} else { "unknown" }
+
+Write-Host "=== oh-my-whale drift scan ===" -ForegroundColor Cyan
+Write-Host "KernelDir : $KernelDir ($KernelVersion)"
+Write-Host "Repo      : $Repo"
+Write-Host ""
+
+# ── Helper functions ──
+function Get-Text($path) {
+  if (-not (Test-Path $path)) { return $null }
+  return [System.IO.File]::ReadAllText($path)
+}
+
+function Write-JsonReport($path, $report) {
+  $json = $report | ConvertTo-Json -Depth 10
+  $dir = Split-Path $path -Parent
+  if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+  [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($false))
+  Write-Host "Report: $path ($([System.IO.FileInfo]::new($path).Length) bytes)" -ForegroundColor DarkGray
+}
+
+# ── Section 1: Patch layer ──
+Write-Host "[1] Patches" -ForegroundColor Yellow
+$ManifestPath = Join-Path $Repo "patches\manifest.json"
+$Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+
+# Load allowlist (acknowledged known drift)
+$allowlistEntries = @{}
+if (Test-Path $AllowlistPath) {
+  $alJson = [System.IO.File]::ReadAllText($AllowlistPath)
+  $al = $alJson | ConvertFrom-Json
+  foreach ($e in $al.entries) { $allowlistEntries["$($e.type):$($e.path)"] = $true }
+}
+
+$knownApplied = @()
+$markerPresent = @()
+$lost = @()
+$unknownModified = @()
+
+# 1a. Check each manifest patch (file == "host" only, P5 is profile-tree)
+foreach ($p in $Manifest.patches) {
+  if ($p.file -ne "host") {
+    Write-Host "  $($p.id): SKIP (profile patch, not in kernel tree)" -ForegroundColor DarkGray
+    continue
+  }
+  $target = Join-Path $KernelDir ($p.target -replace "/", "\")
+  $patchFile = Join-Path $Repo "patches\$($p.patchFile)"
+  $marker = switch ($p.id) {
+    "P1" { "parentEntry" }
+    "P2" { "descLocationCache" }
+    "P3" { "api.b.ai" }
+    "P4" { "continuous-worker/change" }
+    "P6" { "registerTransitionGuard" }
+    "P7" { "LIST_PROJECTION_EXCLUDED" }
+    default { "" }
+  }
+
+  if (-not (Test-Path $target)) {
+    Write-Host "  $($p.id): LOST (target missing)" -ForegroundColor Red
+    $lost += @{ "id" = $p.id; "reason" = "target_missing"; "target" = $p.target }
+    continue
+  }
+  if (-not (Test-Path $patchFile)) {
+    Write-Host "  $($p.id): CANNOT VERIFY (patch file missing)" -ForegroundColor Yellow
+    $lost += @{ "id" = $p.id; "reason" = "patch_file_missing"; "target" = $p.target }
+    continue
+  }
+
+  # reverse-apply check
+  $revCheck = & git -C $KernelDir apply -p1 -R --check $patchFile 2>&1
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "  $($p.id): applied" -ForegroundColor Green
+    $knownApplied += $p.id
+  } else {
+    # fallback to marker
+    if ($marker -and (Select-String -Path $target -Pattern $marker -SimpleMatch -Quiet)) {
+      Write-Host "  $($p.id): applied (marker '$marker')" -ForegroundColor Green
+      $markerPresent += $p.id
+    } else {
+      Write-Host "  $($p.id): LOST (reverse-apply fails + marker absent)" -ForegroundColor Red
+      $lost += @{ "id" = $p.id; "reason" = "reverse_check_failed_marker_absent"; "target" = $p.target }
+    }
+  }
+}
+
+# 1b. Scan for .bak / .orig files not in manifest (unknown modifications)
+Write-Host "  --- scanning for unknown modifications ---" -ForegroundColor DarkGray
+$knownSourcePaths = @{}
+foreach ($p in $Manifest.patches) {
+  if ($p.sourcePath) {
+    $norm = $p.sourcePath -replace "/", "\"
+    $knownSourcePaths[$norm] = $true
+  }
+}
+
+# Collect all .bak* and .orig files under @deepseek-ai and @earendil-works
+$bakFiles = @(Get-ChildItem "$KernelDir\@deepseek-ai" -Recurse -Filter "*.bak*" -ErrorAction SilentlyContinue)
+$bakFiles += @(Get-ChildItem "$KernelDir\@deepseek-ai" -Recurse -Filter "*.orig" -ErrorAction SilentlyContinue)
+$bakFiles += @(Get-ChildItem "$KernelDir\@earendil-works" -Recurse -Filter "*.bak*" -ErrorAction SilentlyContinue)
+
+foreach ($bf in $bakFiles) {
+  $rel = $bf.FullName.Substring($KernelDir.Length + 1)
+  # Check if this is a known sourcePath
+  if ($knownSourcePaths.ContainsKey($rel)) { continue }
+  # Check if the target (without .bak suffix) is a known patch target
+  $base = $rel -replace '\.bak[^\\]*$', ''
+  $isKnownPatch = $false
+  foreach ($p in $Manifest.patches) {
+    $t = $p.target -replace "/", "\"
+    if ($base -eq $t) { $isKnownPatch = $true; break }
+  }
+  if (-not $isKnownPatch) {
+    $key = "unknownModified:$rel"
+    if ($allowlistEntries.ContainsKey($key)) {
+      Write-Host "  ACKED: $rel (allowlist)" -ForegroundColor DarkGray
+      continue
+    }
+    Write-Host "  UNKNOWN: $rel" -ForegroundColor Yellow
+    $unknownModified += @{
+      "type" = "bak_without_manifest"
+      "bakFile" = $rel
+      "suggestion" = "review: new patch to capture or clean up"
+    }
+  }
+}
+
+$patchesStatus = if ($lost.Count -eq 0 -and $unknownModified.Count -eq 0) { "CLEAN" } else { "HAS_DRIFT" }
+$sections = @{
+  "patches" = @{
+    "status" = $patchesStatus
+    "knownApplied" = $knownApplied
+    "markerPresent" = $markerPresent
+    "lost" = $lost
+    "unknownModified" = $unknownModified
+  }
+}
+
+# ── Section 2: Config layer (via template-render.ps1) ──
+Write-Host "[2] Config" -ForegroundColor Yellow
+$configDiffers = @()
+$configMatches = @()
+
+$tmpRender = Join-Path $env:TEMP "omw-drift-render-$(Get-Random)"
+try {
+  # 自动推断 PLUGIN_SOURCES_DIR（本机 E:\ai-files）
+  if (-not $env:OMW_PLUGIN_SOURCES_DIR) {
+    if (Test-Path "E:\ai-files") { $env:OMW_PLUGIN_SOURCES_DIR = "E:/ai-files" }
+    elseif (Test-Path "$env:USERPROFILE\ai-files") { $env:OMW_PLUGIN_SOURCES_DIR = "$env:USERPROFILE/ai-files" }
+  }
+  & "$Repo\scripts\template-render.ps1" -OutDir $tmpRender -DefaultsOnly 2>&1 | Out-Null
+  $DshHome = "$env:USERPROFILE\.dsh"
+
+  # Load credential patterns from check-private.ps1
+  $credPatterns = @('api[_-]?key', 'sk-[a-zA-Z0-9]{20,}', 'password', 'token', 'secret', 'credential', 'auth')
+  function Redact-Credentials($text) {
+    foreach ($pat in $credPatterns) {
+      $text = $text -replace "($pat):\s*\S+", "`$1: [REDACTED]"
+      $text = $text -replace "($pat)\s*=\s*\S+", "`$1 = [REDACTED]"
+    }
+    return $text
+  }
+
+  $mappings = @(
+    @("settings.yaml", "$DshHome\settings.yaml"),
+    @("profiles\web\package.json", "$DshHome\profiles\web\package.json"),
+    @("profiles\web\cordis.patch.yml", "$DshHome\profiles\web\cordis.patch.yml"),
+    @("profiles\web\pnpm-workspace.yaml", "$DshHome\profiles\web\pnpm-workspace.yaml"),
+    @("profiles\web\cordis.yml", "$DshHome\profiles\web\cordis.yml"),
+    @("profiles\web\session-tool-unlock.mjs", "$DshHome\profiles\web\session-tool-unlock.mjs"),
+    @("profiles\web\global-skill-tools.mjs", "$DshHome\profiles\web\global-skill-tools.mjs")
+  )
+
+  foreach ($m in $mappings) {
+    $rendered = Join-Path $tmpRender $m[0]
+    $actual = $m[1]
+    if (-not (Test-Path $rendered)) { continue }
+    if (-not (Test-Path $actual)) {
+      Write-Host "  $($m[0]): missing (actual)" -ForegroundColor Yellow
+      $configDiffers += @{ "file" = $m[0]; "reason" = "actual_missing" }
+      continue
+    }
+    # 运行态豁免：settings.yaml / cordis.yml / cordis.patch.yml 是部署后累积演化的
+    # 运行配置（凭据引用、插件插桩、机器特有路径），模板只保证新机骨架，不强制逐行一致。
+    $rtKey = "config-runtime:$($m[0])"
+    if ($allowlistEntries.ContainsKey($rtKey)) {
+      Write-Host "  $($m[0]): runtime-ack (allowlist)" -ForegroundColor DarkGray
+      $configMatches += $m[0]
+      continue
+    }
+    $rText = Get-Text $rendered
+    $aText = Get-Text $actual
+    # package.json 用 JSON 语义对比（忽略键顺序/斜杠转义，聚焦结构漂移：deps 集合 + bundles 数组）
+    if ($m[0] -like "profiles\web\package.json") {
+      try {
+        $rObj = $rText | ConvertFrom-Json
+        $aObj = $aText | ConvertFrom-Json
+        $rDeps = @{}; foreach ($p in $rObj.dependencies.PSObject.Properties) { $rDeps[$p.Name] = $p.Value -replace "\\\\", "/" -replace "\\", "/" }
+        $aDeps = @{}; foreach ($p in $aObj.dependencies.PSObject.Properties) { $aDeps[$p.Name] = $p.Value -replace "\\\\", "/" -replace "\\", "/" }
+        $rBundles = @($rObj.dsh.profile.bundles | Sort-Object)
+        $aBundles = @($aObj.dsh.profile.bundles | Sort-Object)
+        $depsDiff = @()
+        foreach ($k in ($rDeps.Keys + $aDeps.Keys | Sort-Object -Unique)) {
+          if (-not $rDeps.ContainsKey($k)) { $depsDiff += "dep removed: $k" }
+          elseif (-not $aDeps.ContainsKey($k)) { $depsDiff += "dep added: $k" }
+          elseif ($rDeps[$k] -ne $aDeps[$k]) { $depsDiff += "dep spec differs: $k" }
+        }
+        $bundleDiff = @(Compare-Object $rBundles $aBundles | ForEach-Object { "$($_.SideIndicator -replace '=>','added' -replace '<=','removed') $($_.InputObject)" })
+        if ($depsDiff.Count -eq 0 -and $bundleDiff.Count -eq 0) {
+          Write-Host "  $($m[0]): match (semantic)" -ForegroundColor Green
+          $configMatches += $m[0]
+        } else {
+          Write-Host "  $($m[0]): DIFFERS (semantic)" -ForegroundColor Yellow
+          foreach ($d in $depsDiff) { Write-Host "    $d" -ForegroundColor DarkGray }
+          foreach ($d in $bundleDiff) { Write-Host "    $d" -ForegroundColor DarkGray }
+          $configDiffers += @{ "file" = $m[0]; "reason" = "semantic_differs"; "details" = ($depsDiff + $bundleDiff) }
+        }
+        continue
+      } catch {
+        Write-Host "  $($m[0]): parse error, fallback to text diff" -ForegroundColor DarkGray
+      }
+    }
+    if ($rText -eq $aText) {
+      Write-Host "  $($m[0]): match" -ForegroundColor Green
+      $configMatches += $m[0]
+    } else {
+      Write-Host "  $($m[0]): DIFFERS" -ForegroundColor Yellow
+      $configDiffers += @{ "file" = $m[0]; "reason" = "content_differs" }
+    }
+  }
+} finally {
+  if (Test-Path $tmpRender) { Remove-Item $tmpRender -Recurse -Force -ErrorAction SilentlyContinue }
+}
+
+$configStatus = if ($configDiffers.Count -eq 0) { "CLEAN" } else { "HAS_DRIFT" }
+$sections["config"] = @{
+  "status" = $configStatus
+  "differs" = $configDiffers
+  "matches" = $configMatches
+}
+
+# ── Section 3: Plugin layer ──
+Write-Host "[3] Plugins" -ForegroundColor Yellow
+$unregistered = @()
+$removed = @()
+$installTypeDrift = @()
+
+$profilePkg = "$DshHome\profiles\web\package.json"
+$sourcesJson = Join-Path $Repo "plugins\SOURCES.json"
+
+if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
+  $pkg = Get-Content $profilePkg -Raw | ConvertFrom-Json
+  $sources = Get-Content $sourcesJson -Raw | ConvertFrom-Json
+
+  # Build SOURCES lookup: id -> install_type
+  $sourceMap = @{}
+  foreach ($s in $sources.plugins) { $sourceMap[$s.id] = $s.install_type }
+
+  # Kernel-internal bundles (not in SOURCES)
+  $kernelInternal = @{
+    "@deepseek-ai/dsh-base" = $true
+    "@deepseek-ai/dsh-web-app" = $true
+    "dsh-web-billing" = $true
+  }
+
+  # Bundles -> SOURCES (skip kernel-internal)
+  $bundles = $pkg.dsh.profile.bundles
+  foreach ($b in $bundles) {
+    if ($kernelInternal.ContainsKey($b)) { continue }
+    if (-not $sourceMap.ContainsKey($b)) {
+      Write-Host "  UNREGISTERED (bundle): $b" -ForegroundColor Yellow
+      $unregistered += @{ "id" = $b; "source" = "bundle" }
+    } elseif ($sourceMap[$b] -ne "npm") {
+      # Basic install_type check (only non-npm packages have meaningful type)
+      $spec = $pkg.dependencies.$b
+      $expectedType = if ($spec -match "^file:vendor-archives") { "vendor-archive" }
+        elseif ($spec -match "^file:.*bundles") { "file-dir" }
+        elseif ($spec -match "^link:") { "link" }
+        elseif ($spec -match "^github:") { "github" }
+        elseif ($spec -match "^file:") { "file-dir" }
+        elseif ($spec -match "^[0-9^~]") { "npm" }
+        else { "npm" }
+      if ($expectedType -ne $sourceMap[$b]) {
+        Write-Host "  INSTALL_TYPE_DRIFT: $b (expected $expectedType, sources $($sourceMap[$b]))" -ForegroundColor Yellow
+        $installTypeDrift += @{ "id" = $b; "expected" = $expectedType; "sources" = $sourceMap[$b] }
+      }
+    }
+  }
+
+  # SOURCES -> bundles (removed from bundles but still in SOURCES)
+  foreach ($sId in $sourceMap.Keys) {
+    if ($bundles -notcontains $sId) {
+      # Check if it's in dependencies (third direction)
+      $inDeps = $pkg.dependencies.$sId -ne $null
+      if (-not $inDeps) {
+        Write-Host "  REMOVED: $sId (in SOURCES, not in bundles or dependencies)" -ForegroundColor DarkGray
+        $removed += @{ "id" = $sId; "reason" = "not_in_bundles_or_deps" }
+      }
+    }
+  }
+
+  # Dependencies -> SOURCES (third direction, catch unregistered deps)
+  foreach ($dep in $pkg.dependencies.PSObject.Properties) {
+    if ($kernelInternal.ContainsKey($dep.Name)) { continue }
+    if ($bundles -contains $dep.Name) { continue }  # already checked above
+    if (-not $sourceMap.ContainsKey($dep.Name)) {
+      $key = "unregistered-dependency:$($dep.Name)"
+      if ($allowlistEntries.ContainsKey($key)) {
+        Write-Host "  ACKED (dependency): $($dep.Name) (allowlist)" -ForegroundColor DarkGray
+        continue
+      }
+      Write-Host "  UNREGISTERED (dependency): $($dep.Name)" -ForegroundColor Yellow
+      $unregistered += @{ "id" = $dep.Name; "source" = "dependency" }
+    }
+  }
+}
+
+$pluginsStatus = if ($unregistered.Count -eq 0 -and $removed.Count -eq 0 -and $installTypeDrift.Count -eq 0) { "CLEAN" } else { "HAS_DRIFT" }
+$sections["plugins"] = @{
+  "status" = $pluginsStatus
+  "unregistered" = $unregistered
+  "removed" = $removed
+  "installTypeDrift" = $installTypeDrift
+}
+
+# ── Section 3.5: Junction layer (upgrade wipes junction pattern, 5 incidents) ──
+Write-Host "[3.5] Junctions" -ForegroundColor Yellow
+$junctionIssues = @()
+$junctionOK = @()
+
+$newKernelPath = "C:\Users\Administrator\AppData\Local\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
+$oldKernelPath = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
+
+if (Test-Path $profilePkg) {
+  $pkg = Get-Content $profilePkg -Raw | ConvertFrom-Json
+  foreach ($dep in $pkg.dependencies.PSObject.Properties) {
+    $spec = $dep.Value
+    if ($spec -notmatch "^link:") { continue }
+    $srcDir = $spec.Substring(5) -replace "\\\\", "\" -replace "\\", "\"
+    if (-not (Test-Path $srcDir)) {
+      Write-Host "  LINK-SOURCE MISSING: $($dep.Name) -> $srcDir" -ForegroundColor Yellow
+      $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "link_source_missing"; "path" = $srcDir }
+      continue
+    }
+    $nmDir = Join-Path $srcDir "node_modules"
+    if (-not (Test-Path $nmDir)) {
+      Write-Host "  NO node_modules: $($dep.Name) ($srcDir)" -ForegroundColor DarkGray
+      continue  # 无 node_modules junction 的 link 插件（自身无宿主依赖）——OK
+    }
+    $item = Get-Item $nmDir -Force -ErrorAction SilentlyContinue
+    $isLink = $item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
+    if (-not $isLink) {
+      Write-Host "  NOT-LINK (real dir): $($dep.Name)" -ForegroundColor DarkGray
+      $junctionOK += @{ "plugin" = $dep.Name; "state" = "real_dir" }
+      continue
+    }
+    $target = $item.Target
+    if ($target -eq $null) { $target = (cmd /c dir "$nmDir" 2>$null | Select-String "\\]") -replace ".*\] " -replace "\[.*" }
+    # git-bash symlink target read
+    $linkTarget = $null
+    try { $linkTarget = (Get-Item $nmDir).Target } catch {}
+    if (-not $linkTarget) {
+      # fallback: cmd dir
+      $dirOut = cmd /c dir $nmDir 2>$null
+      foreach ($line in $dirOut) { if ($line -match "SYMLINK|JUNCTION|->") { $linkTarget = ($line -split "\[|->")[-1].Trim(); break } }
+    }
+    if ($linkTarget) {
+      $normTarget = $linkTarget -replace "\\", "/"
+      if ($normTarget -match "DeepSeek Harness/resources/host/node_modules") {
+        Write-Host "  STALE: $($dep.Name) junction -> old shell rc.7" -ForegroundColor Red
+        $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "stale_old_shell"; "target" = $linkTarget }
+      } elseif ($normTarget -match "DSH Desktop/resources/app.asar.unpacked/node_modules") {
+        Write-Host "  OK: $($dep.Name) -> new shell" -ForegroundColor Green
+        $junctionOK += @{ "plugin" = $dep.Name; "state" = "new_shell" }
+      } else {
+        Write-Host "  OTHER-TARGET: $($dep.Name) -> $linkTarget" -ForegroundColor DarkGray
+        $junctionOK += @{ "plugin" = $dep.Name; "state" = "other"; "target" = $linkTarget }
+      }
+    } else {
+      Write-Host "  UNKNOWN-TARGET: $($dep.Name) junction target unreadable" -ForegroundColor Yellow
+      $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "target_unreadable" }
+    }
+  }
+}
+
+$junctionStatus = if ($junctionIssues.Count -eq 0) { "CLEAN" } else { "HAS_DRIFT" }
+$sections["junctions"] = @{
+  "status" = $junctionStatus
+  "issues" = $junctionIssues
+  "ok" = $junctionOK
+}
+
+# ── Build report ──
+$report = @{
+  "generatedAt" = (Get-Date -Format "o")
+  "kernel" = @{
+    "dir" = $KernelDir
+    "version" = $KernelVersion
+  }
+  "sections" = $sections
+}
+$report["verdict"] = if ($patchesStatus -eq "CLEAN" -and $configStatus -eq "CLEAN" -and $pluginsStatus -eq "CLEAN" -and $junctionStatus -eq "CLEAN") { "CLEAN" } else { "HAS_DRIFT" }
+
+Write-Host ""
+if ($report.verdict -eq "CLEAN") {
+  Write-Host "VERDICT: CLEAN" -ForegroundColor Green
+} else {
+  Write-Host "VERDICT: HAS_DRIFT" -ForegroundColor Yellow
+}
+
+# ── Write report ──
+Write-JsonReport $ReportPath $report
+
+# ── Compare mode (delta matrix) ──
+if ($Compare) {
+  if (-not (Test-Path $Compare)) { Write-Host "ERROR: baseline report not found: $Compare" -ForegroundColor Red; exit 1 }
+  try {
+    $baselineJson = [System.IO.File]::ReadAllText($Compare)
+    $baseline = $baselineJson | ConvertFrom-Json
+  } catch {
+    Write-Host "ERROR: baseline report parse failed: $Compare" -ForegroundColor Red
+    Write-Host "  $($_.Exception.Message)"
+    exit 1
+  }
+  if ($null -eq $baseline -or $null -eq $baseline.sections) {
+    Write-Host "ERROR: baseline report has no sections (wrong format?): $Compare" -ForegroundColor Red
+    exit 1
+  }
+  Write-Host ""
+  Write-Host "=== Delta matrix (current vs baseline) ===" -ForegroundColor Cyan
+
+  $blocking = @()
+  $allowlistEntries = @{}
+  if (Test-Path $AllowlistPath) {
+    $alJson = [System.IO.File]::ReadAllText($AllowlistPath)
+    $al = $alJson | ConvertFrom-Json
+    foreach ($e in $al.entries) { $allowlistEntries["$($e.type):$($e.path)"] = $true }
+  }
+
+  # 1. new-lost: manifest patches that were APPLIED/MARKER-PRESENT in baseline, now LOST
+  $baselineApplied = @{}
+  foreach ($id in $baseline.sections.patches.knownApplied) { $baselineApplied[$id] = "applied" }
+  foreach ($id in $baseline.sections.patches.markerPresent) { $baselineApplied[$id] = "marker" }
+  $currentLost = @{}
+  foreach ($l in $report.sections.patches.lost) { $currentLost[$l.id] = $l.reason }
+
+  foreach ($bId in $baselineApplied.Keys) {
+    if ($currentLost.ContainsKey($bId)) {
+      Write-Host "  new-lost: $bId (was $($baselineApplied[$bId]), now $($currentLost[$bId]))" -ForegroundColor Red
+      $blocking += @{ "type" = "new-lost"; "id" = $bId; "was" = $baselineApplied[$bId]; "now" = $currentLost[$bId] }
+    }
+  }
+
+  # 2. gone-from-baseline: baseline UNKNOWN-MODIFIED that are absent in current report
+  $baselineUnknown = @{}
+  foreach ($u in $baseline.sections.patches.unknownModified) {
+    $baselineUnknown[$u.bakFile] = $true
+  }
+  $currentUnknown = @{}
+  foreach ($u in $report.sections.patches.unknownModified) {
+    $currentUnknown[$u.bakFile] = $true
+  }
+  foreach ($bFile in $baselineUnknown.Keys) {
+    if (-not $currentUnknown.ContainsKey($bFile)) {
+      $key = "unknownModified:$bFile"
+      if ($allowlistEntries.ContainsKey($key)) {
+        Write-Host "  gone-from-baseline: $bFile (ACKed in allowlist)" -ForegroundColor DarkGray
+      } else {
+        Write-Host "  gone-from-baseline: $bFile (baseline UNKNOWN, now absent — may be P6-class loss!)" -ForegroundColor Red
+        $blocking += @{ "type" = "gone-from-baseline"; "bakFile" = $bFile; "reason" = "absent_from_current" }
+      }
+    }
+  }
+
+  # 3. new-unknown: new .bak files that appeared
+  foreach ($u in $report.sections.patches.unknownModified) {
+    if (-not $baselineUnknown.ContainsKey($u.bakFile)) {
+      Write-Host "  new-unknown: $($u.bakFile)" -ForegroundColor Yellow
+      $blocking += @{ "type" = "new-unknown"; "bakFile" = $u.bakFile }
+    }
+  }
+
+  # 4. new-removed-baseline: baseline LOST that are gone now (handled or silently drifted)
+  $baselineLost = @{}
+  foreach ($l in $baseline.sections.patches.lost) { $baselineLost[$l.id] = $true }
+  $currentLostIds = @{}
+  foreach ($l in $report.sections.patches.lost) { $currentLostIds[$l.id] = $true }
+  foreach ($bId in $baselineLost.Keys) {
+    if (-not $currentLostIds.ContainsKey($bId)) {
+      Write-Host "  new-removed-baseline: $bId (was LOST, now absent)" -ForegroundColor Yellow
+      $blocking += @{ "type" = "new-removed-baseline"; "id" = $bId }
+    }
+  }
+
+  # 5. recovered: baseline LOST now APPLIED
+  foreach ($bId in $baselineLost.Keys) {
+    if ($baselineApplied.ContainsKey($bId) -or $report.sections.patches.knownApplied -contains $bId -or $report.sections.patches.markerPresent -contains $bId) {
+      Write-Host "  recovered: $bId" -ForegroundColor Green
+    }
+  }
+
+  # Build delta report
+  $delta = @{
+    "generatedAt" = $report.generatedAt
+    "baselineAt" = $baseline.generatedAt
+    "blocking" = $blocking
+    "allowlist" = $AllowlistPath
+  }
+  $deltaPath = [System.IO.Path]::ChangeExtension($ReportPath, $null) + "-delta.json"
+  Write-JsonReport $deltaPath $delta
+
+  Write-Host ""
+  if ($blocking.Count -eq 0) {
+    Write-Host "DELTA: CLEAN (no blocking items)" -ForegroundColor Green
+  } else {
+    Write-Host "DELTA: $($blocking.Count) blocking item(s) — resolve or add to drift-allowlist.json" -ForegroundColor Red
+    Write-Host "  To acknowledge: add entries to $AllowlistPath and re-run --compare" -ForegroundColor Yellow
+  }
+}

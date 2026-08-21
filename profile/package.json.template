@@ -8,6 +8,9 @@
     "@bpc-oss/dsh-plugin-chrome-faithful": "file:{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
     "@bpc-oss/dsh-verification": "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
     "@bpshil/litkit-dsh": "github:bpc-oss/litkit-search",
+    "@deepseek-ai/dsh-client-ui-subagent": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-subagent-claude-code": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-subagent-codex": "^0.1.0-rc.8",
     "@dsh-external/dsh-super-injector": "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
     "@dsh-external/dsh-vision-toolkit": "github:Anionex/dsh-vision-toolkit#main",
     "@liustack/modlens": "^3.11.0",
@@ -16,6 +19,8 @@
     "dsh-bash-terminal": "^0.3.11",
     "dsh-better-sidebar": "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
     "dsh-continuous-worker": "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
+    "dsh-fork-to-preset": "link:{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
+    "dsh-global-tool-discovery": "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
     "dsh-plugin-manager": "^0.1.0",
     "dsh-routed-subagent": "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
     "dsh-token-meter-hermes": "file:{{USER_HOME}}/dsh-token-meter-hermes",
@@ -40,7 +45,10 @@
         "@bpshil/litkit-dsh",
         "@dsh-external/dsh-super-injector",
         "dsh-routed-subagent",
-        "@agentos/dsh-lco"
+        "@agentos/dsh-lco",
+        "@deepseek-ai/dsh-subagent-codex",
+        "@deepseek-ai/dsh-subagent-claude-code",
+        "dsh-global-tool-discovery"
       ]
     }
   }

@@ -1,0 +1,45 @@
+diff --git a/@deepseek-ai/dsh-client-ui-subagent/lib/client.js b/@deepseek-ai/dsh-client-ui-subagent/lib/client.js
+index 17ddc74..33c6a96 100644
+--- a/@deepseek-ai/dsh-client-ui-subagent/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-subagent/lib/client.js
+@@ -626,6 +626,7 @@ window.__ModuleLoader__.load({
+ 		//#region lib/types/client/index.js
+ 		/** Required services for conversation slots and session navigation. */
+ 		const inject = [
++			"inputTriggers",
+ 			"sessions",
+ 			"slots",
+ 			"locale"
+@@ -648,6 +649,32 @@ window.__ModuleLoader__.load({
+ 				en
+ 			}), "ui-subagent: dictionaries");
+ 			const sessions = ctx.sessions;
++			const childLabels = (session, query) => {
++				const { byId } = sessions.list.getSnapshot();
++				return Object.values(byId).filter((child) => child.parentId === session.sessionId && child.running && child.displayTitle.includes(query)).map((child) => child.displayTitle);
++			};
++			const source = {
++				trigger: "@",
++				name: "subagent",
++				candidates(session, { query }) {
++					return Promise.resolve(childLabels(session, query).map((name) => ({ name })));
++				},
++				lexicon(session) {
++					return childLabels(session, "");
++				},
++				subscribeLexicon(_session, listener) {
++					return sessions.list.subscribe(listener);
++				},
++				onPick({ candidate }) {
++					return { text: `@${candidate.name} ` };
++				},
++				codec: {
++					clipboardText: (ref) => `@${ref}`,
++					serialize: (ref) => Promise.resolve(`@${ref}`)
++				}
++			};
++			const inputTriggers = ctx.get("inputTriggers");
++			ctx.effect(() => inputTriggers.registerSource(source), "ui-subagent: @ source");
+ 			const catalogActions = (_parentSessionId) => ({
+ 				openChild(address) {
+ 					sessions.openSubagent(address);

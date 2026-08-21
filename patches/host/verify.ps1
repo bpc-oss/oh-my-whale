@@ -49,6 +49,8 @@ foreach ($p in $Manifest.patches) {
         "P3" = "api.b.ai";
         "P4" = "continuous-worker/change";
         "P6" = "registerTransitionGuard";
+        "P7" = "LIST_PROJECTION_EXCLUDED";
+        "P8" = "ui-subagent: @ source";
       }
       $m = $markers[$p.id]
       if ($m) {

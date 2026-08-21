@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0] - 2026-08-21
+
+### Drift Watch（迭代 1）：快照式 → 追随式
+- **`scripts/drift-scan.ps1`（新）**：四层漂移扫描（补丁 / 配置 / 插件 / 报告 JSON）
+  - 补丁层：manifest 补丁状态（reverse-apply + marker 兜底）+ `.bak`/`.orig` 扫描（UNKNOWN-MODIFIED）
+  - 配置层：7 模板渲染对比 + package.json JSON 语义对比（忽略键序/斜杠）+ 运行态豁免（allowlist）
+  - 插件层：内核包排除 + bundles/SOURCES/dependencies 三方对比 + install_type 规范化表
+  - `--compare` 全量增量矩阵：new-lost / new-unknown / gone-from-baseline / new-removed-baseline / recovered
+  - `docs/drift-allowlist.json`：已确认漂移逐项豁免（type/path/reason/date，需提交）
+  - 编码纪律：UTF-8 无 BOM 写报告、ReadAllText 读内核文件（PS 5.1 兼容）
+- **端到端验证**：模拟 P6 事故（基线 UNKNOWN → 升级后消失）→ `gone-from-baseline` 门禁触发 ✓；allowlist 豁免后放行 ✓
+- **`docs/upgrading.md`**：门禁集成 Step 1.5（基线）/ Step 3.5（升级后对比阻断循环）/ Step 5（CLEAN 校验）
+
+### 本机漂移处置（drift-scan 首跑发现）
+- **捕获 P7**：`dsh-host-apiproxy` session.list 降载补丁（LIST_PROJECTION_EXCLUDED，2026-08-20 打的，从未登记）
+  - 原始补丁写入污染了文件编码（GBK mojibake）；从 npm-pack 官方重建干净版 + CRLF 对齐内核
+  - 污染现场保留 `index.js.bak-gbk-polluted-20260821`（allowlist 记录）
+- **捕获 P8**：`dsh-client-ui-subagent` input-triggers 补丁（rc.5 时代 @ 提及子代理源，rc.8 丢失）
+  - 子代理 UI 不显示 = deps 缺失 + junction 缺失 + host client.js 补丁丢失（三要素）
+  - 幂等补丁脚本在 `dsh-routed-subagent/scripts/_patch_ui_subagent.mjs`
+- **drift-scan 加 junction 层（[3.5]）**：扫描所有 link: 依赖插件的 node_modules junction（STALE=指旧壳 / MISSING / OK）——该模式已漏 5 次
+- **全量内核审计**：全部 @deepseek-ai 包 vs npm 官方 rc.8 对比——唯一差异为 dsh-subagent fork（101 行，已知），其余全部可由 P1-P8 解释，**无隐藏补丁**
+- **SOURCES.json 18 → 22**：登记 subagent-codex / subagent-claude-code / dsh-global-tool-discovery / dsh-client-ui-subagent
+- **profile/package.json.template**：对齐本机 deps/bundles（4 新依赖 + 3 新 bundle）
+- **drift-allowlist.json**：记录有意保留的漂移（fork-to-preset 止血中 / 运行态配置 / 污染备份）
+
 ## [0.1.1] - 2026-08-21
 
 ### 补丁清单修复（rc.8 升级遗留复盘）

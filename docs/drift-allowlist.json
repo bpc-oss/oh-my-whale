@@ -1,0 +1,41 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "type": "unknownModified",
+      "path": "@deepseek-ai/dsh-host-apiproxy/lib/index.js.bak-gbk-polluted-20260821",
+      "reason": "P7 修复前 GBK 污染现场备份",
+      "acknowledgedAt": "2026-08-21"
+    },
+    {
+      "type": "unregistered-dependency",
+      "path": "dsh-fork-to-preset",
+      "reason": "renderer boot fatal 止血，client 修复后恢复",
+      "acknowledgedAt": "2026-08-21"
+    },
+    {
+      "type": "config-runtime",
+      "path": "settings.yaml",
+      "reason": "运行态配置（凭据 env 引用 + 用户模型/provider 演化），模板只保证新机骨架",
+      "acknowledgedAt": "2026-08-21"
+    },
+    {
+      "type": "config-runtime",
+      "path": "profiles\\web\\cordis.yml",
+      "reason": "壳启动时重写的运行态文件（[]），模板仅注释骨架",
+      "acknowledgedAt": "2026-08-21"
+    },
+    {
+      "type": "config-runtime",
+      "path": "profiles\\web\\cordis.patch.yml",
+      "reason": "运行累积插桩（插件注册/机器特有路径），模板含核心降载配置，结构差异预期",
+      "acknowledgedAt": "2026-08-21"
+    },
+    {
+      "type": "config-runtime",
+      "path": "profiles\\web\\pnpm-workspace.yaml",
+      "reason": "斜杠方向差异（C:\\ vs C:/），不影响功能。模板渲染的 Normalize-FileUrls 未处理无引号 YAML 值",
+      "acknowledgedAt": "2026-08-21"
+    }
+  ]
+}

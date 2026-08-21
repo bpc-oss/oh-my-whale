@@ -10,6 +10,7 @@
 2. 运行 `scripts/capture.sh` 捕获当前补丁（diff .bak 快照 vs 当前）→ 存档到 `patches/`
 3. 记录版本基线（`patches/manifest.json` 的 `baseline` 字段）
 4. 确认回滚路径（保留旧树 + 旧安装包）
+5. **运行 `scripts/drift-scan.ps1 -Out baseline-drift.json`**（升级前漂移基线，纯记录不阻断）
 
 ### Step 2：评估新版本
 1. 拉官方 release notes（changelog / GitHub releases）
@@ -25,6 +26,15 @@
 3. 补丁迁移：`patches/host/apply.ps1`（dry-run 先行 → 逐个 apply）
 4. `node --check` 每个被修改的 JS 文件
 
+**Step 3 之后增加门禁（升级后对比，P6 类丢失的捕获点）**：
+```
+3.5 运行 drift-scan.ps1 --compare baseline-drift.json
+    → 输出 'upgrade-drift-report.json'（全量增量矩阵，见 drift-watch-plan.md §3.1）
+    → 任何阻断项（new-lost / new-unknown / gone-from-baseline / new-removed-baseline）
+      必须先处置（补丁迁移 / 清理残留 / 登记 manifest / 记入 drift-allowlist.json）
+    → 处置后重跑 --compare，直到 verdict = CLEAN 或 阻断项全部显式豁免
+```
+
 ### Step 4：配置与插件迁移
 1. settings.yaml：核对 schema 兼容（字段只放宽不收紧）
 2. profile 树：`package.json` 的 bundles 逐项核对
@@ -38,6 +48,7 @@
 - [ ] 工具 schema 合法（defineTool 检查）
 - [ ] 关键插件冒烟：billing / verification / chrome / voice / worker
 - [ ] bai + deepseek 各发一条真实消息
+- [ ] `drift-scan.ps1` verdict = CLEAN 或 所有漂移项已记录在 `docs/drift-allowlist.json`
 - [ ] 桌面版 + web 双端验证
 - [ ] 回滚预案演练（sha256 验证备份 + 恢复演练）
 

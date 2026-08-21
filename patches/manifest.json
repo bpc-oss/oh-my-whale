@@ -78,6 +78,32 @@
       "purpose": "verification-seam (GoalTransitionGuard + permitRef): sync pre-commit guard for goal complete",
       "status": "active",
       "note": "rc.5-era patch migrated through rc.7, LOST in rc.8 (official has no seam). verification goal-guard degrades gracefully without it; patch restores sync interception. Applied 2026-08-21."
+    },
+    {
+      "id": "P7",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-host-apiproxy/lib/index.js",
+      "patchFile": "host/007-dsh-host-apiproxy-sessionlist-denoise.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-host-apiproxy@0.1.0-rc.8",
+      "sourceFile": "lib/index.js",
+      "diffTarget": "current",
+      "purpose": "session.list denoise: exclude heavy projection keys (tokenUsage/contextPressure/subagent/permissions/verification etc) from list rows",
+      "status": "active",
+      "note": "2026-08-20 patch found by drift-scan (bak_without_manifest). Original write polluted encoding (GBK mojibake in comments); rebuilt clean from npm-pack official + logic. Polluted copy preserved at index.js.bak-gbk-polluted-20260821."
+    },
+    {
+      "id": "P8",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-client-ui-subagent/lib/client.js",
+      "patchFile": "host/008-dsh-client-ui-subagent-input-triggers.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-client-ui-subagent@0.1.0-rc.8",
+      "sourceFile": "lib/client.js",
+      "diffTarget": "current",
+      "purpose": "subagent UI input triggers: @ mention source + childLabels (rc.5-era patch, lost in rc.8)",
+      "status": "active",
+      "note": "rc.5-era patch: inject inputTriggers + childLabels + @ trigger source. Dragged through rc.7, lost in rc.8. DSH upgrade wipes both profile dependency and host client.js. Idempotent patch script at dsh-routed-subagent/scripts/_patch_ui_subagent.mjs."
     }
   ]
 }
