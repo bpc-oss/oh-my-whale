@@ -51,10 +51,10 @@ foreach ($p in $Manifest.patches) {
         "P6" = "registerTransitionGuard";
         "P7" = "LIST_PROJECTION_EXCLUDED";
         "P8" = "ui-subagent: @ source";
-        "P9" = "forkComposition";
+        "P9" = "PATCH (fork-to-preset, rc.5 era)";
         "P10" = "agentPreset: opts.agentPreset";
-        "P11" = "seedLength";
-        "P12" = "agentPreset: string().optional()";
+        "P11" = "header.seedLength ?? 0";
+        "P12" = "agentPreset: string().min(1).optional()";
       }
       $m = $markers[$p.id]
       if ($m) {

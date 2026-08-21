@@ -86,7 +86,7 @@
 ### dsh web 并发（watcher 自动拉起 CLI）
 本地 `dgx-hermes-stack` 项目的 `local/scripts/watch-dgx-local-services.ps1` watcher 可能自动拉起 `dsh web`（通过 npm 全局 dsh），与 Desktop 并发读写同一 profile → id collision + 状态污染。
 - **检查**：`npm root -g` 下的 `@deepseek-ai/dsh` 是否存在（本机已改名 `dsh.bak-watcher-block-20260821` 阻断）
-- 本机处置：`mv $APPDATA/npm/node_modules/@deepseek-ai/dsh $APPDATA/npm/node_modules/@deepseek-ai/dsh.bak-watcher-block-20260821`
+- 本机处置：`mv $env:APPDATA/npm/node_modules/@deepseek-ai/dsh $APPDATA/npm/node_modules/@deepseek-ai/dsh.bak-watcher-block-20260821`
 
 ## 升级节奏建议
 
