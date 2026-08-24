@@ -44,3 +44,12 @@ node ~/.dsh/plugin-gateway/scripts/verify.mjs <plugin-dir> --strict
 ## 变更记录
 
 - 2026-08-20 v1.0.0：MVP（静态检查 #1/#2/#4 权威 + #3/#5/#7/#8 启发式），接入 dev_install_package。
+
+## 新增检查项（2026-08-22 governance split）
+
+| # | 检查项 | 级别 | 拦截的事故 |
+|---|---|---|---|
+| 9 | 不得写 session（无 Session.append / JSONL 直写 / 持久层写入） | 权威 | @agent-os/dsh-governance 越界写会话 |
+
+- 检查 #9 仅覆盖 `dev_install_package` 路径；其它路径（dsh plugin add / pnpm / vendor-archives）仍由 audit-profile 兜底（已知边界）。
+- @agent-os/dsh-governance 安装必须走本网关门控路径，默认 `enabled: false`。

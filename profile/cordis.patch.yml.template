@@ -6,7 +6,11 @@
 # 其自带 cordis.patch.yml 提供默认配置，本层无需重复 insert。
 # 如需覆盖其配置，按 id 覆写整行即可（覆盖会替换整份 config）：
 #
-# - id: web-billing
+# - id: agent-os-dsh-governance
+  config:
+    enabled: false
+    # @agent-os/dsh-governance: default disabled; enable advisory after soak + gateway pass
+- id: web-billing
 #   config:
 #     currency: CNY
 #     symbol: '¥'
@@ -21,6 +25,10 @@
 #     #       deepseek-v4-flash: { input: 5, cacheRead: 0.1, output: 10 }
 # 本地模型按官方价计费（省了多少钱）：localProviders 里的 provider 按官方价格表计算
 # 名义价值，实际成本按 localCostPerM（默认 0 = 免费），差值计入「已节省」。
+- id: agent-os-dsh-governance
+  config:
+    enabled: false
+    # @agent-os/dsh-governance: default disabled; enable advisory after soak + gateway pass
 - id: web-billing
   config:
     currency: CNY
@@ -42,9 +50,12 @@
 # 26MB projcache，7 活跃会话 → 每 5s 最多 7 次整文件写（~36MB/s）占满事件循环。
 # 覆盖为 30s/500 事件：6 倍降载；projcache 是投影缓存（源数据 session.jsonl.zstd
 # 永在），崩溃最多丢最后 30s 缓存，coldSnapshot 自动从持久层重建，质量零丢。
+# 2026-08-22 实测：活跃会话下 500 事件 ~8s 攒满即触发 16MB 全量重写（事件驱动优先于
+# interval），主进程 53% 单核持续 → 升级 writeEveryEvents 到 5000（约 80s 一次），
+# interval 30s 兜底不变。
 - id: session-projection-cache
   config:
-    writeEveryEvents: 500
+    writeEveryEvents: 5000
     writeIntervalMs: 30000
 - id: vision-toolkit
   config:
@@ -147,6 +158,10 @@
   config:
     supplyChain:
       verifyOnInstall: false
+    # 2026-08-24 修复：checkpoint 默认路径 ~/.dsh/profiles/default/continuous-worker/checkpoints
+    # 落在 sessions 扫描范围内，host 将其误识别为 session 目录 → id collision。
+    # 改为 ~/.dsh/data/continuous-worker/checkpoints（sessions 不扫描 data/ 目录）。
+    checkpointRoot: '{{DSH_HOME}}/data/continuous-worker/checkpoints'
 
 
 # 已卸载插件（@dsh-external/test-run-plugin）：disabled 阻断其 bundle patch 自装配
@@ -184,6 +199,10 @@
 # maxRecent=100000 exceeds the 50000 heuristic threshold. Covering to a safe
 # value (50000 = 10x the max-observations-per-session ceiling, well above the
 # 4k-8k typical turns). User can remove/adjust this override.
+- id: agent-os-dsh-governance
+  config:
+    enabled: false
+    # @agent-os/dsh-governance: default disabled; enable advisory after soak + gateway pass
 - id: web-billing
   config:
     detailMaxRecent: 50000

@@ -168,6 +168,18 @@ if (Test-Path $siPath) {
   if ($hits -gt 0) { Write-Host "P5 gateway integration: present ($hits)" } else { Write-Host "WARN: P5 gateway missing - run patches/profile/apply.ps1"; $failSmoke = 1 }
 }
 
+# ---------------- Phase 6.5: governance split assets ----------------
+Step "Phase 6.5: governance split assets"
+$govSources = Get-Content "$Repo\plugins\SOURCES.json" -Raw | ConvertFrom-Json
+$govRow = $govSources.plugins | Where-Object { $_.id -eq '@agent-os/dsh-governance' }
+if ($govRow) { Write-Host "SOURCES: @agent-os/dsh-governance present (install_type=$($govRow.install_type), default disabled)" } else { Write-Host "WARN: governance source row missing"; $failSmoke = 1 }
+$govDev = "$env:USERPROFILE\dev\dsh-governance"
+if (Test-Path "$govDev\package.json") {
+  Write-Host "A plugin repo: $govDev (default disabled; enable only after isolated smoke + gateway pass)"
+  if (-not $DryRun) { node "$DshHome\plugin-gateway\scripts\verify.mjs" "$govDev" 2>&1 | Select-Object -Last 3 }
+} else { Write-Host "WARN: A plugin repo missing at $govDev" }
+$cDev = "$env:USERPROFILE\dev\agentos-framework-governance"
+if (Test-Path "$cDev\pyproject.toml") { Write-Host "C plugin repo: $cDev (independent service; bootstrap does NOT auto-start it)" } else { Write-Host "WARN: C plugin repo missing at $cDev" }
 # ---------------- Phase 7: output ----------------
 Step "Phase 7: next steps"
 Write-Host "`nSet these environment variables (see config/.env.example):"

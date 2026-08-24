@@ -1,0 +1,6 @@
+{
+  "name": "bad-session-writer-fixture",
+  "private": true,
+  "main": "./lib/index.js",
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

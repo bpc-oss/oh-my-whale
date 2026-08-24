@@ -94,3 +94,11 @@
 ## [计划]
 - Phase 5：文档（architecture / handoff / upgrading）+ 独立审查
 - Phase 6：CI + pre-commit hook + GitHub 推送
+
+## 2026-08-22 — governance split (plan v5.1 APPROVED)
+
+- 新增 `@agent-os/dsh-governance`（A 插件）来源与 profile 行，默认 `enabled: false`。
+- `plugins/SOURCES.json` 新增 local file-dir 条目（`{{USER_HOME}}/dev/dsh-governance`）。
+- `profile/package.json.template` 增加依赖与 bundle；`profile/cordis.patch.yml.template` 增加 disable 行。
+- `gateway/README.md` 新增 #9“不得写 session”检查项（权威级，覆盖 dev_install_package 路径）。
+- C 插件（`@agent-os/framework-governance`）为独立仓库 `{{USER_HOME}}/dev/agentos-framework-governance`，不由 bootstrap 自动安装。

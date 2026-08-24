@@ -188,6 +188,38 @@
       "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
       "install_type": "link",
       "description": "Fork any session into a chosen agent preset (header UI; host presets route; requires P9-P12 kernel patches)"
+    },
+    {
+      "id": "dsh-web-billing",
+      "type": "local",
+      "source": "{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
+      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
+      "install_type": "link",
+      "description": "Web billing UI + metering ledger (local dev repo E:/ai-files, symlinked in node_modules; was falsely exempted as kernel-internal)"
+    },
+    {
+      "id": "dsh-subagent-model",
+      "type": "local",
+      "source": "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+      "install_type": "link",
+      "description": "Subagent model selection (local dev repo; install interrupted 2026-08-22, recovered by clearing plugin-install-recovery state)"
+    },
+    {
+      "id": "@zseven-w/dsh-openpencil",
+      "type": "npm",
+      "version": "0.1.0-rc.2",
+      "package_spec": "0.1.0-rc.2",
+      "install_type": "npm",
+      "description": "OpenPencil drawing plugin (npm rc.2; part of the same interrupted manual install)"
+    },
+    {
+      "id": "@agent-os/dsh-governance",
+      "type": "local",
+      "source": "{{USER_HOME}}/dev/dsh-governance",
+      "package_spec": "file:{{USER_HOME}}/dev/dsh-governance",
+      "install_type": "file-dir",
+      "description": "AgentOS local DSH governance plugin (native admission reader / capability router / policy guard)"
     }
   ]
 }

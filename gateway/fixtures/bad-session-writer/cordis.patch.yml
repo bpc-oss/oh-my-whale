@@ -1,0 +1,1 @@
+- insert:\n    - id: bad-session-writer\n      name: bad-session-writer-fixture\n

@@ -2,7 +2,8 @@
   "name": "dsh-profile-web",
   "private": true,
   "dependencies": {
-    "@agentos/dsh-lco": "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
+    "@agentos/dsh-lco": "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
+    "@agent-os/dsh-governance": "file:{{USER_HOME}}/dev/dsh-governance",
     "@bpc-oss/dsh-client-ui-verification": "file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
     "@bpc-oss/dsh-evidence": "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
     "@bpc-oss/dsh-plugin-chrome-faithful": "file:{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
@@ -16,6 +17,7 @@
     "@liustack/modlens": "^3.11.0",
     "@liustack/modsearch": "^5.3.0",
     "@omdsh-dev/dsh-genui": "github:omdsh-dev/dsh-genui",
+    "@zseven-w/dsh-openpencil": "0.1.0-rc.2",
     "dsh-bash-terminal": "^0.3.11",
     "dsh-better-sidebar": "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
     "dsh-continuous-worker": "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
@@ -23,6 +25,7 @@
     "dsh-global-tool-discovery": "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
     "dsh-plugin-manager": "^0.1.0",
     "dsh-routed-subagent": "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
+    "dsh-subagent-model": "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
     "dsh-token-meter-hermes": "file:{{USER_HOME}}/dsh-token-meter-hermes",
     "dsh-voice-input": "link:{{USER_HOME}}/dsh-voice-input"
   },
@@ -40,16 +43,19 @@
         "@liustack/modsearch",
         "@bpc-oss/dsh-plugin-chrome-faithful",
         "@omdsh-dev/dsh-genui",
+        "@zseven-w/dsh-openpencil",
         "dsh-voice-input",
         "dsh-continuous-worker",
         "@bpshil/litkit-dsh",
         "@dsh-external/dsh-super-injector",
         "dsh-routed-subagent",
         "@agentos/dsh-lco",
+        "@agent-os/dsh-governance",
         "@deepseek-ai/dsh-subagent-codex",
         "@deepseek-ai/dsh-subagent-claude-code",
         "dsh-global-tool-discovery",
-        "dsh-fork-to-preset"
+        "dsh-fork-to-preset",
+        "dsh-subagent-model"
       ]
     }
   }

@@ -395,6 +395,29 @@ function warn(evidence) {
   return { result: "WARNING", evidence };
 }
 
+function checkNoSessionWrites(dir) {
+  const hits = [];
+  const walk = (d) => {
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name === 'dist') continue
+      const full = join(d, entry.name)
+      if (entry.isDirectory()) { walk(full); continue }
+      if (!/\.(js|mjs|ts)$/.test(entry.name)) continue
+      const text = readFileSync(full, 'utf8')
+      const lines = text.split(/\r?\n/)
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i]
+        if (/session\.append\(|Session\.append\(|session\.events\.(push|splice|unshift|write)\(/.test(line)) {
+          hits.push(`${full}:${i + 1}: ${line.trim().slice(0, 120)}`)
+        }
+      }
+    }
+  }
+  walk(dir)
+  if (hits.length) return fail(hits.join(' | '))
+  return pass('no session.append / session.events mutation patterns found')
+}
+
 export const CHECKS = [
   { id: 1, name: "bundle-declaration", run: checkBundleDeclaration, tier: "authoritative" },
   { id: 2, name: "entry-completeness", run: checkEntryCompleteness, tier: "authoritative" },
@@ -403,6 +426,7 @@ export const CHECKS = [
   { id: 5, name: "schema-object-root", run: checkSchemaObjectRoot, tier: "heuristic" },
   { id: 7, name: "loader-internal-access", run: checkLoaderInternalAccess, tier: "warning" },
   { id: 8, name: "write-amplification", run: checkWriteAmplification, tier: "heuristic" },
+  { id: 9, name: "no-session-writes", run: checkNoSessionWrites, tier: "authoritative" },
 ];
 
 export function runStaticChecks(dir) {
