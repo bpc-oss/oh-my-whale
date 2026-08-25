@@ -1,6 +1,6 @@
 {
     "profileDir":  "{{USER_HOME}}\\.dsh\\profiles\\web",
-    "generatedAt":  "2026-08-25T21:51:52.4604559+08:00",
+    "generatedAt":  "2026-08-25T23:03:32.8152559+08:00",
     "version":  "1",
     "entries":  [
                     {
@@ -52,13 +52,14 @@
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{USER_HOME}}/dsh-token-meter-hermes",
-                        "id":  "dsh-token-meter-hermes",
-                        "gitHead":  "",
-                        "version":  "0.1.0",
-                        "dirty":  -1,
-                        "spec":  "file:{{USER_HOME}}/dsh-token-meter-hermes",
-                        "install_type":  "file-dir"
+                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
+                        "id":  "dsh-web-billing",
+                        "gitHead":  "d506ca726dc1c356960bd982ddb364b605f5a4b4",
+                        "version":  "2.5.0",
+                        "dirty":  0,
+                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-web-billing",
+                        "install_type":  "link",
+                        "unlisted_in_deps":  true
                     },
                     {
                         "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-experimental/m2-demo-plugin",
@@ -69,11 +70,13 @@
                         "unlisted_in_deps":  true
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-preset-subagent",
-                        "id":  "dsh-preset-subagent",
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-preset-subagent",
-                        "install_type":  "link",
-                        "unlisted_in_deps":  true
+                        "source":  "{{USER_HOME}}/dsh-token-meter-hermes",
+                        "id":  "dsh-token-meter-hermes",
+                        "gitHead":  "",
+                        "version":  "0.1.0",
+                        "dirty":  -1,
+                        "spec":  "file:{{USER_HOME}}/dsh-token-meter-hermes",
+                        "install_type":  "file-dir"
                     },
                     {
                         "source":  "{{USER_HOME}}/dsh-voice-input",
@@ -85,14 +88,23 @@
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
-                        "id":  "dsh-web-billing",
-                        "gitHead":  "d506ca726dc1c356960bd982ddb364b605f5a4b4",
-                        "version":  "2.5.0",
-                        "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-web-billing",
-                        "install_type":  "link",
-                        "unlisted_in_deps":  true
+                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
+                        "id":  "dsh-continuous-worker",
+                        "gitHead":  "23e47ce3b899fd28f1df94344a81b6f57d23cd29",
+                        "version":  "0.1.0",
+                        "dirtyFiles":  [
+                                           " M \"C:\\\\tmp\\\\workers\\\\w-x/thinking/session.jsonl\"",
+                                           " D node_modules",
+                                           "?? .agent-os/lessons.embeddings-manifest.json",
+                                           "?? .agent-os/lessons.index.sqlite",
+                                           "?? .agent-os/lessons.jsonl",
+                                           "?? .agent-os/lessons.vectors.sqlite",
+                                           "?? \"C\\357\\200\\272\\357\\201\\234tmp\\357\\201\\234workers\\357\\201\\234w-x/\"",
+                                           "?? node_modules.bak-rc7/"
+                                       ],
+                        "dirty":  8,
+                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
+                        "install_type":  "link"
                     },
                     {
                         "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
@@ -125,6 +137,20 @@
                         "install_type":  "local-tgz"
                     },
                     {
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\dsh-super-injector-0.3.3.tgz",
+                        "id":  "@dsh-external/dsh-super-injector",
+                        "sha256":  "f39e98e156316a6e4206f82c1b68582adb0738a6e0a283847f5c176aab33575f",
+                        "spec":  "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
+                        "install_type":  "local-tgz"
+                    },
+                    {
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\dsh-better-sidebar-0.12.2-fix108.tgz",
+                        "id":  "dsh-better-sidebar",
+                        "sha256":  "bd1d56c42b76bc4a66167b35f16e1f81be01d5732dd0d0c1ebb949cf88c00c93",
+                        "spec":  "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
+                        "install_type":  "local-tgz"
+                    },
+                    {
                         "source":  "{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
                         "id":  "@bpc-oss/dsh-plugin-chrome-faithful",
                         "gitHead":  "7cefa8211b2eef694296dfd15ff1400a0f3df526",
@@ -138,43 +164,10 @@
                         "install_type":  "file-dir"
                     },
                     {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\dsh-better-sidebar-0.12.2-fix108.tgz",
-                        "id":  "dsh-better-sidebar",
-                        "sha256":  "bd1d56c42b76bc4a66167b35f16e1f81be01d5732dd0d0c1ebb949cf88c00c93",
-                        "spec":  "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
-                        "install_type":  "local-tgz"
-                    },
-                    {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
-                        "id":  "dsh-continuous-worker",
-                        "gitHead":  "23e47ce3b899fd28f1df94344a81b6f57d23cd29",
-                        "version":  "0.1.0",
-                        "dirtyFiles":  [
-                                           " M \"C:\\\\tmp\\\\workers\\\\w-x/thinking/session.jsonl\"",
-                                           " D node_modules",
-                                           "?? .agent-os/lessons.embeddings-manifest.json",
-                                           "?? .agent-os/lessons.index.sqlite",
-                                           "?? .agent-os/lessons.jsonl",
-                                           "?? .agent-os/lessons.vectors.sqlite",
-                                           "?? \"C\\357\\200\\272\\357\\201\\234tmp\\357\\201\\234workers\\357\\201\\234w-x/\"",
-                                           "?? node_modules.bak-rc7/"
-                                       ],
-                        "dirty":  8,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
-                        "install_type":  "link"
-                    },
-                    {
                         "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
                         "id":  "@bpc-oss/dsh-verification",
                         "sha256":  "fe50df592d2b6217e44b8e0c11ef57975aafdff17b27ec7f3fb9f859733c2d8c",
                         "spec":  "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
-                        "install_type":  "local-tgz"
-                    },
-                    {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\dsh-super-injector-0.3.3.tgz",
-                        "id":  "@dsh-external/dsh-super-injector",
-                        "sha256":  "f39e98e156316a6e4206f82c1b68582adb0738a6e0a283847f5c176aab33575f",
-                        "spec":  "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
                         "install_type":  "local-tgz"
                     }
                 ]
