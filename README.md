@@ -45,12 +45,15 @@ oh-my-whale/
 │   ├── .agent-presets/        # 10 个 preset
 │   └── .env.example
 ├── gateway/                   # plugin-gateway 源码
-├── plugins/                   # 插件清单 + standalone 源码
-│   ├── SOURCES.json
+├── plugins/                   # 插件清单 + 指纹 + standalone 源码
+│   ├── SOURCES.json           # 插件来源清单（23 项）
+│   ├── FINGERPRINTS.json      # 本地插件源码指纹（capture-sources.ps1 生成）
 │   ├── inventory.md
 │   └── standalone/            # 4 个本地插件源码
 ├── scripts/                   # 工具
 │   ├── capture.sh             # 从本机捕获补丁
+│   ├── capture-sources.ps1    # 采集本地插件源码指纹（git HEAD / dirty / 版本 / tgz sha256）
+│   ├── drift-scan.ps1         # 五层漂移扫描（补丁/配置/插件注册/junction/源码指纹）
 │   ├── template-render.ps1    # 模板渲染
 │   ├── check-private.ps1      # 隐私扫描
 │   └── check-env.ps1          # 新机前置检查
@@ -63,6 +66,17 @@ oh-my-whale/
 - `scripts/capture.sh`：从本机内核捕获补丁（diff .bak 快照 vs 当前）
 - `patches/host/apply.ps1`：幂等应用（CheckOnly 模式 + 版本基线校验）
 - 官方升级时：dry-run 全部补丁 → 逐个迁移 → 更新 manifest 基线
+
+### 插件源码追踪（本地开发同步）
+本地 `{{PLUGIN_SOURCES_DIR}}/*` 插件频繁更新时，靠 **源码指纹** 保持 oh-my-whale 与本地一致：
+- `scripts/capture-sources.ps1`：扫描本机 profile，为每个本地源插件记录指纹
+  - git 仓库：`git HEAD` + `dirty`（未提交改动数）+ `version`
+  - vendor tgz：`sha256`
+  - 自动发现 deps 未声明的 node_modules 链接（野插件，如 dsh-web-billing）
+- `scripts/drift-scan.ps1` 第 4 层（Plugin sources）：实时重算指纹 vs 仓库 `FINGERPRINTS.json`
+  - `CHANGED: <id> (HEAD xxx -> yyy)` = 本地插件更新了但仓库快照过期 → 跑 `capture-sources.ps1` 重新采集
+  - `NEW-UNREGISTERED: <id>` = 新插件出现但 SOURCES.json 没登记
+- 工作流：**改插件 → 跑 `capture-sources.ps1` → commit FINGERPRINTS.json**；升级前 drift-scan 全绿
 
 ### 模板化（换机安全）
 - 所有机器路径用 `{{VAR}}` 占位符，`template-render.ps1` 渲染

@@ -49,6 +49,8 @@
 - [ ] 关键插件冒烟：billing / verification / chrome / voice / worker
 - [ ] bai + deepseek 各发一条真实消息
 - [ ] `drift-scan.ps1` verdict = CLEAN 或 所有漂移项已记录在 `docs/drift-allowlist.json`
+- [ ] `drift-scan.ps1` 第 4 层（Plugin sources）无 `CHANGED` / `NEW-UNREGISTERED` 项——
+      本地插件更新后需先跑 `scripts/capture-sources.ps1` 重新采集指纹并 commit `plugins/FINGERPRINTS.json`
 - [ ] 桌面版 + web 双端验证
 - [ ] 回滚预案演练（sha256 验证备份 + 恢复演练）
 
@@ -70,6 +72,8 @@
 | P10 | dsh-client-runtime | fork 原生支持 agentPreset | 继续/迁移/退役 |
 | P11 | dsh-agent-presets | resolver 原生支持 seedLength | 继续/迁移/退役 |
 | P12 | dsh-client-connection | fork schema 原生支持 agentPreset | 继续/迁移/退役 |
+| P13 | dsh-host-apiproxy | sseResponse 原生支持批量 flush（20 帧/30ms） | 继续/迁移/退役 |
+| — | session-projection-cache 配置 | 官方默认 200 事件/5s；本机 patch 为 5000 事件/30s（2026-08-22 实测 500 事件 8s 攒满触发 16MB 全量重写 → 升级到 5000） | 官方若调高默认值可退役配置覆盖 |
 
 ## 升级恢复检查清单
 

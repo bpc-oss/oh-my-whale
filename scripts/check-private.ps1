@@ -9,6 +9,7 @@ $SelfScripts = @(
   (Join-Path $RepoDir "scripts\check-private.ps1"),
   (Join-Path $RepoDir "scripts\template-render.ps1"),
   (Join-Path $RepoDir "scripts\drift-scan.ps1"),
+  (Join-Path $RepoDir "scripts\capture-sources.ps1"),
   (Join-Path $RepoDir "scripts\pre-commit"),
   (Join-Path $RepoDir "docs\drift-watch-plan.md"),
   (Join-Path $RepoDir ".github\workflows\ci.yml")

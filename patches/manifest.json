@@ -156,6 +156,43 @@
       "purpose": "mirror fork request schema (agentPreset) to match host apiproxy",
       "status": "active",
       "note": "2026-08-21 fork-to-preset e2e fix. Schema mirror drift: host and client-connection must stay in sync."
+    },
+    {
+      "id": "P13",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-host-apiproxy/lib/index.js",
+      "patchFile": "host/013-dsh-host-apiproxy-sse-batch.patch",
+      "source": "bak",
+      "sourcePath": "@deepseek-ai/dsh-host-apiproxy/lib/index.js.bak-sse-batch-20260822",
+      "diffTarget": "current",
+      "purpose": "SSE batch flush (20 frames / 30ms idle) — cut per-frame enqueue+stringify overhead under high event volume; renderer messages were trickling after task completion",
+      "status": "active",
+      "note": "2026-08-22 applied to running kernel. Backup .bak-sse-batch-20260822. Marker 'BATCH_MAX = 20' in sseResponse."
+    },
+    {
+      "id": "P14",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-file-reference-local/lib/index.js",
+      "patchFile": "host/014-dsh-file-reference-local-dispose.patch",
+      "source": "npm-pack",
+      "sourceSpec": "@deepseek-ai/dsh-file-reference-local@0.1.0-rc.8",
+      "sourceFile": "lib/index.js",
+      "diffTarget": "current",
+      "purpose": "fiber.dispose() may return undefined → .catch threw TypeError on agent/disposed; heap growth + teardown leak",
+      "status": "active",
+      "note": "2026-08-24 found via stack-trace instrumentation in dsh-agent emitDisposed. Backup: index.js.bak-stacktrace-20260824 in dsh-agent (log-only instrumentation)."
+    },
+    {
+      "id": "P15",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-agent/lib/index.js",
+      "patchFile": "host/015-dsh-agent-dispose-stacktrace.patch",
+      "source": "bak",
+      "sourcePath": "@deepseek-ai/dsh-agent/lib/index.js.bak-stacktrace-20260824",
+      "diffTarget": "current",
+      "purpose": "emitDisposed catch logs error.stack — diagnostic for agent/disposed listener failures (P14 discovery tooling)",
+      "status": "active",
+      "note": "2026-08-24 added during P14 root-cause hunt. Keep permanently: future dispose listener failures get a full stack trace in logs."
     }
   ]
 }

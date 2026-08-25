@@ -80,6 +80,10 @@ foreach ($p in $Manifest.patches) {
     "P6" { "registerTransitionGuard" }
     "P7" { "LIST_PROJECTION_EXCLUDED" }
     "P8" { "ui-subagent: @ source" }
+    "P9" { "PATCH (fork-to-preset, rc.5 era)" }
+    "P13" { "BATCH_MAX = 20" }
+    "P14" { "Promise.resolve(fiber.dispose())" }
+    "P15" { "error.stack" }
     default { "" }
   }
 
@@ -298,7 +302,6 @@ if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
   $kernelInternal = @{
     "@deepseek-ai/dsh-base" = $true
     "@deepseek-ai/dsh-web-app" = $true
-    "dsh-web-billing" = $true
   }
 
   # Bundles -> SOURCES (skip kernel-internal)
@@ -316,6 +319,12 @@ if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
     } elseif ($sourceMap[$b] -ne "npm") {
       # Basic install_type check (only non-npm packages have meaningful type)
       $spec = $pkg.dependencies.$b
+      if (-not $spec) {
+        # bundle with no dependency spec: wild/link plugin (e.g. dsh-web-billing via node_modules junction).
+        # install_type contract is enforced by Section 4 fingerprints, skip here.
+        Write-Host "  (no deps spec, skip type check): $b" -ForegroundColor DarkGray
+        continue
+      }
       $expectedType = if ($spec -match "^file:vendor-archives") { "vendor-archive" }
         elseif ($spec -match "^file:.*bundles") { "file-dir" }
         elseif ($spec -match "^link:") { "link" }
@@ -440,6 +449,65 @@ $sections["junctions"] = @{
   "ok" = $junctionOK
 }
 
+# ── Section 4: Plugin source fingerprints (capture-sources vs repo FINGERPRINTS.json) ──
+Write-Host "[4] Plugin sources" -ForegroundColor Yellow
+$fpDrift = @()
+$fpOK = @()
+$FpRepo = Join-Path $Repo "plugins\FINGERPRINTS.json"
+if (Test-Path $FpRepo) {
+  $tmpFp = Join-Path $env:TEMP "omw-fp-$(Get-Random).json"
+  try {
+    & "$Repo\scripts\capture-sources.ps1" -Quiet -OutPath $tmpFp 2>&1 | Out-Null
+    if (Test-Path $tmpFp) {
+      $live = [System.IO.File]::ReadAllText($tmpFp) | ConvertFrom-Json
+      $repo = [System.IO.File]::ReadAllText($FpRepo) | ConvertFrom-Json
+      $liveMap = @{}; foreach ($e in $live.entries) { $liveMap[$e.id] = $e }
+      $repoMap = @{}; foreach ($e in $repo.entries) { $repoMap[$e.id] = $e }
+      foreach ($e in $repo.entries) {
+        if (-not $liveMap.ContainsKey($e.id)) {
+          Write-Host "  REMOVED-FROM-LIVE: $($e.id)" -ForegroundColor Yellow
+          $fpDrift += @{ "id" = $e.id; "reason" = "removed_from_live" }
+          continue
+        }
+        $l = $liveMap[$e.id]
+        $diffs = @()
+        if ($l.gitHead -and $e.gitHead -and $l.gitHead -ne $e.gitHead) { $diffs += "HEAD $($e.gitHead.Substring(0,8)) -> $($l.gitHead.Substring(0,8))" }
+        if ($l.sha256 -and $e.sha256 -and $l.sha256 -ne $e.sha256) { $diffs += "sha256 changed" }
+        if ($l.version -and $e.version -and $l.version -ne $e.version) { $diffs += "v$($e.version) -> v$($l.version)" }
+        if ($l.dirty -ge 0 -and $e.dirty -ge 0 -and $l.dirty -ne $e.dirty) { $diffs += "dirty $($e.dirty) -> $($l.dirty)" }
+        if ($diffs.Count -eq 0) {
+          Write-Host "  OK: $($e.id)" -ForegroundColor Green
+          $fpOK += $e.id
+        } else {
+          Write-Host "  CHANGED: $($e.id) ($($diffs -join '; '))" -ForegroundColor Yellow
+          $fpDrift += @{ "id" = $e.id; "reason" = "fingerprint_changed"; "diffs" = $diffs }
+        }
+      }
+      foreach ($e in $live.entries) {
+        if (-not $repoMap.ContainsKey($e.id)) {
+          Write-Host "  NEW-UNREGISTERED: $($e.id) (run capture-sources.ps1 to add)" -ForegroundColor Yellow
+          $fpDrift += @{ "id" = $e.id; "reason" = "new_unregistered"; "source" = $e.source }
+        }
+      }
+    } else {
+      Write-Host "  capture-sources.ps1 produced no output (check profile)" -ForegroundColor Yellow
+      $fpDrift += @{ "id" = "capture"; "reason" = "capture_failed" }
+    }
+  } finally {
+    if (Test-Path $tmpFp) { Remove-Item $tmpFp -Force -ErrorAction SilentlyContinue }
+  }
+} else {
+  Write-Host "  no FINGERPRINTS.json in repo (run capture-sources.ps1 first)" -ForegroundColor Yellow
+  $fpDrift += @{ "id" = "repo"; "reason" = "fingerprints_missing" }
+}
+
+$fpStatus = if ($fpDrift.Count -eq 0) { "CLEAN" } else { "HAS_DRIFT" }
+$sections["pluginSources"] = @{
+  "status" = $fpStatus
+  "drift" = $fpDrift
+  "ok" = $fpOK
+}
+
 # ── Build report ──
 $report = @{
   "generatedAt" = (Get-Date -Format "o")
@@ -449,7 +517,7 @@ $report = @{
   }
   "sections" = $sections
 }
-$report["verdict"] = if ($patchesStatus -eq "CLEAN" -and $configStatus -eq "CLEAN" -and $pluginsStatus -eq "CLEAN" -and $junctionStatus -eq "CLEAN") { "CLEAN" } else { "HAS_DRIFT" }
+$report["verdict"] = if ($patchesStatus -eq "CLEAN" -and $configStatus -eq "CLEAN" -and $pluginsStatus -eq "CLEAN" -and $junctionStatus -eq "CLEAN" -and $fpStatus -eq "CLEAN") { "CLEAN" } else { "HAS_DRIFT" }
 
 Write-Host ""
 if ($report.verdict -eq "CLEAN") {

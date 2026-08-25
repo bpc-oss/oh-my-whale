@@ -1,4 +1,4 @@
-# verify.ps1 - verify oh-my-whale patches are applied to the host kernel
+﻿# verify.ps1 - verify oh-my-whale patches are applied to the host kernel
 # Usage: .\patches\host\verify.ps1 [-KernelDir <path>]
 # Exit 0 = all patches applied. Exit 1 = missing patches.
 param(
@@ -55,6 +55,9 @@ foreach ($p in $Manifest.patches) {
         "P10" = "agentPreset: opts.agentPreset";
         "P11" = "header.seedLength ?? 0";
         "P12" = "agentPreset: string().min(1).optional()";
+        "P13" = "BATCH_MAX = 20";
+        "P14" = "Promise.resolve(fiber.dispose())";
+        "P15" = "error.stack";
       }
       $m = $markers[$p.id]
       if ($m) {

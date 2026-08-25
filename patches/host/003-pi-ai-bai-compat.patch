@@ -1,28 +1,32 @@
 # From: oh-my-whale
 # Target: @earendil-works/pi-ai/dist/api/openai-completions.js
+# DSH version: pi-ai 0.84.3 (migrated from 0.82.1 patch)
+# Purpose: bai special-case — isDeepSeek inclusion + developerRole exclusion
 # Status: active
-
 --- a/@earendil-works/pi-ai/dist/api/openai-completions.js
 +++ b/@earendil-works/pi-ai/dist/api/openai-completions.js
-@@ -1140,12 +1140,19 @@
-         isAntLing;
-     const useMaxTokens = baseUrl.includes("chutes.ai") || isMoonshot || isCloudflareAiGateway || isTogether || isNvidia || isAntLing;
-     const isGrok = provider === "xai" || baseUrl.includes("api.x.ai");
--    const isDeepSeek = provider === "deepseek" || baseUrl.includes("deepseek.com");
-+    // 2026-08-20 bai 特判：api.b.ai 是 DeepSeek 兼容 API（thinking 回传协议一致）。
-+    // 不纳入则 requiresReasoningContentOnAssistantMessages=false → 历史 assistant 消息
-+    // 缺 reasoning_content 字段 → 400 "must be passed back"（偶发，重试碰巧字段齐才过）。
-+    const isDeepSeek = provider === "deepseek" || baseUrl.includes("deepseek.com") ||
-+        provider === "bai" || baseUrl.includes("api.b.ai");
-     const isOpenRouterDeveloperRoleModel = isOpenRouter && (model.id.startsWith("anthropic/") || model.id.startsWith("openai/"));
+@@ -1212,7 +1212,12 @@
+     const isCloudflareAiGateway = provider === "cloudflare-ai-gateway" || baseUrl.includes("gateway.ai.cloudflare.com");
+     const isNvidia = provider === "nvidia" || baseUrl.includes("integrate.api.nvidia.com");
+     const isAntLing = provider === "ant-ling" || baseUrl.includes("api.ant-ling.com");
+-    const isDeepSeek = provider === "deepseek" || baseUrl.toLowerCase().includes("deepseek.com");
++    // P3 (2026-08-20, migrated 2026-08-25 for pi-ai 0.84.3): bai 特判 — api.b.ai 是
++    // DeepSeek 兼容 API（thinking 回传协议一致）。不纳入则
++    // requiresReasoningContentOnAssistantMessages=false → 历史 assistant 消息缺
++    // reasoning_content 字段 → 400 "must be passed back"。
++    const isDeepSeek = provider === "deepseek" || baseUrl.toLowerCase().includes("deepseek.com") ||
++        provider === "bai" || baseUrl.toLowerCase().includes("api.b.ai");
+     const isNonStandard = isNvidia ||
+         provider === "cerebras" ||
+         baseUrl.includes("cerebras.ai") ||
+@@ -1241,7 +1246,9 @@
      const cacheControlFormat = provider === "openrouter" && model.id.startsWith("anthropic/") ? "anthropic" : undefined;
      return {
          supportsStore: !isNonStandard,
 -        supportsDeveloperRole: isOpenRouterDeveloperRoleModel || (!isNonStandard && !isOpenRouter),
-+        // 2026-08-20 bai 特判：api.b.ai 不接受 developer role（400 unknown variant 'developer'），
-+        // 用 system 代替。bai 是 DeepSeek 兼容 API 但 role 集不同。
++        // P3: api.b.ai 不接受 developer role（400 unknown variant 'developer'），用 system 代替。
 +        supportsDeveloperRole: (isOpenRouterDeveloperRoleModel || (!isNonStandard && !isOpenRouter)) &&
-+            !(provider === "bai" || baseUrl.includes("api.b.ai")),
++            !(provider === "bai" || baseUrl.toLowerCase().includes("api.b.ai")),
          supportsReasoningEffort: !isGrok && !isZai && !isMoonshot && !isTogether && !isCloudflareAiGateway && !isNvidia && !isAntLing,
          supportsUsageInStreaming: true,
-         maxTokensField: useMaxTokens ? "max_tokens" : "max_completion_tokens",
+         supportsFinishReason: true,

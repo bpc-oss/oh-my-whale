@@ -1,0 +1,45 @@
+# From: oh-my-whale
+# Target: @deepseek-ai/dsh-host-apiproxy/lib/index.js
+# DSH version: 0.1.0-rc.8
+# Purpose: SSE batch flush — collects up to 20 frames or 30ms idle before enqueueing,
+# reducing per-frame controller.enqueue overhead under high event volume.
+# Status: active
+--- a/@deepseek-ai/dsh-host-apiproxy/lib/index.js
++++ b/@deepseek-ai/dsh-host-apiproxy/lib/index.js
+@@ -4893,7 +4893,35 @@
+ 	const stream = new ReadableStream({ async start(controller) {
+ 		try {
+ 			controller.enqueue(encoder.encode(": connected\n\n"));
+-			for await (const narrow of frames) controller.enqueue(encoder.encode(`data: ${JSON.stringify(fullFrame(narrow))}\n\n`));
++			// P13 (2026-08-22): batch SSE frames — flush at 20 frames or after 30ms idle,
++			// whichever comes first. Previously each frame was enqueued individually,
++			// and the main-process event loop was starved by per-frame stringify+encode
++			// under high event volume (renderer "messages trickling out" symptom).
++			const BATCH_MAX = 20;
++			const BATCH_IDLE_MS = 30;
++			let batch = [];
++			let idleTimer = void 0;
++			const flush = () => {
++				if (batch.length === 0) return;
++				const chunk = batch.map((n) => `data: ${JSON.stringify(fullFrame(n))}\n\n`).join("");
++				batch = [];
++				try { controller.enqueue(encoder.encode(chunk)); } catch {}
++			};
++			const armIdle = () => {
++				if (idleTimer !== void 0) clearTimeout(idleTimer);
++				idleTimer = setTimeout(() => { idleTimer = void 0; flush(); }, BATCH_IDLE_MS);
++			};
++			for await (const narrow of frames) {
++				batch.push(narrow);
++				if (batch.length >= BATCH_MAX) {
++					if (idleTimer !== void 0) { clearTimeout(idleTimer); idleTimer = void 0; }
++					flush();
++				} else if (batch.length === 1) {
++					armIdle();
++				}
++			}
++			if (idleTimer !== void 0) { clearTimeout(idleTimer); idleTimer = void 0; }
++			flush();
+ 		} catch (error) {
+ 			const failure = {
+ 				type: "stream/error",

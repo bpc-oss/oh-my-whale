@@ -1,0 +1,73 @@
+{
+  "gatewayVersion": "1.0.0",
+  "plugin": "bad-session-writer-fixture",
+  "version": "unknown",
+  "source": "C:\\Users\\Administrator\\oh-my-whale\\gateway\\fixtures\\bad-session-writer",
+  "verifiedAt": "2026-08-24T07:24:48.411Z",
+  "strict": false,
+  "checks": [
+    {
+      "id": 1,
+      "name": "bundle-declaration",
+      "tier": "authoritative",
+      "result": "PASS",
+      "evidence": "dsh.bundle.patch=./cordis.patch.yml exists, YAML keys ok"
+    },
+    {
+      "id": 2,
+      "name": "entry-completeness",
+      "tier": "authoritative",
+      "result": "PASS",
+      "evidence": "1 source files, imports resolvable"
+    },
+    {
+      "id": 3,
+      "name": "config-not-ahead",
+      "tier": "heuristic",
+      "result": "WARNING",
+      "evidence": "no z.enum found in plugin source; value-level check skipped — heuristic only"
+    },
+    {
+      "id": 4,
+      "name": "no-bare-windows-path",
+      "tier": "authoritative",
+      "result": "PASS",
+      "evidence": "no bare Windows paths in patch name fields"
+    },
+    {
+      "id": 5,
+      "name": "schema-object-root",
+      "tier": "heuristic",
+      "result": "PASS",
+      "evidence": "no raw tools.register without defineTool found"
+    },
+    {
+      "id": 7,
+      "name": "loader-internal-access",
+      "tier": "warning",
+      "result": "PASS",
+      "evidence": "no loader-internal access patterns"
+    },
+    {
+      "id": 8,
+      "name": "write-amplification",
+      "tier": "heuristic",
+      "result": "WARNING",
+      "evidence": "heuristic only — smoke must measure actual detail file size"
+    },
+    {
+      "id": 9,
+      "name": "no-session-writes",
+      "tier": "authoritative",
+      "result": "FAIL",
+      "evidence": "C:\\Users\\Administrator\\oh-my-whale\\gateway\\fixtures\\bad-session-writer\\lib\\index.js:2: function run(ctx){ session.append('forbidden'); }"
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "pass": 5,
+    "warning": 2,
+    "fail": 1
+  },
+  "verdict": "REJECTED"
+}

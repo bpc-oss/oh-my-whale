@@ -195,7 +195,7 @@
       "source": "{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
       "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
       "install_type": "link",
-      "description": "Web billing UI + metering ledger (local dev repo E:/ai-files, symlinked in node_modules; was falsely exempted as kernel-internal)"
+      "description": "Web billing UI + metering ledger (local dev repo under PLUGIN_SOURCES_DIR, symlinked in node_modules; was falsely exempted as kernel-internal)"
     },
     {
       "id": "dsh-subagent-model",
