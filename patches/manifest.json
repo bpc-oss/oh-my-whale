@@ -193,6 +193,29 @@
       "purpose": "emitDisposed catch logs error.stack — diagnostic for agent/disposed listener failures (P14 discovery tooling)",
       "status": "active",
       "note": "2026-08-24 added during P14 root-cause hunt. Keep permanently: future dispose listener failures get a full stack trace in logs."
+    },
+    {
+      "id": "P16",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-subagent/lib/index.js",
+      "patchFile": "host/016-dsh-subagent-routed-fork.patch",
+      "source": "bak",
+      "sourcePath": "@deepseek-ai/dsh-subagent/lib/index.js (rc.8 fork, production tree)",
+      "diffTarget": "current",
+      "purpose": "routed-subagent fork: descriptor v3 preset field, composition.preset mount, async setup, coldResume by preset (marker dshRoutedSubagentPatch)",
+      "status": "active",
+      "note": "2026-08-25 extracted pure fork diff (rc.8 fork vs rc.8 official, 12 hunks/208 lines). Verified clean apply on official rc.2."
+    },
+    {
+      "id": "P16b",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-subagent/package.json",
+      "patchFile": "host/016b-dsh-subagent-pkg-marker.patch",
+      "source": "manual",
+      "diffTarget": "current",
+      "purpose": "fork marker dshRoutedSubagentPatch v3.1-preset-mount (routed-subagent startup assertion)",
+      "status": "active",
+      "note": "2026-08-25: official rc.2 pkg has no marker; upgrade wipes it. Verified clean apply on rc.2."
     }
   ]
 }

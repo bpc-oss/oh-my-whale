@@ -58,6 +58,7 @@ foreach ($p in $Manifest.patches) {
         "P13" = "BATCH_MAX = 20";
         "P14" = "Promise.resolve(fiber.dispose())";
         "P15" = "error.stack";
+        "P16" = "preset-mount";
       }
       $m = $markers[$p.id]
       if ($m) {

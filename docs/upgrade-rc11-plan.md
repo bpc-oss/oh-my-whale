@@ -183,6 +183,24 @@ powershell -NoProfile -File scripts\drift-scan.ps1 -Compare baseline-drift.json
 
 检查命令：`readlink <插件>/node_modules` 应为 `app.asar.unpacked\node_modules`（routed-subagent 除外）。drift-scan [3.5] 自动覆盖。
 
+### 4.1b 插件 peerDeps 升级（2026-08-25 审计发现，18 处）
+
+本地插件对 `@deepseek-ai/*` 的 peerDependencies 是 `^0.1.0-rc.5/6/7` 或精确
+`0.1.0-rc.8`——semver 实测对 `0.1.1-rc.2` **全部不匹配**（0.x 的 caret 不含次版本升级）。
+升级前必须更新（已完成，commit 见各插件仓库）：
+
+| 插件 | 更新的 peerDeps |
+|---|---|
+| dsh-routed-subagent | dsh-agent/agent-presets/llm/session/subagent/subprocess/tools → ^0.1.1-rc.2（7 处） |
+| dsh-continuous-worker | dsh-tools/settings/llm/session/credentials → ^0.1.1-rc.2（5 处） |
+| dsh-web-billing | dsh-home-paths → ^0.1.1-rc.2（1 处） |
+| dsh-global-tool-discovery | dsh-tools → ^0.1.1-rc.2（1 处） |
+| dsh-governance | dsh-agent/tools 精确版 → ^0.1.1-rc.2（2 处） |
+| dsh-token-meter-hermes | dsh-session/session-projection → ^0.1.1-rc.2（2 处） |
+
+注意：`@deepseek-ai/cordis`（^4.0.1）和 `@deepseek-ai/schemastery`（^3.18.1）是独立版本号，**不要动**。
+验证命令：`node scripts/check-peer-compat.mjs`（或按 §2.5 冒烟方式逐一 semver 断言）。
+
 ### 4.2 dsh-subagent fork 专项（L4）
 - marker 验证：`grep dshRoutedSubagentPatch $RUN_KERNEL\@deepseek-ai\dsh-subagent\package.json`
 - 若丢失：从 `{{PLUGIN_SOURCES_DIR}}\@deepseek-ai\dsh-subagent-rc8`（已有 rc8 基础 fork）基于 rc.11 官方重建
