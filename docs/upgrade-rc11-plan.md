@@ -21,7 +21,7 @@
 | L9 | **中断安装恢复**：plugin-install-recovery state.json 阻塞启动 | Step 2/3 检查该目录，升级后启动前确认无 `recovery-pending` |
 | L10 | **MCP 子进程挂起**：chrome-faithful MCP spawn 卡死 boot | Step 5 验证：进程树确认 chrome-faithful-mcp 存活且主进程有 renderer |
 | L11 | **修完不验证**：多次"以为修好了"实际补丁没生效（P13 cp 反了等） | 每个补丁应用后立即 `node --check` + marker grep，写进 Step 3 检查单 |
-| L12 | **升级影响评估缺失**：升级前不知道补丁命运 | 本文档 §2 已做全量 forward-apply 验证（11 干净 / 1 迁移 / 1 修复） |
+| L12 | **升级影响评估缺失**：升级前不知道补丁命运 | 本文档 §2 已做全量 forward-apply 验证（17 项全部 CLEAN，含已迁移的 P3 与修复的 P13） |
 
 ---
 
@@ -60,7 +60,7 @@ node --check $RUN_KERNEL\@deepseek-ai\dsh-agent-presets\lib\index.js   # P11 目
 |---|---|---|---|---|
 | P1 | cordis-plugin-loader 1.0.2 | 未内置 | **重打** | 同版本，干净 |
 | P2 | cordis 4.0.1 | 未内置 | **重打** | 同版本，干净 |
-| P3 | pi-ai openai-completions.js | 未内置（0.84.3 无 bai） | **迁移** | 0.82.1→0.84.3 有 279 行差异，冲突在 parseChunkUsage 区域；isDeepSeek 函数仍在，按新代码重定位 |
+| P3 | pi-ai openai-completions.js | 未内置（0.84.3 无 bai） | **重打** | **已迁移完成**（2026-08-25）：补丁头注明 migrated，对 rc.2 CLEAN；正式升级直接 `git apply`，无需手工迁移 |
 | P4 | dsh-session | 未内置 | **重打** | 干净 |
 | P6 | dsh-goal | 未内置 | **重打** | 干净 |
 | P7 | dsh-host-apiproxy session.list | 未内置 | **重打** | 干净 |
@@ -69,9 +69,12 @@ node --check $RUN_KERNEL\@deepseek-ai\dsh-agent-presets\lib\index.js   # P11 目
 | P10 | dsh-client-runtime | ⚠️ 官方已含(15处) | **重打 + 复核** | 同上 |
 | P11 | dsh-agent-presets seedLength | 未内置 | **重打** | 干净 |
 | P12 | dsh-client-connection | ⚠️ 官方已含(73处) | **重打 + 复核** | 同上 |
-| P13 | dsh-host-apiproxy SSE batch | 未内置 | **修复补丁文件后重打** | 补丁文件缺 ---/+++ header（生成失误）；备份源在**内核目录** `$RUN_KERNEL\@deepseek-ai\dsh-host-apiproxy\lib\index.js.bak-sse-batch-20260822`（非 repo 内），从该备份重新 diff 生成带 header 的补丁 |
+| P13 | dsh-host-apiproxy SSE batch | 未内置 | **重打** | **补丁文件已修复**（2026-08-25 重建 header，对 rc.2 CLEAN）；备份源在内核目录 `$RUN_KERNEL\@deepseek-ai\dsh-host-apiproxy\lib\index.js.bak-sse-batch-20260822` |
 | P5 | dsh-super-injector（profile 补丁） | 与内核无关 | **随 profile 备份/恢复** | archive/audit only（manifest 注释），不涉及内核升级 |
 | P14 | dsh-file-reference-local | **官方未修复**（282 行原样） | **重打** | 干净 |
+| P15 | dsh-agent dispose stacktrace | 未内置 | **重打** | 干净；dispose 错误诊断插桩（error.stack），对 rc.2 CLEAN |
+| P16 | dsh-subagent routed fork | 未内置 | **重打** | routed-subagent fork（descriptor v3 preset / composition.preset / coldResume），12 hunks 对 rc.2 CLEAN；配合 P16b |
+| P16b | dsh-subagent package.json marker | 未内置 | **重打** | `dshRoutedSubagentPatch: v3.1-preset-mount`（routed-subagent 启动断言），对 rc.2 CLEAN |
 
 **P9/P10/P12 复核决策**（升级后 §5 回归前不退役）：
 - 官方 agentPreset 支持可能是部分实现（无 seedLength 边界、无 composeAgent 分支）
@@ -84,23 +87,24 @@ node --check $RUN_KERNEL\@deepseek-ai\dsh-agent-presets\lib\index.js   # P11 目
 
 > 目的：在副本内核上完整预演 3.1-3.4，把"未知风险"变成"已知可控"，再动生产树。
 > 事实：官方 rc.2 包已在 `~/.dsh/tmp/rc2-vs-patches/`（审查用解压），可复用作干跑源。
+> ⚠️ 干跑清单必须覆盖**所有补丁目标包**（P15 目标 dsh-agent、P16/P16b 目标 dsh-subagent），
+> 遗漏会导致干跑失真（曾发生：初版清单只列 10 包）。
 
 ```powershell
 # 2.5.1 建干跑内核树（复制生产内核，保留原始结构）
 $DRY = "$env:TEMP\dsh-dryrun-kernel"
 robocopy "$RUN_KERNEL\.." "$DRY" /E /XD node_modules /NFL /NDL /NJH   # 复制 app.asar.unpacked 结构（不含 node_modules）
-robocopy "$RUN_KERNEL" "$DRY
-ode_modules" /E /NFL /NDL /NJH          # 复制 node_modules
+robocopy "$RUN_KERNEL" "$DRY\node_modules" /E /NFL /NDL /NJH          # 复制 node_modules
 
-# 2.5.2 覆盖官方 rc.2 包（从 rc2-vs-patches 复制 10 个核心包 + pi-ai 0.84.3）
+# 2.5.2 覆盖官方 rc.2 包（全部 12 个核心包 + pi-ai 0.84.3）
 #   @deepseek-ai/{cordis,cordis-plugin-loader,dsh-session,dsh-goal,dsh-host-apiproxy,
 #                 dsh-client-ui-subagent,dsh-client-runtime,dsh-agent-presets,
-#                 dsh-client-connection,dsh-file-reference-local}
+#                 dsh-client-connection,dsh-file-reference-local,dsh-agent,dsh-subagent}
 #   @earendil-works/pi-ai（0.84.3）
 
 # 2.5.3 重打补丁（与 3.2 完全相同的命令序列，目标 = $DRY）
 #   逐个: git -C $DRY apply -p1 --check patches\host\XXX.patch && git -C $DRY apply -p1
-#   P3 手工迁移到 0.84.3 代码（在 $DRY 上完成并验证，正式升级时复制同一 diff）
+#   P3 已迁移（补丁文件即 0.84.3 版，直接 apply，无需手工迁移）
 #   每个补丁后 node --check
 
 # 2.5.4 干跑门禁
@@ -173,33 +177,66 @@ powershell -NoProfile -File scripts\drift-scan.ps1 -Compare baseline-drift.json
 ## 4. 配置与插件迁移（Step 4）
 
 ### 4.1 junction 清单（L2，逐项 readlink）
-| 插件 | node_modules junction 目标 |
+
+⚠️ 现状（2026-08-26 实测）：**fork-to-preset / continuous-worker / routed-subagent / governance 的 `node_modules/@deepseek-ai` 目前是真实目录（rc.8 副本）**，不是 junction——升级时按 §4.1c 处置（A：转 junction → 内核 / B：原地升级）。下表是**目标态**（处置后应为）：
+
+| 插件 | node_modules/@deepseek-ai junction 目标 |
 |---|---|
 | dsh-fork-to-preset | $RUN_KERNEL |
 | dsh-continuous-worker | $RUN_KERNEL |
-| dsh-routed-subagent/lib | rc8-fork（`{{PLUGIN_SOURCES_DIR}}\@deepseek-ai\dsh-subagent-rc8`） |
-| dsh-voice-input | $RUN_KERNEL |
+| dsh-routed-subagent | $RUN_KERNEL（其 lib/node_modules/@deepseek-ai/dsh-subagent 另指 rc8-fork） |
+| dsh-governance | $RUN_KERNEL |
+| dsh-voice-input | 无 @deepseek-ai 依赖（仅 dev deps，不涉及） |
 | @deepseek-ai/dsh-client-ui-subagent | $RUN_KERNEL |
 
-检查命令：`readlink <插件>/node_modules` 应为 `app.asar.unpacked\node_modules`（routed-subagent 除外）。drift-scan [3.5] 自动覆盖。
+检查命令：`readlink <插件>/node_modules/@deepseek-ai` 应为 `app.asar.unpacked\node_modules\@deepseek-ai`。
+⚠️ **junction 语义警告**：对 junction 执行 `mv`/`rm -rf` 会**跟随目标**（2026-08-26 误移内核目录事故）——删除 junction 用 `rmdir`，确认属性用 `(Get-Item <path> -Force).Attributes`（含 ReparsePoint 才是 junction）。drift-scan [3.5] 自动覆盖 junction 层，但对 real_dir 判 OK（不会发现 rc.8 滞留），需 §4.1c 断言补充。
 
 ### 4.1b 插件 peerDeps 升级（2026-08-25 审计发现，18 处）
 
 本地插件对 `@deepseek-ai/*` 的 peerDependencies 是 `^0.1.0-rc.5/6/7` 或精确
 `0.1.0-rc.8`——semver 实测对 `0.1.1-rc.2` **全部不匹配**（0.x 的 caret 不含次版本升级）。
-升级前必须更新（已完成，commit 见各插件仓库）：
+升级前必须更新（2026-08-26 已改内容，但 **4 个 git 仓库未 commit**（routed-subagent/continuous-worker/web-billing/global-tool-discovery），governance/token-meter 非 git 仓库——升级前先提交或接受工作树状态）：
 
 | 插件 | 更新的 peerDeps |
 |---|---|
 | dsh-routed-subagent | dsh-agent/agent-presets/llm/session/subagent/subprocess/tools → ^0.1.1-rc.2（7 处） |
 | dsh-continuous-worker | dsh-tools/settings/llm/session/credentials → ^0.1.1-rc.2（5 处） |
-| dsh-web-billing | dsh-home-paths → ^0.1.1-rc.2（1 处） |
+| dsh-web-billing | dsh-home-paths → ^0.1.1-rc.2（1 处，在 **dependencies** 非 peerDeps） |
 | dsh-global-tool-discovery | dsh-tools → ^0.1.1-rc.2（1 处） |
 | dsh-governance | dsh-agent/tools 精确版 → ^0.1.1-rc.2（2 处） |
 | dsh-token-meter-hermes | dsh-session/session-projection → ^0.1.1-rc.2（2 处） |
 
 注意：`@deepseek-ai/cordis`（^4.0.1）和 `@deepseek-ai/schemastery`（^3.18.1）是独立版本号，**不要动**。
 验证命令：`node scripts/check-peer-compat.mjs`（或按 §2.5 冒烟方式逐一 semver 断言）。
+
+### 4.1c 插件本地 vendor 树处置（审查 F-01，2026-08-26）
+
+⚠️ **重大盲区**：以下插件的 `node_modules/@deepseek-ai` 是**独立真实目录**（rc.8 副本，
+200 包），Node 解析 `require('@deepseek-ai/*')` 时**先命中本地树**（永远到不了内核）：
+`{{PLUGIN_SOURCES_DIR}}/{dsh-fork-to-preset, dsh-continuous-worker, dsh-routed-subagent}`、
+`{{USER_HOME}}/dev/dsh-governance`（`dsh-web-billing` 已是 junction → 内核，正常）。
+升级后这些插件会**静默运行 rc.8 代码**，且 `drift-scan [3.5]` 对 real_dir 判 OK 不会发现。
+
+**处置（升级时二选一，推荐 A）**：
+- **A（推荐）**：删除本地 `@deepseek-ai` 真实目录 → 建 junction → `$RUN_KERNEL\@deepseek-ai`
+  （已验证：本地树与内核**包集合完全一致**，0 独有包，转 junction 零丢失）
+- **B**：原地 `npm install --legacy-peer-deps` 升级本地树到 rc.2 + 重打全部补丁（P1-P16b）
+
+**⚠️ 操作警告**：junction 下 `mv`/`rm -rf` 会**跟随目标**（2026-08-26 事故：误移内核目录导致
+桌面版 boot 失败）。操作前必须确认目标属性：
+```powershell
+# 先确认是真实目录还是 junction（ReparsePoint 才安全动）
+(Get-Item 'E:i-files\dsh-fork-to-preset
+ode_modules\@deepseek-ai' -Force).Attributes
+# 删除 junction 用 rmdir（不跟随），删除真实目录才用 Remove-Item -Recurse
+```
+
+**§5 断言**：升级后验证每个插件的本地解析版本：
+```powershell
+node -p "require('{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset/node_modules/@deepseek-ai/dsh/package.json').version"
+# 必须输出 0.1.1-rc.2（junction 后与内核一致）；若仍 0.1.0-rc.8 → 处置未生效
+```
 
 ### 4.2 dsh-subagent fork 专项（L4）
 - marker 验证：`grep dshRoutedSubagentPatch $RUN_KERNEL\@deepseek-ai\dsh-subagent\package.json`
@@ -240,6 +277,8 @@ powershell -NoProfile -File scripts\capture-sources.ps1 -Quiet
 ## 5. 验证矩阵（Step 5，全部通过才算完成）
 
 ### 5.1 基础
+- [ ] **内核版本断言**：`node -p "require('$env:LOCALAPPDATA\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh\\package.json').version"` == `0.1.1-rc.2`
+- [ ] **插件本地解析版本断言**（§4.1c 处置后）：`node -p "require('<插件路径>/node_modules/@deepseek-ai/dsh/package.json').version"` == `0.1.1-rc.2`（fork-to-preset / continuous-worker / routed-subagent / governance 逐个）
 - [ ] boot 无 pending、无 `Failed to load plugins`
 - [ ] 端口监听 + HTTP 200 + renderer 进程 + chrome-faithful-mcp 存活
 - [ ] 主进程空闲 CPU < 10%（30s 采样）
@@ -279,7 +318,7 @@ powershell -NoProfile -File scripts\capture-sources.ps1 -Quiet
 
 ```
 Step 0 基线（备份+drift基线+指纹） ──门禁──▶
-Step 3 升级内核 + 重打 14 补丁（P3 迁移 / P13 修复文件） ──门禁(compare)──▶
+Step 3 升级内核 + 重打 17 补丁（P1-P16b，全部 CLEAN 直接 apply） ──门禁(compare)──▶
 Step 4 配置迁移（junction/fork/三要素/编码检查/指纹） ──▶
 Step 5 验证矩阵（基础+功能+稳定） ──▶ 完成（或回滚）
 ```
