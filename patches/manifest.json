@@ -561,6 +561,21 @@
         "file": "lib/updates.js",
         "anchor": "enabled default(false) + P30 comment"
       }
+    },
+    {
+      "id": "P31",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js",
+      "patchFile": "rc2-diffs/P31-sidebar-right-hide-expand.diff",
+      "source": "manual",
+      "diffTarget": "current",
+      "status": "active",
+      "purpose": "hide the official right-sidebar ExpandButton (duplicated the user's better-sidebar expand entry; user decision 2026-09-12: keep better-sidebar). Component returns null unconditionally; ui-sidebar-right bundle STAYS ENABLED because dsh-client-ui-chat dsh.client.inject references it — full bundle disable broke renderer boot.",
+      "note": "2026-09-12: profile companion rows disable ONLY ui-sidebar-files + ui-sidebar-documentpreview (zero injectors via full-tree dsh.client.inject scan). Verified: CLI 3080 DOM probe expand=0 + boot 0 failed; desktop asar repacked from FINAL2 (header diff = this file only, unpacked 294/294 hash-identical), redeployed, user visual PASS.",
+      "v209": {
+        "file": "@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js",
+        "anchor": "P31 return null in ExpandButton"
+      }
     }
   ],
   "vendorPatches": [

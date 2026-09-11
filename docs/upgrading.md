@@ -101,6 +101,19 @@
 - **检查**：`npm root -g` 下的 `@deepseek-ai/dsh` 是否存在（本机已改名 `dsh.bak-watcher-block-20260821` 阻断）
 - 本机处置：`mv $env:APPDATA/npm/node_modules/@deepseek-ai/dsh $APPDATA/npm/node_modules/@deepseek-ai/dsh.bak-watcher-block-20260821`
 
+### 禁用任何 bundle 前：先查谁 `dsh.client.inject` 它
+profile `cordis.patch.yml` 里给 bundle 加 `disabled: true` 之前，必须全树扫描 `dsh.client.inject` 引用者：
+```powershell
+# 在 patched tree 的 node_modules 根执行（python 扫 dsh.client.inject 数组）
+python -c "import json,glob; [print(o['name'],t) for pj in glob.glob('**/package.json',recursive=True) for o in [json.load(open(pj,encoding='utf-8'))] for t in [(o.get('dsh') or {}).get('client',{}).get('inject',[]) or []] if '<目标包名>' in t]"
+```
+- 本机事故（2026-09-12）：禁用 `ui-sidebar-right` 消官方右侧栏 → `dsh-client-ui-chat` 的 inject 数组含该服务 → 桌面 `renderer boot failed (plugins: @deepseek-ai/dsh-client-ui-chat)`。
+- 正确解法（P31）：服务保留、只隐藏重复 UI（client.js 组件恒返 null）；对确证零注入者的 tab 类型（`ui-sidebar-files`/`ui-sidebar-documentpreview`）才做 profile 禁用。
+
+### 清理任何被引用的树前：先跑全 junction 引用扫描
+删除/移动一个被 junction 指向的目录（tmp 树、旧壳树、vendor 树）前，必须枚举全盘 junction 的 Target（`Get-ReparsePoint`/`fsutil reparsepoint query` 或 drift-scan 的 junctions 段）确认无活引用。
+- 本机事故（2026-09-11/12）：清 tmp 旧 asar-root 树时未扫引用 → E 盘 routed-subagent、dsh-subagent-rc8 两处 `node_modules` 整体 junction 断链（已重指 runtime 树恢复）。
+
 ## 升级节奏建议
 
 - 内核 rc 发布后等 1-2 周（观察社区反馈）

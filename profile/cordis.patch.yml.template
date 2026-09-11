@@ -195,3 +195,13 @@
     enabled: true
     # A plugin go-live (2026-08-22): advisory observation; completion submitter lazy-connects to C watcher
     clientActivation: {{LOCAL_APP_DATA}}/AgentOS/framework-governance/state/client-activation.json
+
+# 2.0.9 官方右侧栏与 better-sidebar 功能重复——用户决定 2026-09-12：保留 better-sidebar。
+# 禁用两个重复 tab 类型 files/documentpreview（全树扫描确认零注入者，可安全禁用）。
+# ui-sidebar-right 必须保留：dsh-client-ui-chat 的 dsh.client.inject 引用它，整禁会 renderer boot fail
+# （实测 renderer boot failed (plugins: @deepseek-ai/dsh-client-ui-chat)）。
+# 右侧栏重复展开按钮由内核补丁 P31 隐藏（sidebar-right client.js ExpandButton 恒返 null，见 patches/manifest.json）。
+- id: ui-sidebar-documentpreview
+  disabled: true
+- id: ui-sidebar-files
+  disabled: true

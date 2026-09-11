@@ -1,0 +1,27 @@
+# PATCH P31 (2026-09-12) — dsh-client-ui-sidebar-right/lib/client.js: hide duplicate expand button.
+# Baseline: a/ = official DSH Desktop 2.0.9 app.asar @deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js
+#           (byte-identical to pre-edit asar-root + v209-patched-tree copies; verified via cmp).
+# Final:    b/ = patched tree (one-line ExpandButton early-return null + rationale comment; no other logic touched).
+# Rationale: user keeps their own better-sidebar plugin; the official right-sidebar expand button duplicated it.
+#           The ui-sidebar-right BUNDLE must stay ENABLED: @deepseek-ai/dsh-client-ui-chat declares
+#           '@deepseek-ai/dsh-client-ui-sidebar-right' in dsh.client.inject — disabling the bundle broke
+#           renderer boot ("renderer boot failed (plugins: @deepseek-ai/dsh-client-ui-chat)"). Hiding the
+#           collapsed-state expand component keeps the service alive and removes only the duplicate button.
+#           Panel-internal collapse toggle (data-sidebar-right-toggle) is untouched; the component returning
+#           null unconditionally is legal (no hook order issue — hooks live in the parent).
+# Companion (profile scope): live profiles/web/cordis.patch.yml now disables ONLY ui-sidebar-files and
+#           ui-sidebar-documentpreview (tab types with ZERO injectors, verified by full-tree scan).
+# Generated with diff -u (git apply -R --check passes from the patched tree).
+# Verified: node --check PASS; CLI 3080 DOM probe: [data-sidebar-right-expand] count=0 after collapse,
+#           better-sidebar entry intact, renderer boot 0 failed; desktop 2.0.9 redeployed (asar rebuilt,
+#           header diff = ONLY this file's size), user visually confirmed single-button UI.
+--- a/@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js
+@@ -202,6 +202,7 @@
+ 		//#region lib/types/client/shell/ExpandButton.js
+ 		/** The expand control while the panel is collapsed; nothing while it is shown. */
+ 		function ExpandButton({ sessionId, useStore, actions, t }) {
++			return null; // P31 (2026-09-12): hide duplicate expand button; user keeps better-sidebar; service stays for dsh-client-ui-chat inject
+ 			if (useStore((state) => state.bySession[sessionId]?.layout.expanded ?? false)) return null;
+ 			return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
+ 				label: t("chrome.expand"),

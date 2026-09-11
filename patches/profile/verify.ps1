@@ -87,6 +87,11 @@ foreach ($p in $Manifest.patches) {
 }
 
 # ---------------------------------------------------------------------------
+function Render-Placeholders([string]$s) {
+  # render manifest template placeholders (same token as profile/*.template)
+  return ($s -replace '\{\{USERPROFILE\}\}', $env:USERPROFILE)
+}
+
 # vendor patches V1-V4 (manifest vendorPatches, file == profile): existence
 # ---------------------------------------------------------------------------
 foreach ($v in $Manifest.vendorPatches) {
@@ -94,8 +99,8 @@ foreach ($v in $Manifest.vendorPatches) {
   $id = [string]$v.id
   $status = [string]$v.status
   if (-not $status) { $status = "active" }
-  $root = [string]$v.root
-  if (-not $root) { $root = $ProfileDir }
+  $root = Render-Placeholders ([string]$v.root)
+  if (-not $v.root) { $root = $ProfileDir }
 
   $klass = $null; $detail = $null
   if ($id -eq "V4") {
@@ -115,7 +120,7 @@ foreach ($v in $Manifest.vendorPatches) {
       $klass = "PASS"; $detail = "target present: $($v.target)"
       if ($v.companions) {
         # V1: twin copy (manifest: 'same content - must co-edit') -> hash parity
-        $twin = ($v.companions | Select-Object -First 1) -replace '\s*\(.*$', ''
+        $twin = Render-Placeholders (($v.companions | Select-Object -First 1) -replace '\s*\(.*$', '')
         $relTail = ($v.target -replace "^[^/]+/[^/]+/", "")   # e.g. lib/index.js
         $twinFile = Join-Path ($twin -replace "/", "\") $relTail
         if (-not (Test-Path $twinFile)) {
