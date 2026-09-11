@@ -1,6 +1,8 @@
 # DSH 插件发布与安装注意事项（HANDOFF）
 
 
+> **⚠ 2026-09-12 追加（双 Sidebar 去重 / P31）**：官方 2.0.9 右侧栏与 better-sidebar 重复的按钮已用 **P31 内核补丁**（`ui-sidebar-right` client.js `ExpandButton` 恒返 null）隐藏，profile 只禁零注入者的 `ui-sidebar-files`/`ui-sidebar-documentpreview` 两条 tab。两条铁律入 `docs/upgrading.md`：①禁任何 bundle 前先全树扫 `dsh.client.inject` 引用者（chat→right 事故）；②删/移任何可能被引用的树前先跑 junction 引用扫描（tmp 删除炸 E 盘两仓事故）。asar 重打包注意：`@electron/asar@4.3.0` 多 `--unpack-dir` 只取最后一个，须 brace 合并 + `{/**,}`。
+
 > **⚠ 2026-09-11 追加（v209/packed-asar 时代）**：内核 0.1.5-rc.1 起 `@deepseek-ai/*` 不再存在于 `app.asar.unpacked`——插件对内核的解析走 profiles 农场 junction → `~/.dsh/runtime/v209-patched-tree`（CLI/Electron asar resolver 双轨）。voice 等 `~/dsh-*` symlink 型插件改文件即生效（profile 半），无需 repack；内核半改动必须重跑 `scripts/v209/pack-209.ps1` + fuse + 三绿。历史 `session.jsonl.zstd` 与新 `session.v3.jsonl.zstd` 并存，工具glob要 `session*.jsonl.zstd`。
 
 

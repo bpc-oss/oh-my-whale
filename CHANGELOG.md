@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1] - 2026-09-12 — 双 Sidebar 按钮去重（P31）+ profile verify 占位符修复
+
+- **P31** `dsh-client-ui-sidebar-right/lib/client.js`：`ExpandButton` 恒返 `null`，隐藏与 better-sidebar 重复的官方右栏展开钮。**bundle 本体不可禁**——`dsh-client-ui-chat` 的 `dsh.client.inject` 引用 right 服务，整禁实测 `renderer boot failed`（本仓库首个 inject 依赖事故，教训固化进 `docs/upgrading.md`）。
+- profile `cordis.patch.yml`：只禁 `ui-sidebar-files` + `ui-sidebar-documentpreview`（全树扫描确证零注入者的 tab 类型）；模板同步。
+- asar 重打包管线纠偏：`@electron/asar@4.3.0` CLI 多 `--unpack-dir` 只取最后一个 → brace 合并 + `{/**,}` 匹配目录顶层文件；新包与装机 final2 头对头校验仅 P31 一文件差异、unpacked 294/294 哈希一致。asar-root 源树丢失后改「extract 装机 asar → 改 → pack」重建。
+- **profile verify V1-V4 假 FAIL 修复**：`patches/profile/verify.ps1` 不渲染 manifest `{{USERPROFILE}}` 占位符（vendorPatches root/companions）→ 9/9 PASS。
+- `FINGERPRINTS.json` 时间戳刷新（entries 无变化）。
+
 ## [0.3.0] - 2026-09-11 — 2.0.9 / 内核 0.1.5-rc.1 packed-asar 时代（一夜双跳 2.0.1→2.0.5→2.0.9）
 
 ### 架构剧变（升级 SOP 全改写）
