@@ -29,8 +29,12 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 Write-Host "=== packing $Tree -> $OutDir\app.asar (restoring unpack pattern) ==="
 # One --unpack-dir with brace syntax (minimatch alternation) covers the native payload dirs that
 # must stay on disk (node-pty spawn, @img/sharp .node, bundled pnpm, addon shims).
+# GOTCHA (asar 4.3.0, 2026-09-12): trailing '/**' does NOT match the directory itself, so the 12
+# top-level files (LICENSE/index.js/package.json/prebuilds.json) of node-addon-*/node-pty/pnpm stay
+# PACKED -> 12 unpacked-flag drifts vs official header. Use '{/**,}' to match dir AND descendants.
+# GOTCHA: passing multiple --unpack-dir flags silently keeps only the LAST one in 4.3.0 — keep brace form.
 npx --yes @electron/asar pack $Tree "$OutDir\app.asar" `
-  --unpack-dir "node_modules/{@agents-anywhere,node-pty,pnpm,@img,@koromix,@vscode,node-addon-require-builtin-win32-x64-msvc,node-addon-require-builtin-win32-arm64-msvc}/**" `
+  --unpack-dir "node_modules/{@agents-anywhere,node-pty,pnpm,@img,@koromix,@vscode,node-addon-require-builtin-win32-x64-msvc,node-addon-require-builtin-win32-arm64-msvc}{/**,}" `
   --unpack "build/*.png"
 if ($LASTEXITCODE -ne 0) { Write-Host 'PACK FAILED'; exit 1 }
 Write-Host ('app.asar size: ' + (Get-Item "$OutDir\app.asar").Length + ' (pristine 168985005; delta = patch content)')
