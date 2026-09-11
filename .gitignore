@@ -14,3 +14,11 @@ Thumbs.db
 
 # temp
 tmp/
+
+# v209 asar extract cache (verify.ps1 -Source installed / drift-scan -Installed)
+patches/host/.asar-cache/
+
+# drift scan runtime outputs
+drift-report.json
+drift-report-delta.json
+baseline-drift.json

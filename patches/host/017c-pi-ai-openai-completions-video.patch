@@ -1,0 +1,17 @@
+--- pi-ai-original-reconstructed.js	2026-08-31 14:14:26.154789400 +0800
++++ pi-ai-current.js	2026-08-31 14:14:26.154789400 +0800
+@@ -814,6 +814,14 @@
+                             text: sanitizeSurrogates(item.text),
+                         };
+                     }
++                    else if (item.type === "video_url") {
++                        return {
++                            type: "video_url",
++                            video_url: {
++                                url: item.video_url?.url ?? item.url ?? '',
++                            },
++                        };
++                    }
+                     else {
+                         return {
+                             type: "image_url",

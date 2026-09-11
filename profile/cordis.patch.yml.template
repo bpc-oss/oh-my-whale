@@ -1,6 +1,14 @@
 # Your patch layer for this dsh profile, applied after every bundle layer:
 # a top-level YAML array of loader patch entries (id-targeted config
 # overrides, disables, and insert lists; `!!js` expressions allowed).
+# v209-era rebuild (2026-09-11, from live ~/.dsh/profiles/web/cordis.patch.yml):
+# - trustedHosts 静态化：v209 桌面壳静态校验拒 !!js（见 web-runtime 块注释）。
+# - A5：agentos-dsh-lco 结构断头已修复，但保持 disabled 且不装包（config 保留便于日后启用；
+#   重装走 plugins/SOURCES.json 注册项，不进 package.json 模板）。
+# - continuous-worker：当前 disabled（v2 冻结在 ~/.dsh/releases/continuous-worker-v2/<hash>，
+#   启用时删 disabled 行并按发布目录核对 databasePath/policyPath）。
+# - 本模板止于 governance 块；其后的 '#Managed by dsh-plugin-manager...' 行是装机期
+#   dsh-plugin-manager 自动追加的运行态，不入模板。
 #
 # dsh-web-billing 已作为 bundle 安装（见 package.json 的 dsh.profile.bundles），
 # 其自带 cordis.patch.yml 提供默认配置，本层无需重复 insert。
@@ -37,14 +45,26 @@
     # 明细文件防抖写间隔 ms（默认 30000）。调大到 60000 进一步降写频率；
     # 明细在内存全量，仅落盘更慢（掉电最多丢 60s 明细，统计聚合不丢）。
     detailWriteIntervalMs: 60000
-    # 2026-08-24 改为手动：启动自动全量对账在低堆宿主上有 OOM 风险（12:31 崩溃嫌疑），
-    # 且崩溃后空账本启动会导致对账空转。改为设置页「从会话源重建账本」手动触发（等价）。
+    # 2026-08-24 新架构：流式重放（低内存）+ 会话集共识文件（远离空转）+ 空结果防呆 + 失败不崩。
+    # 每次重启自动对账：从 DSH 会话源重建为完整历史；对账完成后按冻结窗口（7 天）自动封账。
+    # [2026-08-26 rc.2 紧急修复] reconcileOnStartup 在有大账本时同步全量重放 11 万事件，
+    # 阻塞主线程 20+ 分钟导致应用"卡死"。关闭启动对账：账单靠实时 record 累计（不丢数据），
+    # 存量账本保留；需重建时可手动 POST /billing/reconcile 或临时改回 true。
+    # 2026-08-26 v2.5.2：分片异步化（逐帧/行批让出 + 进度日志 + 202 后台）不再阻塞主线程，
+    # 每次重启自动对账：从 DSH 会话源重建完整历史；对账完成后按冻结窗口（7 天）自动封账。
+    # [2026-08-28 结论] O(n^2) 裁剪已打补丁（lib/index.js 批量裁剪，179s→43s）但大文件
+    # （63MB→177MB 文本）单文件处理仍同步阻塞主线程（240→250 卡 2min+，HTTP 无响应）。
+    # 需作者将 scan 解压/解析 worker 化。此配置保持 false；修复后可手动 POST /billing/reconcile。
     reconcileOnStartup: false
+    # 2026-08-31 缩减/降频（治「用久了卡」）：明细驻留 2 天（聚合完整保留，逐条展示窗口变小）、
+    # 核心聚合写盘 1s→5s（写盘频率与卡顿摊薄 5 倍）。
+    detailRetentionDays: 2
+    coreWriteIntervalMs: 5000
     # localCostPerM: 0        # 本地实际单价（¥/1M，默认 0；可填电费/算力成本）
-# 2026-08-20 卡顿优化（§1 首选）：session-projection-cache 每 5s/200 事件全量重写
-# 26MB projcache，7 活跃会话 → 每 5s 最多 7 次整文件写（~36MB/s）占满事件循环。
-# 覆盖为 30s/500 事件：6 倍降载；projcache 是投影缓存（源数据 session.jsonl.zstd
-# 永在），崩溃最多丢最后 30s 缓存，coldSnapshot 自动从持久层重建，质量零丢。
+    # 2026-08-20 卡顿优化（§1 首选）：session-projection-cache 每 5s/200 事件全量重写
+    # 26MB projcache，7 活跃会话 → 每 5s 最多 7 次整文件写（~36MB/s）占满事件循环。
+    # 覆盖为 30s/500 事件：6 倍降载；projcache 是投影缓存（源数据 session.jsonl.zstd
+    # 永在），崩溃最多丢最后 30s 缓存，coldSnapshot 自动从持久层重建，质量零丢。
 - id: session-projection-cache
   config:
     writeEveryEvents: 5000
@@ -69,8 +89,8 @@
 # 客户端保持全局：仅在会话有验证状态时渲染 UI（无引擎的会话无状态、无 UI）。
 - insert:
     # P0-1 verification 插件：引擎全局（advisory）+ 客户端。
-# 引擎按 session.header.agentPreset 激活 enforce（modeOf），enforce-standard 会话进 enforce。
-# 其他会话保持 advisory 不拦截（仅记录；不调用验证工具时无状态写入）。
+    # 引擎按 session.header.agentPreset 激活 enforce（modeOf），enforce-standard 会话进 enforce。
+    # 其他会话保持 advisory 不拦截（仅记录；不调用验证工具时无状态写入）。
 - insert:
     - id: bpc-verification-engine
       name: "@bpc-oss/dsh-verification"
@@ -84,15 +104,18 @@
       name: "@bpc-oss/dsh-client-ui-verification"
 # 手机远程访问（2026-08-16 配置）：Tailscale Serve 把 127.0.0.1:<web端口>
 # 暴露为 https://{{TAILSCALE_HOST}}（仅 tailnet 内可访问）。
-# /api 信任围栏按 Host 放行；web-runtime 行把受信 authority 并入 webRuntime.trustedHosts，
-# connection 行已引用该值（无端口=匹配任意端口）。
-# 注意：js-yaml 不支持 !!js 直接作用在流式数组上，须用带引号的整体 js 表达式。
-# 撤销远程访问时删除本块，并执行：tailscale serve reset
+# /api 信任围栏按 Host 放行；受信 authority 静态并入 webRuntime.trustedHosts（无端口=匹配任意端口）。
+# v209 起必须写静态列表：桌面壳的静态配置校验拒绝 !!js 表达式（旧的 !!js 合并 ctx.webStartup.trustedHosts
+# 写法会被拒装载）——这就是本文件 trustedHosts 静态化的原因（2026-09-11 v209 迁移定稿）。
+# 撤销远程访问时删除 tailnet 行，并执行：tailscale serve reset
 - id: web-runtime
   config:
     printUrl: true
     surfaceContext: true
-    trustedHosts: !!js "['{{TAILSCALE_HOST}}', ...ctx.webStartup.trustedHosts]"
+    trustedHosts:
+      - localhost
+      - 127.0.0.1
+      - {{TAILSCALE_HOST}}
 # dsh-voice-input 语音输入插件（本地离线识别模型目录；覆盖 bundle 层默认值。
 # 撤销时删除本块即可回退到「浏览器识别」模式）。
 - id: voice
@@ -115,28 +138,30 @@
       config:
         imageTokenCost: 1500
 
-
 # 全局 Skills 工具：所有启用 preset/对话统一获得 skill_search / skill_load
 # 注意：文件入口必须用 file:// URL；employee-ops 等 worker preset 默认禁用
 # 研究编排 + 知识内化（M1 最小闭环）：research_orchestrator + knowledge_ingest
 # 注意：文件入口必须用 file:// URL
 # 2026-08-18：用户已授予 full access——verifyOnInstall:false 将未验证安装类命令从 T3-ask 降为 T2 直接放行。
+# 2026-08-31 零感知 v2：严格 6 字段，本地回环会话直接可用；真实外部副作用仍走普通 DSH 审批。
+# 旧 v1 字段、Windows Hello、WebAuthn 与原生认证 helper 已从发布包删除。
 - id: continuous-worker
+  disabled: true
   config:
-    supplyChain:
-      verifyOnInstall: false
-    # 2026-08-24 修复：checkpoint 默认路径 ~/.dsh/profiles/default/continuous-worker/checkpoints
-    # 落在 sessions 扫描范围内，host 将其误识别为 session 目录 → id collision。
-    # 改为 ~/.dsh/data/continuous-worker/checkpoints（sessions 不扫描 data/ 目录）。
-    checkpointRoot: '{{DSH_HOME}}/data/continuous-worker/checkpoints'
-
+    enabled: true
+    databasePath: '{{DSH_USER_HOME}}/data/continuous-worker-v2/control.sqlite3'
+    origin: 'http://127.0.0.1:0'
+    instanceId: 'dsh-desktop-web'
+    cleanupOwner: 'dsh-desktop-web-cleanup'
+    policyPath: '{{DSH_USER_HOME}}/policies/continuous-worker-v2.json'
 
 # 已卸载插件（@dsh-external/test-run-plugin）：disabled 阻断其 bundle patch 自装配
 - id: test-run-plugin
   disabled: true
 
-# Agent OS LCO adapter — observer stage（插件当前仅接受 observer|store；canary 模式尚未在插件实现）
+# Agent OS LCO adapter — 保持关闭（用户决定 2026-09-10；结构断头已修复，config 保留便于日后启用）
 - id: agentos-dsh-lco
+  disabled: true
   config:
     mode: store
     expectSpillPolicyAbove: 50000
@@ -144,8 +169,7 @@
     thresholdChars: 4096
     headChars: 2048
     tailChars: 512
-    bridgePath: {{AGENT_OS_PROGRAMDATA}}\LCO-Client\agentos-lco-dsh-bridge.exe
-
+    bridgePath: {{AGENT_OS_BRIDGE}}
 
 # 2026-08-20 v2.0.1 compatibility: chrome-faithful-mcp MCP spawn fails on new shell (Electron main process)
 # failOnStartupError: false makes it warn/retry instead of fatal boot.
@@ -156,13 +180,18 @@
     command: !!js process.execPath
     args:
       - !!js >-
-          process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@bpc-oss/dsh-plugin-chrome-faithful/mcp-server')
+        process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@bpc-oss/dsh-plugin-chrome-faithful/mcp-server')
     env: !!js >-
-      ({ ...Object.fromEntries(['AGENTOS_CHROME_CONFIG', 'CHROME_FAITHFUL_PYTHON', 'CHROME_FAITHFUL_PPOCR_DET_MODEL_DIR', 'CHROME_FAITHFUL_PPOCR_REC_MODEL_DIR', 'CHROME_FAITHFUL_VLM_BACKEND', 'CHROME_FAITHFUL_OCR_BACKEND'].flatMap((key) => typeof process.env[key] === 'string' ? [[key, process.env[key]]] : [])), ELECTRON_RUN_AS_NODE: '1' })
+      ({ ...Object.fromEntries(['AGENTOS_CHROME_CONFIG',
+      'CHROME_FAITHFUL_PYTHON', 'CHROME_FAITHFUL_PPOCR_DET_MODEL_DIR',
+      'CHROME_FAITHFUL_PPOCR_REC_MODEL_DIR', 'CHROME_FAITHFUL_VLM_BACKEND',
+      'CHROME_FAITHFUL_OCR_BACKEND'].flatMap((key) => typeof process.env[key]
+      === 'string' ? [[key, process.env[key]]] : [])), ELECTRON_RUN_AS_NODE: '1'
+      })
     toolCallTimeoutMs: 60000
     failOnStartupError: false
 - id: agent-os-dsh-governance
   config:
     enabled: true
     # A plugin go-live (2026-08-22): advisory observation; completion submitter lazy-connects to C watcher
-    clientActivation: {{AGENT_OS_DIR}}/framework-governance/state/client-activation.json
+    clientActivation: {{LOCAL_APP_DATA}}/AgentOS/framework-governance/state/client-activation.json

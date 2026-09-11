@@ -1,0 +1,33 @@
+# dsh-voice-input 安装期 bundle patch（由 package.json 的 dsh.bundle.patch 声明，
+# `dsh plugin --profile <name> add <本插件>` 时自动加入 profile 的 layer 栈）。
+# 纯语音输入：与 agent preset / 人设完全解耦，任何 preset 下都只是「另一种输入法」。
+- insert:
+    - id: voice
+      name: 'dsh-voice-input'
+      inject: [connection, webServer]
+      config:
+        # 引擎：auto（默认，有本地模型用 native，否则浏览器 Web Speech 兜底）| native | browser
+        engine: auto
+        # 本地模型根目录（绝对路径）。留空 = 纯浏览器识别，开箱即用；
+        # 想用本地离线识别时运行 `npm run models` 下载后在此填入目录。
+        modelDir: ''
+        # ASR 模型子目录（默认 asr-zh = zipformer2 中文 int8，负责实时 partial）
+        asrDir: 'asr-zh'
+        # SenseVoice 二遍识别模型子目录（默认 sense-voice，负责定稿：自带标点+ITN）
+        senseDir: 'sense-voice'
+        # 二遍识别：auto（有 SenseVoice 模型就用）| sensevoice（强制）| off（关闭，省内存）
+        secondPass: 'auto'
+        # 口语清洗：去掉口语音转文本里的 嗯/那个/就是说 等语气词（保守规则，可关）
+        clean: true
+        # VAD 静音阈值 0-1：越低越不容易吞句首/句尾，越高越抗噪声
+        vadThreshold: 0.3
+        # 尾音补偿秒数：VAD 段弹出后追加的音频长度，补偿渐弱尾音被截断
+        tailPadSeconds: 0.6
+        # 全局快捷键（浏览器端消费）：ctrl+space | alt+space | 留空禁用
+        hotkey: 'ctrl+space'
+        # Web Speech 兜底引擎的语言：auto（跟随浏览器）| zh-CN | en-US
+        lang: auto
+        # 识别结束后自动发送
+        autoSend: false
+        # 定稿标点：smart（智能补全中英句末标点）| keep（保留原样）| none（去除标点）
+        punct: smart

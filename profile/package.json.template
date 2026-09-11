@@ -2,7 +2,6 @@
   "name": "dsh-profile-web",
   "private": true,
   "dependencies": {
-    "@agentos/dsh-lco": "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
     "@agent-os/dsh-governance": "file:{{USER_HOME}}/dev/dsh-governance",
     "@bpc-oss/dsh-client-ui-verification": "file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
     "@bpc-oss/dsh-evidence": "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
@@ -49,7 +48,6 @@
         "@bpshil/litkit-dsh",
         "@dsh-external/dsh-super-injector",
         "dsh-routed-subagent",
-        "@agentos/dsh-lco",
         "@agent-os/dsh-governance",
         "@deepseek-ai/dsh-subagent-codex",
         "@deepseek-ai/dsh-subagent-claude-code",

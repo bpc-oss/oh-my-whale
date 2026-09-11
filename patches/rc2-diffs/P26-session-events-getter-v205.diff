@@ -1,0 +1,18 @@
+--- a/@deepseek-ai/dsh-session/lib/index.js
++++ b/@deepseek-ai/dsh-session/lib/index.js
+@@ -1332,6 +1334,15 @@
+ 		return this.log[seq];
+ 	}
+ 	/**
++	 * P26 v205 compat shim: restore the rc.2 `.events` accessor (0.1.2 kernel
++	 * removed it; profile plugins still iterate `session.events`). Same cache
++	 * lifecycle as snapshotEvents() - invalidated on append.
++	 */
++	get events() {
++		this.eventsSnapshot ??= Object.freeze([...this.log]);
++		return this.eventsSnapshot;
++	}
++	/**
+ 	* Materialize an immutable snapshot of a half-open event sequence range.
+ 	* A full current snapshot is reused until the next append; every previously
+ 	* returned snapshot remains stable after later appends.

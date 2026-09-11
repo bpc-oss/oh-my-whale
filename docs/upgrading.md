@@ -1,5 +1,14 @@
 # 升级流程
 
+> **⚡ 2026-09-11 v209 时代新铁律（先读这段）**
+> 1. **版本目标二次确认**：方案定稿时和动手安装前，各查一次 `api.github.com` releases——一夜 2.0.5→2.0.9 双跳的教训。npm latest ≠ 可装：壳内置构建才是兼容基线（dsh-settings 导出教训）。
+> 2. **packed-asar 布局（0.1.3+/壳 2.0.7+）**：内核 JS 全在 `resources/app.asar`；unpacked 只剩原生件。补丁工作树=~/.dsh/runtime/<树>，repack 用 `scripts/v209/pack-209.ps1`（`--unpack-dir` 大括号语法 + `build/*.png`，unpacked 标志 parity 必核）。
+> 3. **完整性 fuse**：repack 后必 `npx @electron/fuses write --app "DSH Desktop.exe" EnableEmbeddedAsarIntegrityValidation=off`（`OnlyLoadAppFromAsar` 保留 on），否则 FATAL 闪退。exe 先备份。官方更新会重置 fuse+洗补丁=升级窗口 SOP 起点。
+> 4. **三绿门禁**：`verify.ps1 -Source asar-root`、`-Source installed`、`profile/verify.ps1` 全 FAIL=0 才算装完；drift-scan 默认源已指 runtime 树。
+> 5. **新校验层拒旧产物**（已四次）：格式迁移白名单（video/6 source kinds）、persona text→prefix、`__DSH_MODULES__` 删除、voice 路由 owner 语义。升级预检必含：两树 `Config = z.object(` diff（盯 required/改名/validateKeys 白名单三类）+ 全库会话 kind 扫描（`scripts/v209/scan_sessions2b.py`）。
+> 6. **证据纪律**：功能绿灯只认磁盘帧（`session*.jsonl.zstd` 含 v3 新名，`scripts/v209/roundtrip-wait.py`）与真 HTTP；UI 文本不算证据。
+
+
 > 每次 dsh 版本升级时走这套流程，确保补丁、配置、插件平滑过渡。
 > 目的：从"手工踩坑"变成"有流程、有评估、有回滚、有验证"。
 

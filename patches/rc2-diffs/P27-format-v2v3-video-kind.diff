@@ -1,0 +1,10 @@
+--- a/@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js
++++ b/@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js
+@@ -136,6 +136,7 @@
+ 	"text",
+ 	"reasoning",
+ 	"image",
++	"video",
+ 	"file",
+ 	"tool-call",
+ 	"tool-result"

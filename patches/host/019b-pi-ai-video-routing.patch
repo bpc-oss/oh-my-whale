@@ -1,0 +1,28 @@
+--- pi-ai-p17-base.js	2026-08-31 16:13:44.495135100 +0800
++++ "/c/Users/Administrator/AppData/Local/Programs/DSH Desktop/resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	2026-08-31 15:05:00.808517800 +0800
+@@ -1,5 +1,5 @@
+ import { launchEnvironmentOf } from "@deepseek-ai/dsh-launch-environment";
+-import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadRequestImagesWithPolicy, requestImageHandleText, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
++import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, contentHasVideo, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadRequestImagesWithPolicy, requestImageHandleText, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
+ import { deepEqualJson, installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
+ import { createModels, createProvider, getSupportedThinkingLevels, isContextOverflow } from "@earendil-works/pi-ai";
+ import { MAX_TIMER_DELAY_MS, idleWatchdog, timeoutOf } from "@deepseek-ai/dsh-timeout";
+@@ -1727,7 +1727,9 @@
+ 			const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, streamIdleTimeoutMs, "LLM_STREAM_IDLE_TIMEOUT"), false);
+ 			try {
+ 				const containsImage = options.messages.some((message) => contentHasImage(message.content));
++				const containsVideo = options.messages.some((message) => contentHasVideo(message.content));
+ 				if (containsImage && !model.input.includes("image")) throw new LlmError(`pi-ai model "${model.id}" does not support image input`, "UNSUPPORTED_CONTENT");
++				if (containsVideo && !model.input.includes("video")) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
+ 				const attachments = containsImage ? this.config.resolveAttachments?.() : void 0;
+ 				if (containsImage && attachments === void 0) throw new LlmError("pi-ai image input requires the durable attachment service", "UNSUPPORTED_CONTENT");
+ 				const onReplayDegrade = (reason) => {
+@@ -1737,7 +1739,7 @@
+ 						reason
+ 					});
+ 				};
+-				const context = attachments === void 0 ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
++				const context = (attachments === void 0 && !containsVideo) ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
+ 					...options,
+ 					signal: watchdog.signal
+ 				}, attachments, onReplayDegrade, profile.maxRequestImageBytes, {

@@ -1,4 +1,4 @@
-# capture-sources.ps1 - Capture current local plugin source fingerprints into plugins/FINGERPRINTS.json
+﻿# capture-sources.ps1 - Capture current local plugin source fingerprints into plugins/FINGERPRINTS.json
 # Usage:
 #   .\scripts\capture-sources.ps1                     # scan local install, write FINGERPRINTS.json
 #   .\scripts\capture-sources.ps1 -ProfileDir <dir>   # custom profile dir
@@ -191,11 +191,13 @@ foreach ($s in $sources.plugins) {
 foreach ($e in $entries) {
   $e.source = Unresolve-Var $e.source
   $e.spec = Unresolve-Var $e.spec
+  if ($e.gitRoot) { $e.gitRoot = Unresolve-Var $e.gitRoot }   # v209: gitRoot escaped the templating before (chrome-faithful parent repo)
 }
 $report = @{
   "version" = "1"
   "generatedAt" = (Get-Date -Format "o")
   "profileDir" = Unresolve-Var $ProfileDir
+  "notes" = "v209-era baseline (shell 2.0.9 / kernel 0.1.5-rc.1, packed app.asar). Dirty counts on link: sources are EXPECTED and are NOT drift-to-fix: dsh-voice-input carries the V8 fix4 hardening edited straight into the symlink source ({{USER_HOME}}/dsh-voice-input) - no repack needed, edits are live. {{PLUGIN_SOURCES_DIR}} link plugins (dsh-fork-to-preset, dsh-web-billing, dsh-routed-subagent, dsh-subagent-model, dsh-global-tool-discovery, dsh-continuous-worker) show whatever their local dev trees carry, incl. nested-copy patch residues (V5/V6 @deepseek-ai/dsh-subagent twins). V7 (dsh-better-sidebar) and V2/V2.1 (dsh-token-meter-hermes) live in the INSTALLED copies under profiles/web/node_modules, so the vendor tgz sha and the hermes file: source stay unchanged - reinstall reverts them (see plugins/SOURCES.json descriptions)."
   "entries" = ($entries | Sort-Object id)
 }
 

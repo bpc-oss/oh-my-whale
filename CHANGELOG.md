@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0] - 2026-09-11 — 2.0.9 / 内核 0.1.5-rc.1 packed-asar 时代（一夜双跳 2.0.1→2.0.5→2.0.9）
+
+### 架构剧变（升级 SOP 全改写）
+- **0.1.3+ 内核整体装进 `resources/app.asar`**，`app.asar.unpacked` 只剩 8 个原生件目录 → 官方引入 **Electron asar 完整性 fuse**（`EnableEmbeddedAsarIntegrityValidation`）：repack 过的 app.asar 会 FATAL 闪退。处置：`@electron/fuses write --app "DSH Desktop.exe" EnableEmbeddedAsarIntegrityValidation=off`（exe 原件备份 `~/.dsh/tmp/v209-intel/exe-backup.bin`；`OnlyLoadAppFromAsar` 保留 on）。repack 管线（brace 语法 `--unpack-dir` + build/*.png，unpacked 标志 parity 已核）固化于 `scripts/v209/pack-209.ps1`。
+- **canonical 补丁树迁移**：`~/.dsh/runtime/v209-patched-tree`（tmp 清理炸弹解除；484 农场 junction 已重指）。真身链：profiles 农场→runtime 树；voice 插件 symlink→`~/dsh-voice-input`（改即生效，无需 repack）。
+- **更新器真相**（推翻 electron-updater 假设）：壳自研 `desktop-updates`，feed `dshdesktop.cn`，6h 轮询仅提示；下载/安装各需确认框（default=稍后），**无静默覆盖**。补丁环境加保险：**P30** `lib/updates.js` enabled 默认 false。
+- **自动回归三绿**：`verify.ps1 -Source asar-root|installed` + profile verify（36+9 项）；`drift-scan.ps1` 默认源切 runtime 树，根层目标（P30）解析修复。
+
+### v209 适配波（新补丁 P26–P30 + 四起"新校验拒旧产物"）
+- **P26** dsh-session `get events()` 兼容 shim——0.1.2 删了公共访问器，7 个 profile 插件（verification/better-sidebar/super-injector/vision-toolkit/openpencil/chrome-faithful）全崩 `session.events is not iterable`，**新建会话直接失败**（G3 实机抓出）。
+- **P27/P28** session-format v2→v3 迁移白名单：content `video` + source 六 kind（fallback/instruction-hint/provider×283会话/verifier-guide×133/jspace-frame/ai-tube-mission）——官方迁移层不认自家近期血统与我们自定义模态，历史会话成片打不开。**全库 1631 会话逐帧复扫宣告闭合**（`scripts/v209/scan_sessions2b.py`）。
+- **P29** dsh-client-ui-commands 重试风暴修复：`commands/list` 无限循环（单页 1018 次）→ 指数退避+30s 熔断+15s 超时+force 合并窗。**P30** 见上。
+- **M1 persona 迁移**：0.1.5 `dsh-persona` `text`→必填 `prefix`，13/13 preset agent.cordis.yml 批量改（`.bak-v209-persona`），用户实测恢复无错。
+- **V7/V8**：better-sidebar `__DSH_MODULES__` 桥（壳已删该全局；懒 chunk "client module system unavailable"）——局部 `__bsModuleSystem` fallback 不污染全局；voice host 路由 v209 三连修（owner-fiber 崩溃→嵌套 effect 不挂载→直挂+信封桥→fix4 加固 405/4MiB/try-catch），真 HTTP POST /voice/ping 200 + GET 405 双证。
+- **会话文件新命名** `session.v3.jsonl.zstd`（旧文件不动）；roundtrip/扫描工具双 glob 兼容。
+
+### 流程升级（本轮独立审查打的靶）
+- 三切面×两轮 + 打假纪律：**UI 文本不作证据，磁盘帧/真 HTTP 才算**（一例"假绿"被纠正后重做真取证 RT-2035 turn/end completed）。
+- 版本目标纪律：升级方案定稿与动手前 **各重查一次上游 releases**（一夜 2.0.5→2.0.9 的教训入 `docs/upgrading.md`）。
+- 装机指纹：app.asar `21a21b14…`（36 项全含）；回滚链 v209-pristine（`robocopy /MIR` 修正版 README）→ shell-2.0.1 → rc.2。
+- 完整复盘：`docs/upgrade-v209-executed.md`（附4–附11：v205→v209 全程、审查发现与销项）。
+
 ## [0.2.1] - 2026-08-21
 
 ### fork-to-preset 端到端修复补丁（P9–P12，rc.5 时代能力丢失的完整恢复）

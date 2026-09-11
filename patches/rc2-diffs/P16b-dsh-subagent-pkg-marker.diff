@@ -1,0 +1,10 @@
+--- a/@deepseek-ai/dsh-subagent/package.json
++++ b/@deepseek-ai/dsh-subagent/package.json
+@@ -102,5 +102,6 @@
+     "@deepseek-ai/cordis": "^4.0.1",
+     "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
+     "@deepseek-ai/dsh-jobs": "^0.1.1-rc.2"
+-  }
++  },
++  "dshRoutedSubagentPatch": "v3.1-preset-mount"
+ }

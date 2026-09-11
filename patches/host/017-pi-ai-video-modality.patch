@@ -1,0 +1,27 @@
+--- "/c/Users/Administrator/AppData/Local/Programs/DSH Desktop/resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js.bak-video-20260831"	2026-08-31 13:55:08.983945700 +0800
++++ "/c/Users/Administrator/AppData/Local/Programs/DSH Desktop/resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	2026-08-31 13:56:15.223913500 +0800
+@@ -272,7 +272,8 @@
+ /** Every request modality a profile may declare. */
+ const MODALITIES = Object.keys({
+ 	text: true,
+-	image: true
++	image: true,
++	video: true
+ });
+ /**
+ * One entry's modality list, or `undefined` when it states no answer. Absent
+@@ -1091,6 +1092,14 @@
+ 			});
+ 			break;
+ 		}
++		case "video": {
++			// video 块携带 URL（data URL 或外部 URL），直接透传
++			content.push({
++				type: "video_url",
++				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
++			});
++			break;
++		}
+ 		case "tool-result":
+ 			{
+ 				const nested = await userContent(block.content, requestImages);

@@ -1,0 +1,20 @@
+# PATCH P30 (2026-09-11) — lib/updates.js: auto-update checks default OFF for patched installs.
+# Baseline: a/ = official DSH Desktop 2.0.9 app.asar lib/updates.js (byte-identical to pre-edit asar-root; verified via cmp).
+# Final:    b/ = asar-root working tree (one-line default flip + rationale comment; no other logic touched).
+# Rationale: this install ships its own update feed (dshdesktop.cn) and local patches P01..P29; a silent
+#           upstream auto-update would clobber the patched tree. Opt-in via explicit enabled:true config.
+# Generated with diff -u --strip-trailing-cr (git apply -R --check passes from asar-root).
+# Verified: node --check (ESM copy) PASS; the z.boolean().default(true) is the ONLY schema default here;
+#           single consumer lib/updates.js:51 reads options.policy.enabled (no second hardcoded true in lib).
+--- a/lib/updates.js
++++ b/lib/updates.js
+@@ -298,7 +298,8 @@
+ const MAX_TIMER_DELAY_MS = 2147483647;
+ /** Validated scheduled update policy. */
+ const Config = z.object({
+-	enabled: z.boolean().default(true),
++	// P30: keep auto-update checks opt-in for patched installs (feed dshdesktop.cn)
++	enabled: z.boolean().default(false),
+ 	initialDelayMs: z.number().step(1).min(0).max(MAX_TIMER_DELAY_MS).default(6e4),
+ 	intervalMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(360 * 60 * 1e3),
+ 	requestTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(15e3)

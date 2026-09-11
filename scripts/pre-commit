@@ -14,7 +14,7 @@ fi
 FAIL=0
 for pat in "C:\\\\Users\\\\Administrator" "C:/Users/Administrator" "E:\\\\ai-files" "E:/ai-files" "C:\\\\ProgramData\\\\AgentOS" "sk-[a-zA-Z0-9]{16,}"; do
   if grep -rnE "$pat" "$REPO" --include="*.md" --include="*.yml" --include="*.yaml" --include="*.json" --include="*.toml" --include="*.ps1" --include="*.mjs" \
-    --exclude-dir=".git" --exclude-dir="standalone" --exclude="check-private.ps1" --exclude="template-render.ps1" 2>/dev/null | grep -v "^$REPO/scripts/"; then
+    --exclude-dir=".git" --exclude-dir="standalone" --exclude-dir=".asar-cache" --exclude="check-private.ps1" --exclude="template-render.ps1" 2>/dev/null | grep -v "^$REPO/scripts/"; then
     echo "FAIL: '$pat' found"
     FAIL=1
   fi

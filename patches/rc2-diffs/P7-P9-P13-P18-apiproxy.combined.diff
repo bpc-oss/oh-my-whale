@@ -1,0 +1,173 @@
+# COMBINED diff — dsh-host-apiproxy/lib/index.js carries 4 registered patches (same file).
+# Baseline: a/ = npm @deepseek-ai/dsh-host-apiproxy@0.1.1-rc.2 (official, packs workspace)
+# Final:    b/ = installed DSH Desktop 2.0.1 unpacked tree (2026-09-10 read-only snapshot)
+# Generated with diff -u --strip-trailing-cr (installed file is CRLF, official is LF;
+# CR conversion is an installer artifact, NOT a patch).
+# Declared apply order (manifest apiproxySequence): P7 -> P9 -> P13 -> P18.
+# Hunk attribution (by official-side line numbers):
+#   @@ -476   fork schema + agentPreset                  P9
+#   @@ -609   promptContentPart video schema              P18
+#   @@ -895   durablePromptContent video mapping          P18
+#   @@ -1411  session.list projection denylist            P7
+#   @@ -2658  fork(): destructure agentPreset + log       P9
+#   @@ -2695  composeAgent(agentPreset) branch            P9
+#   @@ -2707  child meta + agent-preset/selected commit   P9
+#   @@ -2730  `async prompt` reindent (cosmetic drift     introduced by patch edits, no semantics)
+#   @@ -4855  SSE batch flush 20 frames/30ms              P13
+--- a/@deepseek-ai/dsh-host-apiproxy/lib/index.js
++++ b/@deepseek-ai/dsh-host-apiproxy/lib/index.js
+@@ -476,7 +476,8 @@
+ /** session.fork request payload (atSeq anchors the completed-turn cut). */
+ const sessionForkRequestSchema = z$1.object({
+ 	sessionId: sessionIdSchema,
+-	atSeq: z$1.number().int().nonnegative().optional()
++	atSeq: z$1.number().int().nonnegative().optional(),
++	agentPreset: z$1.string().min(1).optional()
+ });
+ /** session.fork response value (the child session id). */
+ const sessionForkValueSchema = z$1.object({ sessionId: sessionIdSchema });
+@@ -609,6 +610,11 @@
+ 	mediaType: imageMediaTypeSchema,
+ 	data: z$1.string(),
+ 	name: z$1.string().optional()
++}), z$1.object({
++	type: z$1.literal("video"),
++	mediaType: z$1.string(),
++	url: z$1.string(),
++	name: z$1.string().optional()
+ })]);
+ /** session.prompt request payload, including optional browser-local request provenance. */
+ const sessionPromptRequestSchema = z$1.object({
+@@ -895,6 +901,11 @@
+ 	return content.map((part) => part.type === "text" ? {
+ 		type: "text",
+ 		text: part.text
++	} : part.type === "video" ? {
++		type: "video",
++		mediaType: part.mediaType,
++		url: part.url,
++		...(part.name === void 0 ? {} : { name: part.name })
+ 	} : {
+ 		type: "image",
+ 		attachment: refs[next++]
+@@ -1411,10 +1422,24 @@
+ * empty value set — yields an absent block: a listing without projections
+ * is degraded, never broken.
+ */
++// session.list 降载（2026-08-20）：列表视图不需要的重键排除——token 统计/
++// 上下文压力/权限/子代理等（详情页走 projectionsFor 全量，不受影响）。
++// 排除式（denylist）而非白名单：未来新投影键自动保留，不丢数据不破坏兼容。
++const LIST_PROJECTION_EXCLUDED = new Set([
++	"tokenUsage", "contextPressure", "contextBreakdown", "contextBreakdownHermes",
++	"subagentTiming", "subagent", "permissions", "verification",
++	"imageLimits", "todos", "plan"
++]);
++
+ function listProjectionsFor(ctx, meta, session) {
+ 	try {
+ 		const block = session !== void 0 ? ctx.get("sessionProjections")?.snapshot(session) : ctx.get("sessionProjectionCache")?.cachedSnapshot(meta);
+-		return block !== void 0 && Object.keys(block.values).length > 0 ? block : void 0;
++		if (block === void 0 || Object.keys(block.values).length === 0) return void 0;
++		const values = {};
++		for (const [key, value] of Object.entries(block.values)) {
++			if (!LIST_PROJECTION_EXCLUDED.has(key)) values[key] = value;
++		}
++		return Object.keys(values).length > 0 ? { asOfSeq: block.asOfSeq, values } : void 0;
+ 	} catch (error) {
+ 		ctx.logger.warn(`session.list: projection column for "${meta.id}" failed (serving the row without it): ${String(error)}`);
+ 		return;
+@@ -2658,7 +2683,8 @@
+ 				}
+ 			},
+ 			async fork(request) {
+-				const { sessionId, atSeq } = request.payload;
++				const { sessionId, atSeq, agentPreset } = request.payload;
++				ctx.logger?.info?.(`session.fork: agentPreset=${JSON.stringify(agentPreset)} sessionId=${sessionId}`);
+ 				let source;
+ 				try {
+ 					source = await readSessionState(sessionId);
+@@ -2695,9 +2721,13 @@
+ 					});
+ 				}
+ 				const childId = `session-${randomUUID()}`;
+-				const forkComposition = await composeAgent(resolveSessionPreset(source));
+-				try {
+-					await ctx.agents.create({
++					// PATCH (fork-to-preset, rc.5 era): agentPreset (optional) overrides the source
++					// session's preset, so a fork can be created under a DIFFERENT composition.
++					const forkComposition = agentPreset !== void 0
++						? await composeAgent(agentPreset)
++						: await composeAgent(resolveSessionPreset(source));
++					try {
++						await ctx.agents.create({
+ 						sessionId: childId,
+ 						seed: events.slice(0, cut),
+ 						meta: {
+@@ -2707,9 +2737,18 @@
+ 							...forkComposition.agentPreset === void 0 ? {} : { agentPreset: forkComposition.agentPreset }
+ 						},
+ 						agentOptions: agentOptions(),
+-						setup: forkComposition.setup
+-					});
+-				} catch (error) {
++							setup: forkComposition.setup
++						});
++						// A fork inherits the source event prefix, including historical
++						// agent-preset/selected events. The resolver intentionally gives the
++						// latest such event precedence over the header, so commit the explicit
++						// target as the child's newest durable selection as well.
++						if (agentPreset !== void 0 && forkComposition.agentPreset !== void 0) {
++							const child = ctx.agents.get(childId);
++							if (child === void 0) throw new Error(`fork child "${childId}" is not locally addressable`);
++							child.session.append("agent-preset/selected", { agentPreset: forkComposition.agentPreset });
++						}
++					} catch (error) {
+ 					return err(request, {
+ 						code: "internal",
+ 						message: `failed to fork session "${sessionId}": ${String(error)}`,
+@@ -2730,7 +2769,7 @@
+ 				}
+ 				return ok(request, { sessionId: childId });
+ 			},
+-			async prompt(request) {
++				async prompt(request) {
+ 				const { sessionId, mode, content, clientTimeZone } = request.payload;
+ 				const canonicalTimeZone = clientTimeZone === void 0 ? void 0 : canonicalClientTimeZone(clientTimeZone);
+ 				if (clientTimeZone !== void 0 && canonicalTimeZone === void 0) return err(request, {
+@@ -4855,7 +4894,35 @@
+ 	const stream = new ReadableStream({ async start(controller) {
+ 		try {
+ 			controller.enqueue(encoder.encode(": connected\n\n"));
+-			for await (const narrow of frames) controller.enqueue(encoder.encode(`data: ${JSON.stringify(fullFrame(narrow))}\n\n`));
++			// P13 (2026-08-22): batch SSE frames — flush at 20 frames or after 30ms idle,
++			// whichever comes first. Previously each frame was enqueued individually,
++			// and the main-process event loop was starved by per-frame stringify+encode
++			// under high event volume (renderer "messages trickling out" symptom).
++			const BATCH_MAX = 20;
++			const BATCH_IDLE_MS = 30;
++			let batch = [];
++			let idleTimer = void 0;
++			const flush = () => {
++				if (batch.length === 0) return;
++				const chunk = batch.map((n) => `data: ${JSON.stringify(fullFrame(n))}\n\n`).join("");
++				batch = [];
++				try { controller.enqueue(encoder.encode(chunk)); } catch {}
++			};
++			const armIdle = () => {
++				if (idleTimer !== void 0) clearTimeout(idleTimer);
++				idleTimer = setTimeout(() => { idleTimer = void 0; flush(); }, BATCH_IDLE_MS);
++			};
++			for await (const narrow of frames) {
++				batch.push(narrow);
++				if (batch.length >= BATCH_MAX) {
++					if (idleTimer !== void 0) { clearTimeout(idleTimer); idleTimer = void 0; }
++					flush();
++				} else if (batch.length === 1) {
++					armIdle();
++				}
++			}
++			if (idleTimer !== void 0) { clearTimeout(idleTimer); idleTimer = void 0; }
++			flush();
+ 		} catch (error) {
+ 			const failure = {
+ 				type: "stream/error",

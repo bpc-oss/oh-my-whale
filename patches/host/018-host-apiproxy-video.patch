@@ -1,0 +1,26 @@
+--- apiproxy-original-reconstructed.js	2026-08-31 15:00:58.161912500 +0800
++++ apiproxy-current.js	2026-08-31 15:00:58.161912500 +0800
+@@ -610,6 +610,11 @@
+ 	mediaType: imageMediaTypeSchema,
+ 	data: z$1.string(),
+ 	name: z$1.string().optional()
++}), z$1.object({
++	type: z$1.literal("video"),
++	mediaType: z$1.string(),
++	url: z$1.string(),
++	name: z$1.string().optional()
+ })]);
+ /** session.prompt request payload, including optional browser-local request provenance. */
+ const sessionPromptRequestSchema = z$1.object({
+@@ -896,6 +901,11 @@
+ 	return content.map((part) => part.type === "text" ? {
+ 		type: "text",
+ 		text: part.text
++	} : part.type === "video" ? {
++		type: "video",
++		mediaType: part.mediaType,
++		url: part.url,
++		...(part.name === void 0 ? {} : { name: part.name })
+ 	} : {
+ 		type: "image",
+ 		attachment: refs[next++]

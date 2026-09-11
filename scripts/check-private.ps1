@@ -1,4 +1,4 @@
-# check-private.ps1 - scan for machine-private paths before committing
+﻿# check-private.ps1 - scan for machine-private paths before committing
 # Usage: .\scripts\check-private.ps1 [-RepoDir <path>]
 # Exit 0 = clean; exit 1 = found private data
 param([string]$RepoDir = "")
@@ -16,7 +16,8 @@ $SelfScripts = @(
 )
 # Standalone plugin sources may contain legitimate path references in their docs
 $AllowedDirs = @(
-  (Join-Path $RepoDir "plugins\standalone")
+  (Join-Path $RepoDir "plugins\standalone"),
+  (Join-Path $RepoDir "patches\host\.asar-cache")   # v209: extracted pristine+patched kernel tree (verify.ps1/drift-scan -Installed cache, machine-generated)
 )
 
 # Privacy patterns (case-sensitive matching). Double-backslash JSON-escaped forms included.
@@ -33,7 +34,7 @@ $patterns = @(
   "file:///C:\\Users\\Administrator",
   "sk-[a-zA-Z0-9]{20,}",
   "api[_-]?key['""]?\s*[:=]\s*['""][^'""]{8,}['""]",
-  "@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}",
+  "[A-Za-z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
   "password['""]?\s*[:=]\s*['""][^'""]{6,}['""]"
 )
 

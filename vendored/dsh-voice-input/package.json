@@ -1,0 +1,67 @@
+{
+  "name": "dsh-voice-input",
+  "version": "0.1.0",
+  "description": "高质量 DSH 语音输入插件：浏览器采麦 → 本地离线 ASR（sherpa-onnx zipformer2 + silero VAD，中文优先）→ 智能标点 → 填入输入框；无模型时自动降级浏览器 Web Speech。High-quality voice input for the DeepSeek Harness Web UI: offline native ASR with smart punctuation, browser Web Speech fallback.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection"
+      ],
+      "platform": "web"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "models": "node tools/download-models.cjs",
+    "asr:smoke": "node tools/asr-smoke.mjs"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "^1.13.5"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "lib/**/*.js",
+    "cordis.patch.yml",
+    "tools/",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "voice",
+    "voice-input",
+    "speech-to-text",
+    "asr",
+    "microphone",
+    "sherpa-onnx",
+    "client-plugin"
+  ],
+  "license": "MIT"
+}

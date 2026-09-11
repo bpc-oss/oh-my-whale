@@ -107,7 +107,7 @@
       "source": "profile/vendor/dsh-better-sidebar-0.12.2-fix108.tgz",
       "package_spec": "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
       "install_type": "vendor-archive",
-      "description": "Better sidebar (fixed tgz)"
+      "description": "Better sidebar (fixed tgz). V7 __DSH_MODULES__ bridge lives ONLY in the installed copies (lib/client.js + lib/client-registry.js, .bak-v7-20260911) - the tgz does not carry it, so any reinstall reverts V7 ('client module system unavailable' returns) until upstream re-release ({{PLUGIN_SOURCES_DIR}}/DSH-better-sidebar-pr, PR+CI flow); re-apply V7 after every reinstall."
     },
     {
       "id": "dsh-continuous-worker",
@@ -135,19 +135,21 @@
     },
     {
       "id": "dsh-token-meter-hermes",
-      "type": "standalone",
-      "path": "plugins/standalone/dsh-token-meter-hermes",
+      "type": "local",
+      "source": "{{USER_HOME}}/dsh-token-meter-hermes",
       "package_spec": "file:{{USER_HOME}}/dsh-token-meter-hermes",
       "install_type": "file-dir",
-      "description": "Token meter Hermes style"
+      "description": "Token meter Hermes style (realpath {{USER_HOME}}/dsh-token-meter-hermes, installed via file: COPY not link). V2/V2.1 breakdown-projection clamp patch lives in the installed copy under profiles/web/node_modules - reinstall re-copies from source dir, re-apply V2 after reinstall.",
+      "vendored_backup": "{{REPO}}/vendored/dsh-token-meter-hermes"
     },
     {
       "id": "dsh-voice-input",
-      "type": "standalone",
-      "path": "plugins/standalone/dsh-voice-input",
+      "type": "local",
+      "source": "{{USER_HOME}}/dsh-voice-input",
       "package_spec": "link:{{USER_HOME}}/dsh-voice-input",
       "install_type": "link",
-      "description": "Voice input (models dir separate)"
+      "description": "Voice input (models dir separate). V8 host-route fix1->fix4 (405 guard / 4MiB cap / Buffer.concat utf8 / try-catch envelope) is applied directly in the symlink source {{USER_HOME}}/dsh-voice-input/lib/index.js - edits take effect live via the symlink, NO repack needed (unlike kernel patches); live-verified POST /voice/ping 200 + GET 405.",
+      "vendored_backup": "{{REPO}}/vendored/dsh-voice-input"
     },
     {
       "id": "@deepseek-ai/dsh-subagent-codex",

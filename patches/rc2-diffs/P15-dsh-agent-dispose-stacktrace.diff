@@ -1,0 +1,12 @@
+--- a/@deepseek-ai/dsh-agent/lib/index.js
++++ b/@deepseek-ai/dsh-agent/lib/index.js
+@@ -647,7 +647,8 @@
+ 				this.ctx.logger.warn(`agent "${entry.id}": agent/disposed listener rejected: ${String(error)}`);
+ 			});
+ 		} catch (error) {
+-			this.ctx.logger.warn(`agent "${entry.id}": agent/disposed listener threw: ${String(error)}`);
++			this.ctx.logger.warn(`agent "${entry.id}": agent/disposed listener threw: ${String(error)}
++${error instanceof Error ? error.stack : String(error)}`);
+ 		}
+ 	}
+ 	/**

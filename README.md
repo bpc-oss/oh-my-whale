@@ -6,7 +6,9 @@
 ## 一键安装
 
 ```powershell
-# 1. 安装 DSH Desktop v2.0.1（官方）
+# 1. 安装 DSH Desktop v2.0.9（官方 GitHub releases / dshdesktop.cn）
+#    ⚠ 2026-09-11 起内核在 app.asar 内且受 Electron 完整性 fuse 保护：
+#    打完补丁必须关 fuse（见 docs/upgrade-v209-executed.md 附7 与 scripts/v209/pack-209.ps1）
 # 2. 以管理员身份打开 PowerShell
 git clone <你的 oh-my-whale 仓库地址>
 cd oh-my-whale
@@ -86,7 +88,7 @@ oh-my-whale/
 
 | 组件 | 版本 |
 |---|---|
-| 桌面壳 | DSH Desktop v2.0.1 |
+| 桌面壳 | DSH Desktop v2.0.9（内核 0.1.5-rc.1，packed-asar 布局；见 CHANGELOG 0.3.0） |
 | 内核 | @deepseek-ai/dsh 0.1.0-rc.8 |
 | cordis / loader / pi-ai | 4.0.1 / 1.0.2 / 0.82.1 |
 | 补丁 | P1-P12（manifest.json 为权威；rc.8 升级曾丢 dsh-goal seam / apiproxy 降载 / fork+preset 能力，8/21 已捕获为 P6/P7/P9-P12） |

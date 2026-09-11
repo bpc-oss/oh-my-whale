@@ -32,10 +32,16 @@
       "acknowledgedAt": "2026-08-21"
     },
     {
-      "type": "unknownModified",
-      "path": "@deepseek-ai/dsh-web-app/cordis.patch.yml.bak-layout-disable-20260821",
-      "reason": "web-app patch 的 ui-layout disabled:false 修改前备份（升级后恢复清单用）",
-      "acknowledgedAt": "2026-08-21"
+      "type": "removed-source",
+      "path": "@agentos/dsh-lco",
+      "reason": "A5 结构修复后 LCO 保持注册但不装机（disabled 态，config 留 cordis.patch）；重装候选，非漂移",
+      "acknowledgedAt": "2026-09-11"
+    },
+    {
+      "type": "config-semantic",
+      "path": "dep spec differs: dsh-continuous-worker",
+      "reason": "v209 时代 cw 走 ~/.dsh/releases/continuous-worker-v2/<hash> 发布 junction（带内容哈希，逐机不同）；模板保留 PLUGIN_SOURCES_DIR 源路径写法",
+      "acknowledgedAt": "2026-09-11"
     }
   ]
 }

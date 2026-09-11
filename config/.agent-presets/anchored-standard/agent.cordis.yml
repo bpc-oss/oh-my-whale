@@ -103,7 +103,7 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: You are a helpful software engineer assistant.
+    prefix: You are a helpful software engineer assistant.
     complete: true
     includeRuntimeContext: false
 
@@ -394,7 +394,6 @@
     # only to agents composed from the copy.
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
-      disabled: true
       config:
         provider: codex
         toolName: subagent_codex
@@ -403,7 +402,6 @@
 
     - id: tool-subagent-claude-code
       name: '@deepseek-ai/dsh-tool-subagent'
-      disabled: true
       config:
         provider: claude-code
         toolName: subagent_claude_code

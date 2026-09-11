@@ -1,0 +1,25 @@
+--- a/@deepseek-ai/dsh-client-connection/lib/client.js
++++ b/@deepseek-ai/dsh-client-connection/lib/client.js
+@@ -5279,10 +5279,11 @@
+ 			title: string().min(1),
+ 			seq: number().int().nonnegative()
+ 		});
+-		object({
+-			sessionId: sessionIdSchema,
+-			atSeq: number().int().nonnegative().optional()
+-		});
++			object({
++				sessionId: sessionIdSchema,
++				atSeq: number().int().nonnegative().optional(),
++				agentPreset: string().min(1).optional()
++			});
+ 		/** session.fork response value (the child session id). */
+ 		const sessionForkValueSchema = object({ sessionId: sessionIdSchema });
+ 		object({
+@@ -10324,4 +10325,4 @@
+ 	}
+ });
+ 
+-//# sourceMappingURL=client.js.map
+\ No newline at end of file
++//# sourceMappingURL=client.js.map

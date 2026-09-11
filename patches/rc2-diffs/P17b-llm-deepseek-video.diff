@@ -1,0 +1,16 @@
+--- a/@deepseek-ai/dsh-llm-deepseek/lib/index.js
++++ b/@deepseek-ai/dsh-llm-deepseek/lib/index.js
+@@ -87,6 +87,13 @@
+ 				image: nextImage.value
+ 			}, parts.length > 0));
+ 			break;
++		case "video":
++			// video 块携带 URL（data URL 或外部 URL）→ wire 的 video_url part
++			parts.push({
++				type: "video_url",
++				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
++			});
++			break;
+ 		case "tool-result":
+ 			parts.push(...await contentParts(block.content, images, message, nextImage));
+ 			break;

@@ -1,5 +1,9 @@
 # DSH 插件发布与安装注意事项（HANDOFF）
 
+
+> **⚠ 2026-09-11 追加（v209/packed-asar 时代）**：内核 0.1.5-rc.1 起 `@deepseek-ai/*` 不再存在于 `app.asar.unpacked`——插件对内核的解析走 profiles 农场 junction → `~/.dsh/runtime/v209-patched-tree`（CLI/Electron asar resolver 双轨）。voice 等 `~/dsh-*` symlink 型插件改文件即生效（profile 半），无需 repack；内核半改动必须重跑 `scripts/v209/pack-209.ps1` + fuse + 三绿。历史 `session.jsonl.zstd` 与新 `session.v3.jsonl.zstd` 并存，工具glob要 `session*.jsonl.zstd`。
+
+
 > 本文面向所有在本机（`%USERPROFILE%\.dsh`）安装、发布、修改 dsh 插件的人/agent。
 > 内容来自 2026-08-14 ~ 08-18 的真实事故复盘（会话历史加载、web boot、插件 schema 等）。
 > **核心原则：插件改动 = 源码修复 + 全副本发布 + 进程重启 + 旧会话回归，四步缺一不可。**

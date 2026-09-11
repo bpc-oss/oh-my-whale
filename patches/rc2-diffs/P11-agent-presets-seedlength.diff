@@ -1,0 +1,15 @@
+--- a/@deepseek-ai/dsh-agent-presets/lib/index.js
++++ b/@deepseek-ai/dsh-agent-presets/lib/index.js
+@@ -760,7 +760,11 @@
+ * @returns the preset id, or `undefined` when the deployment composes none.
+ */
+ function resolveSessionPreset(session) {
+-	for (let index = session.events.length - 1; index >= 0; index -= 1) {
++	// Fork seeds contain the source session's historical preset-selection events.
++	// They describe the source's past, not the child's current composition. Only
++	// selections committed after the seed boundary may override the child header.
++	const seedLength = session.header.seedLength ?? 0;
++	for (let index = session.events.length - 1; index >= seedLength; index -= 1) {
+ 		const event = session.events[index];
+ 		if (event?.type === "agent-preset/selected") return event.data.agentPreset;
+ 	}

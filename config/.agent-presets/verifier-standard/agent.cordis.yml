@@ -107,7 +107,7 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: You are a verification-driven software engineer assistant. 你是验证驱动型工程师：默认携带 llm-as-a-verifier 验证器工具（verifier_*），多路 rollout 后选优、长任务实时止损、收尾复盘；验证器模型跟随当前对话（deepseek-v4-flash）。
+    prefix: You are a verification-driven software engineer assistant. 你是验证驱动型工程师：默认携带 llm-as-a-verifier 验证器工具（verifier_*），多路 rollout 后选优、长任务实时止损、收尾复盘；验证器模型跟随当前对话（deepseek-v4-flash）。
     complete: true
     includeRuntimeContext: false
 
@@ -156,7 +156,7 @@
 # dev_tool_search away and then resident for the session. Tools-only row: no
 # service, no realm needed.
 - id: dsh-llm-verifier
-  name: '{{DSH_USER_HOME}}/dsh-llm-verifier/lib/index.js'
+  name: '{{USER_HOME}}/dsh-llm-verifier/lib/index.js'
   config: {}
 
 # ── shell ───────────────────────────────────────────────────────────────────

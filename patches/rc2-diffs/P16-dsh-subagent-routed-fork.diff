@@ -1,0 +1,208 @@
+--- a/@deepseek-ai/dsh-subagent/lib/index.js
++++ b/@deepseek-ai/dsh-subagent/lib/index.js
+@@ -338,7 +338,10 @@
+ 	"agentProvider",
+ 	"agentModel",
+ 	"persona",
+-	"toolFilter"
++	"toolFilter",
++	// PATCH (dsh-routed-subagent v3.1): target preset persisted so a cold
++	// resume can rebuild the child under the same composition.
++	"preset"
+ ]);
+ const TOOL_FILTER_KEYS = new Set(["allow", "deny"]);
+ /** Whether a persisted JSON value is an object record. */
+@@ -383,7 +386,7 @@
+ 	if (!isRecord(value)) throw new Error("persisted subagent descriptor payload must be an object");
+ 	const version = value["version"];
+ 	if (typeof version !== "number") throw new Error("persisted subagent descriptor version must be a number");
+-	if (version !== 2) return void 0;
++	if (version !== 2 && version !== 3) return void 0;
+ 	const mode = value["mode"];
+ 	if (mode !== "one-shot" && mode !== "continuable") throw new Error("persisted subagent descriptor mode must be \"one-shot\" or \"continuable\"");
+ 	assertKnownKeys(value, mode === "one-shot" ? ONE_SHOT_DESCRIPTOR_KEYS : CONTINUABLE_DESCRIPTOR_KEYS, "payload");
+@@ -404,15 +407,18 @@
+ 	const agentModel = optionalString(value, "agentModel");
+ 	const persona = optionalString(value, "persona");
+ 	const toolFilter = Object.hasOwn(value, "toolFilter") ? parseToolFilter(value["toolFilter"]) : void 0;
++	// PATCH: v2 continuable descriptors (no preset) still parse — preset is optional.
++	const preset = optionalString(value, "preset");
+ 	return {
+-		version: 2,
++		version: 3,
+ 		mode,
+ 		provider,
+ 		label,
+ 		...agentProvider !== void 0 ? { agentProvider } : {},
+ 		...agentModel !== void 0 ? { agentModel } : {},
+ 		...persona !== void 0 ? { persona } : {},
+-		...toolFilter !== void 0 ? { toolFilter } : {}
++		...toolFilter !== void 0 ? { toolFilter } : {},
++		...preset !== void 0 ? { preset } : {}
+ 	};
+ }
+ function snapshotSubagentDescriptor(input) {
+@@ -422,14 +428,17 @@
+ 		provider: input.provider,
+ 		...input.label !== void 0 ? { label: input.label } : {}
+ 	} : {
+-		version: 2,
++		// PATCH: continuable descriptors are version 3 (one-shot stays 2) so a
++		// rollback to the official runtime rejects them cleanly at parse time.
++		version: 3,
+ 		mode: input.mode,
+ 		provider: input.provider,
+ 		label: input.label,
+ 		...input.agentProvider !== void 0 ? { agentProvider: input.agentProvider } : {},
+ 		...input.agentModel !== void 0 ? { agentModel: input.agentModel } : {},
+ 		...input.persona !== void 0 ? { persona: input.persona } : {},
+-		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {}
++		...input.toolFilter !== void 0 ? { toolFilter: input.toolFilter } : {},
++		...input.preset !== void 0 ? { preset: input.preset } : {}
+ 	});
+ 	if (snapshot === void 0) throw new Error("subagent descriptor is not losslessly JSON-serializable");
+ 	return snapshot;
+@@ -567,8 +576,21 @@
+ * @param parent - the delegating parent whose composition the child joins.
+ * @param composition - the per-child persona and tool filter to install.
+ */
+-function applyChildComposition(childCtx, parent, composition) {
+-	childCtx.get("agentPresets")?.composeFrom(childCtx, parent.ctx);
++async function applyChildComposition(childCtx, parent, composition) {
++	if (composition.preset !== void 0) {
++		// PATCH (dsh-routed-subagent v3.1): mount the TARGET preset instead of
++		// joining the parent's composition. composeFrom is skipped on purpose —
++		// it binds the child scope key to the parent's standing mount, and a
++		// second bind (mount) would throw "scope key is already bound". The
++		// delegation context / persona / toolFilter installs below are kept.
++		await childCtx.get("agentPresets")?.mount(childCtx, composition.preset);
++		// Record the target selection so a cold rebuild resolves the TARGET
++		// preset even when a fork seed replays the parent's own selection
++		// events (resolveSessionPreset prefers the last selected event).
++		childCtx.agent.session.append("agent-preset/selected", { agentPreset: composition.preset });
++	} else {
++		childCtx.get("agentPresets")?.composeFrom(childCtx, parent.ctx);
++	}
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:delegation",
+ 		order: 120,
+@@ -641,6 +663,21 @@
+ 	return [...staged.events];
+ }
+ //#endregion
++// PATCH (dsh-routed-subagent v3.1): external-engine continuation registry.
++// claude/codex subagent sessions are NOT harness JSONL Sessions — followup cannot
++// cold-resume them via persistence.inspect. dsh-routed-subagent registers a per-session
++// resume callback here; send_message -> followup routes external ids to it.
++const externalContinuations = new Map();
++function registerExternalContinuation(sessionId, resume) {
++	externalContinuations.set(sessionId, resume);
++	return () => externalContinuations.delete(sessionId);
++}
++function unregisterExternalContinuation(sessionId) {
++	return externalContinuations.delete(sessionId);
++}
++function hasExternalContinuation(sessionId) {
++	return externalContinuations.has(sessionId);
++}
+ //#region lib/types/continuation.js
+ /**
+ * Internal continuable-subagent manager: stable child ids, descriptor
+@@ -786,7 +823,10 @@
+ 			...agentProvider !== void 0 ? { agentProvider } : {},
+ 			...agentModel !== void 0 ? { agentModel } : {},
+ 			...request.persona !== void 0 ? { persona: request.persona } : {},
+-			...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}
++			...request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {},
++			// PATCH (dsh-routed-subagent v3.1): persist the target preset so a
++			// cold resume rebuilds the child under the same composition.
++			...request.preset !== void 0 ? { preset: request.preset } : {}
+ 		});
+ 		const delegatedPolicies = captureDelegatedPolicyOverrides(parent);
+ 		const prepared = await this.host.prepareContinuable(spec.provider, {
+@@ -817,13 +857,21 @@
+ 					parent,
+ 					create: {
+ 						seed,
+-						meta: childSessionMeta(parent, childDepth, lineageSeedLength),
++						// PATCH: when a target preset is requested, the header
++						// must record it (childSessionMeta records the parent's)
++						// — conditionally, so official continuable children
++						// (no request.preset) keep their parent-composition header.
++						meta: request.preset !== void 0
++							? { ...childSessionMeta(parent, childDepth, lineageSeedLength), agentPreset: request.preset }
++							: childSessionMeta(parent, childDepth, lineageSeedLength),
+ 						delegatedPolicies
+ 					},
+ 					agentOptions: resolveChildAgentOptions(parent, request.agentOptions, childDepth),
+ 					composition: {
+ 						persona: request.persona,
+-						toolFilter: request.toolFilter
++						toolFilter: request.toolFilter,
++						// PATCH: mount the target preset in materialize's setup.
++						...request.preset !== void 0 ? { preset: request.preset } : {}
+ 					},
+ 					signal: spec.signal
+ 				});
+@@ -853,6 +901,14 @@
+ 	* @throws when parent authority, availability, or admission rejects the delivery.
+ 	*/
+ 	async followup(parent, childId, content, options) {
++		// PATCH (dsh-routed-subagent v3.1): an external-engine session (claude/codex)
++		// is not a harness JSONL Session — route it to its registered resume callback
++		// before the harness looks for a persisted Session.
++		if (hasExternalContinuation(childId)) {
++			this.assertAdmitting(parent);
++			options.signal.throwIfAborted();
++			return await externalContinuations.get(childId)(content, options.signal);
++		}
+ 		this.assertAdmitting(parent);
+ 		while (true) {
+ 			const live = await this.locks.run(childId, async () => {
+@@ -1166,14 +1222,25 @@
+ 					...descriptor.agentModel !== void 0 ? { model: descriptor.agentModel } : {}
+ 				},
+ 				composition: {
+-					persona: descriptor.persona,
+-					toolFilter: descriptor.toolFilter
+-				},
++				persona: descriptor.persona,
++				toolFilter: descriptor.toolFilter,
++				// PATCH (dsh-routed-subagent v3.1): the persisted target preset
++				// rebuilds the child under the SAME composition on resume.
++				...descriptor.preset !== void 0 ? { preset: descriptor.preset } : {}
++			},
+ 				signal: options.signal
+ 			});
+ 		} catch (error) {
+ 			options.signal.throwIfAborted();
+ 			if (error instanceof SubagentError) throw error;
++			// PATCH: name the missing/broken preset instead of the generic
++			// "unavailable" headline — the child log is intact, the composition
++			// is what cannot be rebuilt.
++			const reason = error instanceof Error && typeof error.message === "string" ? error.message : String(error);
++			const presetName = descriptor?.preset !== void 0 ? `preset "${descriptor.preset}"` : void 0;
++			if (presetName !== void 0 && /preset|mount|resolveMountable|UnknownPreset|already bound/i.test(reason)) {
++				throw new SubagentError(`subagent "${childId}" cannot be resumed: ${presetName} is unavailable or changed (the child's preset composition cannot be rebuilt); restore the preset and retry send_message`, "NOT_RESUMABLE", { cause: error });
++			}
+ 			throw new SubagentError(`subagent "${childId}" is unavailable`, "NOT_RESUMABLE", { cause: error });
+ 		}
+ 		return this.submitMaterialized(activation, content, options.source, parent, options.signal);
+@@ -1225,9 +1292,9 @@
+ 	async materializeTracked(inputs, parentLineage) {
+ 		const { childId, provider, parent, create } = inputs;
+ 		inputs.signal.throwIfAborted();
+-		const setup = (childCtx) => {
++		const setup = async (childCtx) => {
+ 			if (create !== void 0) appendDelegatedPolicyOverrides(childCtx.agent.session, create.delegatedPolicies);
+-			applyChildComposition(childCtx, parent, inputs.composition);
++			await applyChildComposition(childCtx, parent, inputs.composition);
+ 			return this.setupRegistry.apply(childCtx);
+ 		};
+ 		const observer = this.host.observeActivation(provider, childId, parent);
+@@ -2672,4 +2739,4 @@
+ 	}
+ };
+ //#endregion
+-export { AssistantOutputFold, NO_START_CAPABILITIES, SUBAGENT_DESCRIPTOR_VERSION, SubagentDepthError, SubagentError, SubagentRunId, SubagentRuntime, SubagentRuntime as default, appendDelegatedPolicyOverrides, applyChildComposition, assertPositiveFinite, assertSubagentMaxDepth, assertUsableCwd, captureDelegatedPolicyOverrides, childSessionMeta, delegationDepthOf, finalAssistantOutput, foldSubagentDescriptor, resolveChildAgentOptions, resolveChildCwd, resolveChildDepth, seedDescriptorTurn, settleRun, settleRunResult, snapshotSubagentDescriptor, subprocessRunHandle, validateConfiguredCwd };
++export { AssistantOutputFold, NO_START_CAPABILITIES, SUBAGENT_DESCRIPTOR_VERSION, SubagentDepthError, SubagentError, SubagentRunId, SubagentRuntime, SubagentRuntime as default, appendDelegatedPolicyOverrides, applyChildComposition, assertPositiveFinite, assertSubagentMaxDepth, assertUsableCwd, captureDelegatedPolicyOverrides, childSessionMeta, delegationDepthOf, finalAssistantOutput, foldSubagentDescriptor, resolveChildAgentOptions, resolveChildCwd, resolveChildDepth, seedDescriptorTurn, settleRun, settleRunResult, registerExternalContinuation, snapshotSubagentDescriptor, subprocessRunHandle, unregisterExternalContinuation, validateConfiguredCwd, hasExternalContinuation };

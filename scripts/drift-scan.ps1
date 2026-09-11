@@ -3,12 +3,14 @@
 #   .\scripts\drift-scan.ps1                     # scan, print to terminal, write drift-report.json
 #   .\scripts\drift-scan.ps1 -Out report.json    # specify output path
 #   .\scripts\drift-scan.ps1 -Compare baseline.json  # compare two reports (delta matrix)
+#   .\scripts\drift-scan.ps1 -Installed             # scan the LIVE installed app.asar instead of the runtime tree
 # Reuses: manifest.json, verify.ps1 markers, capture.sh kernel detection, template-render.ps1
 # Encoding: UTF-8 no-BOM for JSON output (PS 5.1 WriteAllText, not Set-Content)
 param(
   [string]$Out = "",                        # output report path (default: drift-report.json)
   [string]$Compare = "",                    # baseline report to compare against
   [string]$Allowlist = "",                  # drift-allowlist.json path (default: docs/drift-allowlist.json)
+  [switch]$Installed,                       # v209: scan installed app.asar (asar-extract cache) instead of the runtime tree
   [switch]$Deep                             # iteration 2: --deep not yet implemented
 )
 
@@ -17,18 +19,56 @@ $Repo = Split-Path -Parent $PSScriptRoot
 $ReportPath = if ($Out) { $Out } else { Join-Path (Get-Location) "drift-report.json" }
 $AllowlistPath = if ($Allowlist) { $Allowlist } else { Join-Path $Repo "docs\drift-allowlist.json" }
 
-# ── Kernel detection (reuse check-env.ps1 logic) ──
-$NewKernel = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
+# ── Kernel detection (v209 packed-asar era) ──
+# Since shell 2.0.9 / kernel 0.1.5-rc.1 the whole kernel lives INSIDE resources\app.asar
+# (app.asar.unpacked only carries node-pty/@img natives — no @deepseek-ai packages).
+# The authoritative landing tree for patch scans is the patched runtime tree; -Installed
+# mirrors verify.ps1 v4 and checks the live shipped asar via the shared extract cache.
+$RuntimeTreeModules = "$env:USERPROFILE\.dsh\runtime\v209-patched-tree\node_modules"
 $OldKernel = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
 $ProfileModules = "$env:USERPROFILE\.dsh\profiles\web\node_modules"
 
-if (Test-Path $NewKernel) { $KernelDir = $NewKernel } else { $KernelDir = $OldKernel }
+if ($Installed) {
+  # installed mode: unpack the LIVE resources\app.asar into patches\host\.asar-cache
+  # (same cache + stamp scheme as verify.ps1 v4, so the two scripts share one 170MB
+  # one-time extraction). The install directory is only ever READ.
+  $Asar = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktop\resources\app.asar"
+  if (-not (Test-Path $Asar)) { Write-Host "ERROR: installed mode: app.asar not found: $Asar" -ForegroundColor Red; exit 1 }
+  $CacheRoot = Join-Path $Repo "patches\host\.asar-cache"
+  $CacheTree = Join-Path $CacheRoot "app"
+  $StampFile = Join-Path $CacheRoot ".stamp"
+  $asi = Get-Item $Asar
+  $key = ("{0}|{1}" -f $asi.Length, $asi.LastWriteTimeUtc.Ticks)
+  $fresh = $false
+  if ((Test-Path (Join-Path $CacheTree "node_modules")) -and (Test-Path $StampFile)) {
+    if ((Get-Content $StampFile -Raw).Trim() -eq $key) { $fresh = $true }
+  }
+  if (-not $fresh) {
+    Write-Host "asar-cache: extracting $Asar (~170MB, one-time; cache kept for reuse)..."
+    if (Test-Path $CacheTree) { Remove-Item $CacheTree -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $CacheTree | Out-Null
+    & npx --yes @electron/asar extract $Asar $CacheTree 2>&1 | Out-String | Out-Null
+    $code = $LASTEXITCODE
+    if ($code -ne 0 -or -not (Test-Path (Join-Path $CacheTree "node_modules"))) {
+      Write-Host "ERROR: asar extract failed (exit $code); cache dir: $CacheTree" -ForegroundColor Red; exit 1
+    }
+    Set-Content -Path $StampFile -Value $key -NoNewline
+    Write-Host "asar-cache: extraction complete"
+  } else {
+    Write-Host "asar-cache: reusing cached extraction ($CacheTree)"
+  }
+  $KernelDir = Join-Path $CacheTree "node_modules"
+} elseif (Test-Path $RuntimeTreeModules) {
+  $KernelDir = $RuntimeTreeModules
+} else {
+  $KernelDir = $OldKernel   # legacy pre-v209 shell fallback
+}
 $KernelVersion = if (Test-Path "$KernelDir\@deepseek-ai\dsh\package.json") {
   (Get-Content "$KernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
 } else { "unknown" }
 
 Write-Host "=== oh-my-whale drift scan ===" -ForegroundColor Cyan
-Write-Host "KernelDir : $KernelDir ($KernelVersion)"
+Write-Host ("KernelDir : {0} ({1}){2}" -f $KernelDir, $KernelVersion, $(if ($Installed) { " [installed app.asar]" } else { "" }))
 Write-Host "Repo      : $Repo"
 Write-Host ""
 
@@ -62,7 +102,56 @@ if (Test-Path $AllowlistPath) {
 $knownApplied = @()
 $markerPresent = @()
 $lost = @()
+$skippedStatus = @()
 $unknownModified = @()
+
+# v209: the asar source tree root (parent of node_modules). Some patch targets live
+# at the tree root, not under node_modules — P30's lib/updates.js is the canonical
+# case (desktop-updates policy file sits at the app.asar root). Same three-branch
+# resolution as verify.ps1 v4: KernelDir hit -> TreeRoot hit -> KernelDir (report miss).
+$TreeRoot = Split-Path $KernelDir -Parent
+
+# id -> in-tree symbol anchors, kept in lockstep with patches/host/verify.ps1 v4
+# ($Symbols). String or any-of array; a marker only counts inside the entry's
+# target file(s); array targets require EVERY file to hit. P26-P30 anchors included
+# so the whole 36-item manifest stays in the drift view.
+$Symbols = @{
+  "P1"   = "parentEntry"
+  "P2"   = "descLocationCache"
+  "P3"   = "api.b.ai"
+  "P4"   = "continuous-worker/change"
+  "P6"   = "registerTransitionGuard"
+  "P7"   = "LIST_PROJECTION_EXCLUDED"
+  "P8"   = "ui-subagent: @ source"
+  "P9"   = @('PATCH P9','PATCH (fork-to-preset')
+  "P10"  = @('agentPreset: opts.agentPreset','PATCH P10')
+  "P11"  = "seedLength"
+  "P12"  = "PATCH P12"
+  "P13"  = "BATCH_MAX = 20"
+  "P14"  = "Promise.resolve(fiber.dispose())"
+  "P15"  = "error.stack"
+  "P16"  = @('PATCH P16','externalContinuations')
+  "P16b" = "dshRoutedSubagentPatch"
+  "P17"  = "video_url"
+  "P17b" = "video_url"
+  "P17c" = "video_url"
+  "P18"  = @('PATCH P18','literal("video")','P18 v205')
+  "P18b" = "bytesToBase64"
+  "P18c" = "playsInline"
+  "P19"  = "contentHasVideo"
+  "P19b" = "containsVideo"
+  "P20"  = "MAX_FRAMES"
+  "P21"  = @('type: "video"','mediaType.startsWith("video")')
+  "P22"  = "video_url"
+  "P23"  = "hasVideos"
+  "P24"  = "VIDEO_BLOCK_TOKENS"
+  "P25"  = "__p25OffloadOldVideos"
+  "P26"  = "P26 v205 compat shim"
+  "P27"  = @('"video",')
+  "P28"  = '"instruction-hint"'
+  "P29"  = "backoffDelayMs"
+  "P30"  = "keep auto-update checks opt-in"
+}
 
 # 1a. Check each manifest patch (file == "host" only, P5 is profile-tree)
 foreach ($p in $Manifest.patches) {
@@ -70,27 +159,24 @@ foreach ($p in $Manifest.patches) {
     Write-Host "  $($p.id): SKIP (profile patch, not in kernel tree)" -ForegroundColor DarkGray
     continue
   }
-  $target = Join-Path $KernelDir ($p.target -replace "/", "\")
+  # target may be a string or an array (P18 fan-out); resolve each against
+  # KernelDir, then TreeRoot (root-layer fallback, P30).
+  $relTargets = @($p.target)
+  $targetPaths = @($relTargets | ForEach-Object {
+    $t = $_ -replace "/", "\"
+    $a = Join-Path $KernelDir $t
+    $b = Join-Path $TreeRoot $t
+    if (Test-Path $a) { $a } elseif (Test-Path $b) { $b } else { $a }
+  })
   $patchFile = Join-Path $Repo "patches\$($p.patchFile)"
-  $marker = switch ($p.id) {
-    "P1" { "parentEntry" }
-    "P2" { "descLocationCache" }
-    "P3" { "api.b.ai" }
-    "P4" { "continuous-worker/change" }
-    "P6" { "registerTransitionGuard" }
-    "P7" { "LIST_PROJECTION_EXCLUDED" }
-    "P8" { "ui-subagent: @ source" }
-    "P9" { "PATCH (fork-to-preset, rc.5 era)" }
-    "P13" { "BATCH_MAX = 20" }
-    "P14" { "Promise.resolve(fiber.dispose())" }
-    "P15" { "error.stack" }
-    "P16" { "preset-mount" }
-    default { "" }
-  }
 
-  if (-not (Test-Path $target)) {
-    Write-Host "  $($p.id): LOST (target missing)" -ForegroundColor Red
-    $lost += @{ "id" = $p.id; "reason" = "target_missing"; "target" = $p.target }
+  $missing = @()
+  for ($i = 0; $i -lt $targetPaths.Count; $i++) {
+    if (-not (Test-Path $targetPaths[$i])) { $missing += $relTargets[$i] }
+  }
+  if ($missing.Count -gt 0) {
+    Write-Host "  $($p.id): LOST (target missing: $($missing -join ', '))" -ForegroundColor Red
+    $lost += @{ "id" = $p.id; "reason" = "target_missing"; "target" = ($missing -join ", ") }
     continue
   }
   if (-not (Test-Path $patchFile)) {
@@ -99,18 +185,40 @@ foreach ($p in $Manifest.patches) {
     continue
   }
 
-  # reverse-apply check
-  $revCheck = & git -C $KernelDir apply -p1 -R --check $patchFile 2>&1
+  # reverse-apply check — from node_modules root; if the entry resolved to the
+  # tree root (P30-class), retry the check from there so git can find the paths.
+  $applyRoot = $KernelDir
+  foreach ($tp in $targetPaths) {
+    if (-not $tp.StartsWith($KernelDir)) { $applyRoot = $TreeRoot; break }
+  }
+  $revCheck = & git -C $applyRoot apply -p1 -R --check $patchFile 2>&1
   if ($LASTEXITCODE -eq 0) {
     Write-Host "  $($p.id): applied" -ForegroundColor Green
     $knownApplied += $p.id
   } else {
-    # fallback to marker
-    if ($marker -and (Select-String -Path $target -Pattern $marker -SimpleMatch -Quiet)) {
-      Write-Host "  $($p.id): applied (marker '$marker')" -ForegroundColor Green
+    # fallback to symbol markers (any-of per file, every target file must hit)
+    $marker = $Symbols[$p.id]
+    $missedFiles = @()
+    if ($marker) {
+      foreach ($tp in $targetPaths) {
+        $hit = $false
+        foreach ($mm in @($marker)) {
+          if (Select-String -Path $tp -Pattern $mm -SimpleMatch -Quiet) { $hit = $true; break }
+        }
+        if (-not $hit) { $missedFiles += (Split-Path $tp -Leaf) }
+      }
+    } else { $missedFiles = @("(no anchor)") }
+    if ($marker -and $missedFiles.Count -eq 0) {
+      Write-Host "  $($p.id): applied (marker '$(@($marker) -join "'|'")')" -ForegroundColor Green
       $markerPresent += $p.id
+    } elseif ($p.status -like "skip-*") {
+      # manifest says skip-* (P11 skip-native, P12 skip-absorbed, P15
+      # skip-optional-diagnostic): absence in the v209 tree is the registered
+      # state, same non-FAIL semantics as verify.ps1 v4 PENDING-ADJUDICATION.
+      Write-Host "  $($p.id): SKIP-STATUS ($($p.status)) — not drift" -ForegroundColor DarkGray
+      $skippedStatus += @{ "id" = $p.id; "status" = [string]$p.status }
     } else {
-      Write-Host "  $($p.id): LOST (reverse-apply fails + marker absent)" -ForegroundColor Red
+      Write-Host "  $($p.id): LOST (reverse-apply fails + marker absent in $($missedFiles -join ', '))" -ForegroundColor Red
       $lost += @{ "id" = $p.id; "reason" = "reverse_check_failed_marker_absent"; "target" = $p.target }
     }
   }
@@ -126,13 +234,24 @@ foreach ($p in $Manifest.patches) {
   }
 }
 
-# Collect all .bak* and .orig files under @deepseek-ai and @earendil-works
+# Collect all .bak* and .orig files under @deepseek-ai / @earendil-works, and —
+# v209 addition — under $TreeRoot\lib (root-layer patch targets like P30's
+# lib/updates.js keep their pre-patch .bak snapshots there, not in node_modules).
 $bakFiles = @(Get-ChildItem "$KernelDir\@deepseek-ai" -Recurse -Filter "*.bak*" -ErrorAction SilentlyContinue)
 $bakFiles += @(Get-ChildItem "$KernelDir\@deepseek-ai" -Recurse -Filter "*.orig" -ErrorAction SilentlyContinue)
 $bakFiles += @(Get-ChildItem "$KernelDir\@earendil-works" -Recurse -Filter "*.bak*" -ErrorAction SilentlyContinue)
+$bakFiles += @(Get-ChildItem "$TreeRoot\lib" -Recurse -Filter "*.bak*" -ErrorAction SilentlyContinue)
+$bakFiles += @(Get-ChildItem "$TreeRoot\lib" -Recurse -Filter "*.orig" -ErrorAction SilentlyContinue)
 
 foreach ($bf in $bakFiles) {
-  $rel = $bf.FullName.Substring($KernelDir.Length + 1)
+  # node_modules files report KernelDir-relative (manifest sourcePath convention);
+  # tree-root files (lib/...) report TreeRoot-relative so the manifest target
+  # comparison below still matches ("lib\updates.js" == P30 target).
+  if ($bf.FullName.StartsWith($KernelDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $rel = $bf.FullName.Substring($KernelDir.Length + 1)
+  } else {
+    $rel = $bf.FullName.Substring($TreeRoot.Length + 1)
+  }
   # Check if this is a known sourcePath
   if ($knownSourcePaths.ContainsKey($rel)) { continue }
   # Check if the target (without .bak suffix) is a known patch target
@@ -164,6 +283,7 @@ $sections = @{
     "status" = $patchesStatus
     "knownApplied" = $knownApplied
     "markerPresent" = $markerPresent
+    "skippedStatus" = $skippedStatus
     "lost" = $lost
     "unknownModified" = $unknownModified
   }
@@ -346,6 +466,13 @@ if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
       # Check if it's in dependencies (third direction)
       $inDeps = $pkg.dependencies.$sId -ne $null
       if (-not $inDeps) {
+        # allowlist-ackable: registered-but-uninstalled is a valid state
+        # (e.g. @agentos/dsh-lco after A5 — kept in SOURCES for reinstall)
+        $rKey = "removed-source:$sId"
+        if ($allowlistEntries.ContainsKey($rKey)) {
+          Write-Host "  ACKED (removed): $sId (allowlist)" -ForegroundColor DarkGray
+          continue
+        }
         Write-Host "  REMOVED: $sId (in SOURCES, not in bundles or dependencies)" -ForegroundColor DarkGray
         $removed += @{ "id" = $sId; "reason" = "not_in_bundles_or_deps" }
       }
@@ -429,6 +556,9 @@ if (Test-Path $profilePkg) {
       if ($normTarget -match "DeepSeek Harness/resources/host/node_modules") {
         Write-Host "  STALE: $($dep.Name) junction -> old shell rc.7" -ForegroundColor Red
         $junctionIssues += @{ "plugin" = $dep.Name; "issue" = "stale_old_shell"; "target" = $linkTarget }
+      } elseif ($normTarget -match "\.dsh/runtime/v209-patched-tree/node_modules") {
+        Write-Host "  OK: $($dep.Name) -> v209 patched tree" -ForegroundColor Green
+        $junctionOK += @{ "plugin" = $dep.Name; "state" = "v209_tree" }
       } elseif ($normTarget -match "DSH Desktop/resources/app.asar.unpacked/node_modules") {
         Write-Host "  OK: $($dep.Name) -> new shell" -ForegroundColor Green
         $junctionOK += @{ "plugin" = $dep.Name; "state" = "new_shell" }

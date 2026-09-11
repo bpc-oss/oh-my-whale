@@ -1,0 +1,23 @@
+--- a/@dsh-external/dsh-super-injector/lib/index.js
++++ b/@dsh-external/dsh-super-injector/lib/index.js
+@@ -9027,6 +9027,20 @@
+ 					if (!existsSync(pkgPath)) return "ERROR: 目录无 package.json: " + dir;
+ 					const name = JSON.parse(readFileSync(pkgPath, "utf8")).name;
+ 					if (typeof name !== "string" || !name) return "ERROR: package.json 缺 name";
++					// plugin-gateway 准入验证（2026-08-20）：进 profile 前必须通过静态门禁。
++					// 失败则拒绝装配，不写任何 profile 文件。报告存档于 ~/.dsh/plugin-gateway/reports/
++					{
++						const gateway = join(homedir(), ".dsh", "plugin-gateway", "scripts", "verify.mjs");
++						if (!existsSync(gateway)) return "ERROR: plugin-gateway 未安装（期望 " + gateway + "）——拒绝装配，先安装 gateway";
++						const { spawnSync } = await import("node:child_process");
++						const gw = spawnSync(process.execPath, [gateway, dir], { encoding: "utf8", timeout: 60000, windowsHide: true });
++						if (gw.status !== 0) {
++							const tail = String(gw.stdout || "") + String(gw.stderr || "");
++							const ri = tail.indexOf("report:");
++							const reportLine = ri >= 0 ? tail.slice(ri).split(String.fromCharCode(10))[0] : "";
++							return "ERROR: 插件未通过 plugin-gateway 准入验证（exit " + gw.status + "）——拒绝装配。" + (reportLine ? " 详见 " + reportLine.slice(8).trim() : "");
++						}
++					}
+ 					const home = process.env.DSH_HOME || join(homedir(), ".dsh");
+ 					const profileDir = join(home, "profiles", profileName);
+ 					const profilePkgPath = join(profileDir, "package.json");

@@ -1,0 +1,80 @@
+--- a/@deepseek-ai/dsh-goal/lib/index.js
++++ b/@deepseek-ai/dsh-goal/lib/index.js
+@@ -144,7 +144,7 @@
+ 		"updatedAt",
+ 		"version"
+ 	];
+-	if (Object.keys(value).sort().join(",") !== allowed.sort().join(",")) throw new Error(`goal snapshot change must have exactly ${allowed.sort().join(",")} fields`);
++	const __changeKeys = Object.keys(value).sort().join(","); const __snapshotKeys = allowed.sort().join(","); const __permitKeys = [...allowed, "permitRef"].sort().join(","); if (__changeKeys !== __snapshotKeys && __changeKeys !== __permitKeys) throw new Error(`goal snapshot change must have exactly ${allowed.sort().join(",")} fields`);
+ 	const createdAt = nonNegativeInteger(value["createdAt"], "createdAt");
+ 	const updatedAt = nonNegativeInteger(value["updatedAt"], "updatedAt");
+ 	if (updatedAt < createdAt) throw new Error("goal change updatedAt cannot precede createdAt");
+@@ -155,7 +155,8 @@
+ 		goal: decodeSnapshot(value["goal"]),
+ 		roundsStarted: nonNegativeInteger(value["roundsStarted"], "roundsStarted"),
+ 		createdAt,
+-		updatedAt
++		updatedAt,
++		...("permitRef" in value ? { permitRef: value["permitRef"] } : {})
+ 	};
+ }
+ /** Narrow model attribution to a valid goal source. */
+@@ -759,6 +760,7 @@
+ 		}
+ 		/** Build and commit one full-snapshot mutation. */
+ 		commitSnapshot(agent, cache, operation, goal, roundsStarted, createdAt, updatedAt, activation) {
++			const permitRef = operation === "complete" ? dispatchTransitionGuards(agent, goal) : void 0;
+ 			const change = {
+ 				kind: "goal/change",
+ 				version: 1,
+@@ -766,7 +768,8 @@
+ 				goal,
+ 				roundsStarted,
+ 				createdAt,
+-				updatedAt
++				updatedAt,
++				...(permitRef === void 0 ? {} : { permitRef })
+ 			};
+ 			this.commit(agent, cache, change, activation);
+ 			const view = this.view(cache);
+@@ -828,3 +831,40 @@
+ })();
+ //#endregion
+ export { GOAL_CHANGE_VERSION, GoalError, GoalId, GoalService, GoalService as default, applyGoalProjection, decodeGoalChange, foldGoal, goalChangeRef };
++
++//#region verification-seam (GoalTransitionGuard, sync pre-commit) — migrated from rc.5 patch
++// 进程级单例 guard 注册表（GoalService 为 host 单例；ctx.get 代理不破坏注册/分发一致性）。向后兼容：无 guards → 放行。
++const GOAL_TRANSITION_GUARDS = [];
++function dispatchTransitionGuards(agent, nextGoal) {
++  if (GOAL_TRANSITION_GUARDS.length === 0) return void 0;
++  const request = {
++    agent,
++    operation: 'complete',
++    goalId: nextGoal.id,
++    currentRevision: nextGoal.revision - 1
++  };
++  for (const guard of GOAL_TRANSITION_GUARDS) {
++    let verdict;
++    try {
++      verdict = guard(request);
++    } catch (error) {
++      throw new GoalError('goal transition guard threw: ' + (error && error.message ? error.message : String(error)), 'GOAL_TRANSITION_GUARD_ERROR');
++    }
++    if (verdict && verdict.kind === 'deny') {
++      throw new GoalError(verdict.reason || 'goal completion rejected by transition guard', 'GOAL_TRANSITION_DENIED');
++    }
++    if (verdict && verdict.kind === 'allow' && typeof verdict.permitRef === 'string') {
++      return verdict.permitRef;
++    }
++  }
++  return void 0;
++}
++GoalService.prototype.registerTransitionGuard = function registerTransitionGuard(guard) {
++  if (typeof guard !== 'function') throw new TypeError('transition guard must be a function');
++  GOAL_TRANSITION_GUARDS.push(guard);
++  return () => {
++    const index = GOAL_TRANSITION_GUARDS.indexOf(guard);
++    if (index >= 0) GOAL_TRANSITION_GUARDS.splice(index, 1);
++  };
++};
++//#endregion

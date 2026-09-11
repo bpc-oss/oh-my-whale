@@ -1,0 +1,37 @@
+--- a/@deepseek-ai/dsh-client-runtime/lib/client.js
++++ b/@deepseek-ai/dsh-client-runtime/lib/client.js
+@@ -8196,7 +8196,10 @@
+ 					const source = this.summaries.find((s) => s.sessionId === opts.sessionId);
+ 					const { result } = await this.api.sessions.fork({
+ 						sessionId: opts.sessionId,
+-						...opts.atSeq === void 0 ? {} : { atSeq: opts.atSeq }
++						...opts.atSeq === void 0 ? {} : { atSeq: opts.atSeq },
++						// PATCH (fork-to-preset, rc.5 era): optional agentPreset forks into
++						// a DIFFERENT preset instead of inheriting the source's.
++						...opts.agentPreset === void 0 ? {} : { agentPreset: opts.agentPreset }
+ 					});
+ 					const childId = result.ok ? result.value.sessionId : workspaceAttachSessionId(result.error);
+ 					if (childId !== void 0) this.recordMutation({
+@@ -9084,10 +9087,11 @@
+ 			*/
+ 			async fork(opts) {
+ 				const sourceTitle = opts.increaseTitle ? this.list.getSnapshot().byId[opts.sessionId]?.title : void 0;
+-				const result = await this.manager.fork({
+-					sessionId: opts.sessionId,
+-					...opts.atSeq === void 0 ? {} : { atSeq: Math.floor(opts.atSeq) }
+-				});
++					const result = await this.manager.fork({
++						sessionId: opts.sessionId,
++						...opts.atSeq === void 0 ? {} : { atSeq: Math.floor(opts.atSeq) },
++						...opts.agentPreset === void 0 ? {} : { agentPreset: opts.agentPreset }
++					});
+ 				if (!result.ok) throw new SessionForkError(result.error, opts.sessionId);
+ 				this.projectList();
+ 				const childId = result.value.sessionId;
+@@ -10571,4 +10575,4 @@
+ 	}
+ });
+ 
+-//# sourceMappingURL=client.js.map
+\ No newline at end of file
++//# sourceMappingURL=client.js.map

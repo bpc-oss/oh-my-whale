@@ -1,0 +1,63 @@
+--- a/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
+@@ -58,7 +58,7 @@
+ 		/** Create one browser-only draft descriptor; only its id enters input state. */
+ 		function browserDraftAttachment(file) {
+ 			return {
+-				kind: "image",
++				kind: file.type.startsWith("video/") ? "video" : "image",
+ 				id: crypto.randomUUID(),
+ 				previewUrl: URL.createObjectURL(file),
+ 				file
+@@ -282,29 +282,44 @@
+ 			}
+ 			/** Convert browser files to canonical base64 prompt parts. */
+ 			serializeImages(images) {
+-				return Promise.all(images.map(async (file) => ({
+-					type: "image",
+-					...await this.encodeImage(file)
+-				})));
++				return Promise.all(images.map(async (file) => file.type.startsWith("video/")
++					? { type: "video", ...await this.encodeVideo(file) }
++					: { type: "image", ...await this.encodeImage(file) }));
+ 			}
+ 			/** Canonical base64 wire form of one browser image file. */
+ 			async encodeImage(file) {
+ 				return {
+-					mediaType: imageMediaType(file.type),
++					mediaType: mediaType(file.type),
+ 					data: bytesToBase64(new Uint8Array(await file.arrayBuffer())),
+ 					...file.name === "" ? {} : { name: file.name }
+ 				};
+ 			}
++			/** Video wire form: data URL carried on the block (no attachment store). */
++			async encodeVideo(file) {
++				return {
++					mediaType: mediaType(file.type),
++					url: "data:" + mediaType(file.type) + ";base64," + bytesToBase64(new Uint8Array(await file.arrayBuffer())),
++					...file.name === "" ? {} : { name: file.name }
++				};
++			}
+ 		};
+-		function imageMediaType(value) {
++		function mediaType(value) {
+ 			switch (value) {
+ 				case "image/png":
+ 				case "image/jpeg":
+ 				case "image/webp":
+-				case "image/gif": return value;
++				case "image/gif":
++				case "video/mp4":
++				case "video/webm":
++				case "video/quicktime":
++				case "video/x-msvideo":
++				case "video/mpeg": return value;
+ 				default: throw new UnsupportedImageMediaTypeError(value);
+ 			}
+ 		}
++		function imageMediaType(value) {
++			return mediaType(value);
++		}
+ 		function bytesToBase64(data) {
+ 			let binary = "";
+ 			const chunk = 32768;

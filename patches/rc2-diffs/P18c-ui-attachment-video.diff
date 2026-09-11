@@ -1,0 +1,25 @@
+--- a/@deepseek-ai/dsh-client-ui-attachment/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-attachment/lib/client.js
+@@ -164,10 +164,18 @@
+ 								onClick: () => {
+ 									onOpen(item);
+ 								},
+-								children: (0, react_jsx_runtime.jsx)("img", {
+-									src: item.previewUrl,
+-									alt: item.alt
+-								})
++								children: item.attachment?.file?.type?.startsWith("video/") === true
++									? (0, react_jsx_runtime.jsx)("video", {
++										src: item.previewUrl,
++										muted: true,
++										playsInline: true,
++										preload: "metadata",
++										style: { width: "100%", height: "100%", objectFit: "cover" }
++									})
++									: (0, react_jsx_runtime.jsx)("img", {
++										src: item.previewUrl,
++										alt: item.alt
++									})
+ 							}), (0, react_jsx_runtime.jsx)("button", {
+ 								type: "button",
+ 								className: AttachmentRail_module_css_default.remove,

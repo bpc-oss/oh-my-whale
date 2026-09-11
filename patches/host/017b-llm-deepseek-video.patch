@@ -1,0 +1,16 @@
+--- "/c/Users/Administrator/AppData/Local/Programs/DSH Desktop/resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js.bak-video-20260831"	2026-08-31 13:55:09.058555000 +0800
++++ "/c/Users/Administrator/AppData/Local/Programs/DSH Desktop/resources/app.asar.unpacked/node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js"	2026-08-31 13:57:51.632583000 +0800
+@@ -87,6 +87,13 @@
+ 				image: nextImage.value
+ 			}, parts.length > 0));
+ 			break;
++		case "video":
++			// video 块携带 URL（data URL 或外部 URL）→ wire 的 video_url part
++			parts.push({
++				type: "video_url",
++				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
++			});
++			break;
+ 		case "tool-result":
+ 			parts.push(...await contentParts(block.content, images, message, nextImage));
+ 			break;
