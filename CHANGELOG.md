@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.3.1] - 2026-09-12 — 双 Sidebar 按钮去重（P31）+ profile verify 占位符修复
+## [0.3.1] - 2026-09-12 — 双 Sidebar 按钮去重（P31）+ routed-subagent preset-child 修复 + profile verify 占位符修复
 
+- **dsh-routed-subagent preset-child 修复（上游 1838fca）**：带 preset 的子代理 starting 即失败 `cannot get property "agent" without inject`——根因：routed 的 setup 用 `childCtx.agent` accessor，而内核把 setup 跑在**子 agent 自身 scope**（无 agent accessor；官方 dsh-subagent:1077 用第二参数 `child` 取 session）。改 `setup(childCtx, child)` + `child.session`；端到端验证子代理 completed（25s，回复 ok）。桌面版 host 需重启才加载。
 - **P31** `dsh-client-ui-sidebar-right/lib/client.js`：`ExpandButton` 恒返 `null`，隐藏与 better-sidebar 重复的官方右栏展开钮。**bundle 本体不可禁**——`dsh-client-ui-chat` 的 `dsh.client.inject` 引用 right 服务，整禁实测 `renderer boot failed`（本仓库首个 inject 依赖事故，教训固化进 `docs/upgrading.md`）。
 - profile `cordis.patch.yml`：只禁 `ui-sidebar-files` + `ui-sidebar-documentpreview`（全树扫描确证零注入者的 tab 类型）；模板同步。
 - asar 重打包管线纠偏：`@electron/asar@4.3.0` CLI 多 `--unpack-dir` 只取最后一个 → brace 合并 + `{/**,}` 匹配目录顶层文件；新包与装机 final2 头对头校验仅 P31 一文件差异、unpacked 294/294 哈希一致。asar-root 源树丢失后改「extract 装机 asar → 改 → pack」重建。
