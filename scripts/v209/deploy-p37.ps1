@@ -2,7 +2,7 @@
 # Run while the DSH Desktop app is closing/closed (it stops the app first). After this, start DSH Desktop normally.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\v209\deploy-p37.ps1 [-AsarPath <staged app.asar>] [-NoStart]
 param(
-  [string]$AsarPath = "$env:USERPROFILE\.dsh\tmp\p37-asar\packed\app.asar",
+  [string]$AsarPath = "$env:USERPROFILE\.dsh\tmp\p37b\packed\app.asar",
   [switch]$NoStart
 )
 $ErrorActionPreference = 'Stop'
