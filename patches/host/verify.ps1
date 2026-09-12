@@ -170,6 +170,7 @@ $Symbols = @{
   "P28"  = '"instruction-hint"';
   "P30"  = "keep auto-update checks opt-in";
   "P31"  = "P31 (2026-09-12): hide duplicate expand button";
+  "P37"  = "VIDEO_BODY_ID$P37";
   "P29"  = "backoffDelayMs"
 }
 

@@ -3,11 +3,14 @@
 ## [0.3.1] - 2026-09-12 — 双 Sidebar 按钮去重（P31）+ routed-subagent preset-child 修复 + profile verify 占位符修复
 
 - **dsh-routed-subagent preset-child 修复（上游 1838fca）**：带 preset 的子代理 starting 即失败 `cannot get property "agent" without inject`——根因：routed 的 setup 用 `childCtx.agent` accessor，而内核把 setup 跑在**子 agent 自身 scope**（无 agent accessor；官方 dsh-subagent:1077 用第二参数 `child` 取 session）。改 `setup(childCtx, child)` + `child.session`；端到端验证子代理 completed（25s，回复 ok）。桌面版 host 需重启才加载。
+- **P37 视频预览 body**（`dsh-client-ui-sidebar-documentpreview/lib/client.js`）：右侧栏文档预览新增内建 video body（mp4/m4v/mov/webm/ogv），复用 ImageBody 的 bytes→Blob→ObjectURL 管线渲染 `<video controls playsInline>`；Electron 自带专有解码器，H.264 mp4 可直接播放。CLI 端到端验证 readyState=4、boot 0 错误；装机 asar 已重建 staged，待桌面版下次关闭时经 `scripts/v209/deploy-p37.ps1` 部署。**验证门一律用 `vm.SourceTextModule`（ESM），不用 `node --check`。**
 - **P31** `dsh-client-ui-sidebar-right/lib/client.js`：`ExpandButton` 恒返 `null`，隐藏与 better-sidebar 重复的官方右栏展开钮。**bundle 本体不可禁**——`dsh-client-ui-chat` 的 `dsh.client.inject` 引用 right 服务，整禁实测 `renderer boot failed`（本仓库首个 inject 依赖事故，教训固化进 `docs/upgrading.md`）。
 - profile `cordis.patch.yml`：只禁 `ui-sidebar-files` + `ui-sidebar-documentpreview`（全树扫描确证零注入者的 tab 类型）；模板同步。
 - asar 重打包管线纠偏：`@electron/asar@4.3.0` CLI 多 `--unpack-dir` 只取最后一个 → brace 合并 + `{/**,}` 匹配目录顶层文件；新包与装机 final2 头对头校验仅 P31 一文件差异、unpacked 294/294 哈希一致。asar-root 源树丢失后改「extract 装机 asar → 改 → pack」重建。
 - **profile verify V1-V4 假 FAIL 修复**：`patches/profile/verify.ps1` 不渲染 manifest `{{USERPROFILE}}` 占位符（vendorPatches root/companions）→ 9/9 PASS。
 - `FINGERPRINTS.json` 时间戳刷新（entries 无变化）。
+- **勘误（同日）**：`ui-sidebar-documentpreview`（图片/文件预览 tab）属误禁——它无 inject 者但认领 `dsh-resource://file/**` pattern，聊天点图片/文件预览依赖它（禁用后报 sidebarRight: no registered tab type claims），已恢复启用；最终只禁 `ui-sidebar-files`。教训补入 docs/upgrading.md：tab 类型除 inject 外还有资源 pattern 认领方。
+
 
 ## [0.3.0] - 2026-09-11 — 2.0.9 / 内核 0.1.5-rc.1 packed-asar 时代（一夜双跳 2.0.1→2.0.5→2.0.9）
 

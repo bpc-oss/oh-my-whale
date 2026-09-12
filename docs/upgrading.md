@@ -108,7 +108,11 @@ profile `cordis.patch.yml` 里给 bundle 加 `disabled: true` 之前，必须全
 python -c "import json,glob; [print(o['name'],t) for pj in glob.glob('**/package.json',recursive=True) for o in [json.load(open(pj,encoding='utf-8'))] for t in [(o.get('dsh') or {}).get('client',{}).get('inject',[]) or []] if '<目标包名>' in t]"
 ```
 - 本机事故（2026-09-12）：禁用 `ui-sidebar-right` 消官方右侧栏 → `dsh-client-ui-chat` 的 inject 数组含该服务 → 桌面 `renderer boot failed (plugins: @deepseek-ai/dsh-client-ui-chat)`。
-- 正确解法（P31）：服务保留、只隐藏重复 UI（client.js 组件恒返 null）；对确证零注入者的 tab 类型（`ui-sidebar-files`/`ui-sidebar-documentpreview`）才做 profile 禁用。
+- 正确解法（P31）：服务保留、只隐藏重复 UI（client.js 组件恒返 null）；tab 类型里只禁**真正重复**的那条：
+  `ui-sidebar-files`（Explorer 文件树，与 better-sidebar 重复）禁用；`ui-sidebar-documentpreview` **保留**——
+  它认领 `dsh-resource://file/**` pattern，聊天点图片/文件预览依赖它（2026-09-12 曾误禁，运行时报
+  `sidebarRight: no registered tab type claims <url>` 后恢复）。**教训：tab type 的依赖不止 inject 一面，
+  还看它 claim 的资源 pattern 有没有运行时调用方（openRightbar/点文件引用）。**
 
 ### 清理任何被引用的树前：先跑全 junction 引用扫描
 删除/移动一个被 junction 指向的目录（tmp 树、旧壳树、vendor 树）前，必须枚举全盘 junction 的 Target（`Get-ReparsePoint`/`fsutil reparsepoint query` 或 drift-scan 的 junctions 段）确认无活引用。

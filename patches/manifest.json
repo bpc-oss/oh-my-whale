@@ -571,10 +571,25 @@
       "diffTarget": "current",
       "status": "active",
       "purpose": "hide the official right-sidebar ExpandButton (duplicated the user's better-sidebar expand entry; user decision 2026-09-12: keep better-sidebar). Component returns null unconditionally; ui-sidebar-right bundle STAYS ENABLED because dsh-client-ui-chat dsh.client.inject references it — full bundle disable broke renderer boot.",
-      "note": "2026-09-12: profile companion rows disable ONLY ui-sidebar-files + ui-sidebar-documentpreview (zero injectors via full-tree dsh.client.inject scan). Verified: CLI 3080 DOM probe expand=0 + boot 0 failed; desktop asar repacked from FINAL2 (header diff = this file only, unpacked 294/294 hash-identical), redeployed, user visual PASS.",
+      "note": "2026-09-12: profile companion row disables ONLY ui-sidebar-files (duplicate Explorer tab); ui-sidebar-documentpreview RE-ENABLED same day - it claims dsh-resource://file/** for chat file/image previews and its disable broke that (no registered tab type claims). Verified: CLI 3080 DOM probe expand=0 + boot 0 failed; desktop asar repacked from FINAL2 (header diff = this file only, unpacked 294/294 hash-identical), redeployed, user visual PASS.",
       "v209": {
         "file": "@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js",
         "anchor": "P31 return null in ExpandButton"
+      }
+    },
+    {
+      "id": "P37",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
+      "patchFile": "rc2-diffs/P37-documentpreview-video-body.diff",
+      "source": "manual",
+      "diffTarget": "current",
+      "status": "active",
+      "purpose": "inline VIDEO preview body for the right-sidebar document preview (user request 2026-09-12): registers a builtin mp4/m4v/mov/webm/ogv documentPreviews entry reusing the ImageBody bytes pipeline (bytes -> Blob -> ObjectURL -> <video controls playsInline>, revoke on unmount). Electron ships proprietary codecs, so H.264 mp4 plays.",
+      "note": "2026-09-12: applied to runtime tree + staged repack of installed asar (header diff = this file only, unpacked 294/294 hash-identical). E2E verified on CLI 3087: chat file reference -> [data-video-preview] video readyState 4, boot 0 errors. Validation gate = vm.SourceTextModule (ESM), NOT node --check (CJS blind spot, see P35 async-loss incident in docs/handoff.md).",
+      "v209": {
+        "file": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
+        "anchor": "applyP37Video / VIDEO_BODY_ID$P37"
       }
     }
   ],

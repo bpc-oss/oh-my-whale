@@ -1,0 +1,151 @@
+# PATCH P37 (2026-09-12) — dsh-client-ui-sidebar-documentpreview/lib/client.js: inline VIDEO body.
+# Baseline: a/ = official DSH Desktop 2.0.9 app.asar node_modules/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js
+#           (pre-P37 copy; byte-identical to the runtime-tree .bak-agentos-p37 — verified via cmp at patch time).
+# Final:    b/ = patched tree (new P37 region after the image region + one applyP37Video(ctx) call in main apply).
+# Rationale: user asks the right-sidebar document preview (re-enabled same day, see profile note) to open
+#            mp4/mov/webm files. Official bodies cover Markdown/code/HTML/PDF/image/text only; a video
+#            address fell through with no claimant. P37 registers a builtin video documentPreviews entry
+#            (mp4/m4v -> video/mp4, mov -> video/quicktime, webm -> video/webm, ogv -> video/ogg) that
+#            reuses the ImageBody bytes pipeline (bytes -> Blob -> ObjectURL -> <video controls playsInline>,
+#            revoke on unmount; same CSS + a sidebarVideo locale). Electron ships proprietary codecs so H.264 mp4 plays.
+# Verified (CLI 3087, patched runtime tree): boot 0 failed; read_image of a 4s SMPTE mp4 -> click chat file
+#            reference -> right pane renders [data-video-preview] video with blob: src and readyState 4,
+#            zero console/boot errors. asar rebuilt from installed (header diff = this file only; unpacked
+#            294/294 hash-identical) staged at ~/.dsh/tmp/p37-asar/packed/app.asar — deploy while the
+#            desktop app is closed (see deploy-p37.ps1), then restart to activate on desktop.
+# NOTE: verification gate MUST be ESM (vm.SourceTextModule). node --check parses as CJS and misses ESM
+#       reserved-word/syntax traps (see 2026-09-12 P35 async-loss incident in docs/handoff.md).
+--- a/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js
+@@ -2661,6 +2661,123 @@ document.open();document.write(html);document.close();
+ 			}, ImageBody)), "document-image: body");
+ 		}
+ 		//#endregion
++		//#region P37 (2026-09-12, agentos) video body — mp4/webm/mov inline preview
++		/** Video implementation identity; body renders complete bytes through a Blob ObjectURL. */
++		const VIDEO_BODY_ID$P37 = "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/video";
++		const VIDEO_MEDIA_TYPES$P37 = {
++			mp4: "video/mp4",
++			m4v: "video/mp4",
++			webm: "video/webm",
++			mov: "video/quicktime",
++			ogv: "video/ogg"
++		};
++		/** @param path - host file path from the resource address. @returns MIME type or undefined. */
++		function videoMediaType$P37(path) {
++			const normalized = path.replaceAll("\\", "/");
++			const name = normalized.slice(normalized.lastIndexOf("/") + 1).toLowerCase();
++			return VIDEO_MEDIA_TYPES$P37[name.slice(name.lastIndexOf(".") + 1)];
++		}
++		const zh$P37video = {
++			title: "视频",
++			loading: "正在加载视频…",
++			failed: "无法播放该视频。",
++			unsupported: "视频预览需要完整的文件内容。"
++		};
++		const en$P37video = {
++			title: "Video",
++			loading: "Loading video…",
++			failed: "This video could not be played.",
++			unsupported: "Video preview requires the complete file contents."
++		};
++		/**
++		* Present complete video bytes in a native player (same bytes pipeline as ImageBody).
++		* @param props - document bytes, resource identity, and locale.
++		* @returns a controls-enabled video element sized by the pane width.
++		*/
++		function VideoBody$P37({ content, resourceAddress, t }) {
++			const path = (0, react.useMemo)(() => hostFileOf(resourceAddress).path, [resourceAddress]);
++			const mediaType = videoMediaType$P37(path);
++			const data = content.kind === "bytes" ? content.data : void 0;
++			const [source, setSource] = (0, react.useState)();
++			(0, react.useEffect)(() => {
++				if (data === void 0 || mediaType === void 0) return;
++				let url;
++				try {
++					url = URL.createObjectURL(new Blob([data], { type: mediaType }));
++					setSource({
++						kind: "ready",
++						data,
++						mediaType,
++						url
++					});
++				} catch {
++					setSource({
++						kind: "failed",
++						data,
++						mediaType
++					});
++				}
++				return () => {
++					if (url !== void 0) URL.revokeObjectURL(url);
++				};
++			}, [data, mediaType]);
++			if (data === void 0 || mediaType === void 0) return (0, react_jsx_runtime.jsx)("p", {
++				className: ImageBody_module_css_default.status,
++				role: "alert",
++				children: t("unsupported")
++			});
++			if (source?.data !== data || source.mediaType !== mediaType) return (0, react_jsx_runtime.jsx)(LoadingIndicator, {
++				className: ImageBody_module_css_default.status,
++				label: t("loading")
++			});
++			if (source.kind === "failed") return (0, react_jsx_runtime.jsx)("p", {
++				className: ImageBody_module_css_default.status,
++				role: "alert",
++				children: t("failed")
++			});
++			const { name } = pathPartsOf(path);
++			return (0, react_jsx_runtime.jsx)("div", {
++				className: ImageBody_module_css_default.frame,
++				"data-video-preview": true,
++				children: (0, react_jsx_runtime.jsx)("video", {
++					src: source.url,
++					controls: true,
++					preload: "metadata",
++					playsInline: true,
++					"aria-label": name
++				}, source.url)
++			});
++		}
++		/**
++		* Describe the builtin video renderer independently from its keyed body slot.
++		* @param title - locale-owned implementation name.
++		* @returns metadata for complete video files.
++		*/
++		function videoBodyDefinition$P37(title) {
++			return {
++				id: VIDEO_BODY_ID$P37,
++				extensions: Object.keys(VIDEO_MEDIA_TYPES$P37),
++				priority: "builtin",
++				title,
++				loading: "bytes-complete",
++				wrap: false
++			};
++		}
++		/** Register the video dictionary, metadata, and body with reversible effects. */
++		function applyP37Video(ctx) {
++			const t = ctx.locale.bind("sidebarVideo");
++			ctx.effect(() => ctx.locale.register("sidebarVideo", {
++				zh: zh$P37video,
++				en: en$P37video
++			}), "document-video: dictionaries");
++			ctx.effect(() => ctx.documentPreviews.register(videoBodyDefinition$P37(() => t("title"))), "document-video: metadata");
++			ctx.effect(() => ctx.slots.inject("sidebar.right.tab.document", () => ctx.slots.register({
++				name: "sidebar.right.tab.document",
++				key: VIDEO_BODY_ID$P37,
++				locale: "sidebarVideo"
++			}, VideoBody$P37)), "document-video: body");
++		}
++		//#endregion
+ 		//#region lib/types/client/pdf/store.js
+ 		/** Restorable PDF viewing preferences; document objects and canvases remain component-local. */
+ 		/** Initial viewing position before a tab reaches another page. */
+@@ -26966,6 +27083,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
+ 			apply$5(ctx);
+ 			apply$4(ctx);
+ 			apply$3(ctx);
++			applyP37Video(ctx);
+ 			apply$2(ctx);
+ 			apply$1(ctx);
+ 		}
