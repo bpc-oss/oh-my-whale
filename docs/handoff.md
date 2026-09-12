@@ -1,6 +1,9 @@
 # DSH 插件发布与安装注意事项（HANDOFF）
 
 
+> **⚠ 2026-09-12 23:4x 事故（自定义模型集体消失）**：向 `settings.yaml` 的 `llm-pi-ai.providers.<名>.retryPolicy` **平铺**写 `initialDelayMs/maxDelayMs/jitterRatio` 是非法的——内核只认嵌套形式 `retryPolicy: {mode: always, backoff: {…}}`（dsh-llm ALWAYS_POLICY_KEYS={mode,maxRetries,retryableCodes,backoff}）。一个非法键会让 settings refresh 整树发布失败 → **全部 provider（不只写错的那个）从 UI 消失**。改 settings.yaml 后务必看 host 日志是否还有 `unknown key` [E]，并用 UI 模型下拉确认回归；`streamIdleTimeoutMs`（provider 级）是合法键，但设太小会误杀思考模型（bai 思考首包可 >30s，本机定为 90000）。
+
+
 > **⚠ 2026-09-12 14:48 热修（桌面版 boot 失败 → 已恢复）**：另一 agent 的 P35 视频补丁在装机 app.asar 的 `dsh-tool-fs/lib/index.js` 里把 `assertVideoCapableRoute` 的 `async` 关键字弄丢（函数体含 `await llm.resolveModelInfo`），ESM 编译 `Unexpected reserved word` → 桌面版进恢复模式。热修=重提取当前 asar → 补回 async → 重打包部署（头对头仅该文件 +6B、unpacked 294/294 一致；备份 `app.asar.pre-p36fix-20260912`）。三点提醒补丁方：①其 P35 补丁源脚本要修回 async，否则下次重放再炸；②P33/P35 只打在装机 asar，`runtime/v209-patched-tree` 源树无对应内容（源树漂移，需回写）；③ESM 包语法验证禁用 `node --check`（按 CJS 解析漏检 ESM 保留字），改用 `vm.SourceTextModule` 或 `node --input-type=module --check`。
 
 > **⚠ 2026-09-12 追加（双 Sidebar 去重 / P31）**：官方 2.0.9 右侧栏与 better-sidebar 重复的按钮已用 **P31 内核补丁**（`ui-sidebar-right` client.js `ExpandButton` 恒返 null）隐藏，profile 只禁零注入者的 `ui-sidebar-files`/`ui-sidebar-documentpreview` 两条 tab。两条铁律入 `docs/upgrading.md`：①禁任何 bundle 前先全树扫 `dsh.client.inject` 引用者（chat→right 事故）；②删/移任何可能被引用的树前先跑 junction 引用扫描（tmp 删除炸 E 盘两仓事故）。asar 重打包注意：`@electron/asar@4.3.0` 多 `--unpack-dir` 只取最后一个，须 brace 合并 + `{/**,}`。
