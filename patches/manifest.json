@@ -586,7 +586,7 @@
       "diffTarget": "current",
       "status": "active",
       "purpose": "inline VIDEO preview body for the right-sidebar document preview (user request 2026-09-12): registers a builtin mp4/m4v/mov/webm/ogv documentPreviews entry reusing the ImageBody bytes pipeline (bytes -> Blob -> ObjectURL -> <video controls playsInline>, revoke on unmount). Electron ships proprietary codecs, so H.264 mp4 plays.",
-      "note": "2026-09-12: applied to runtime tree + staged repack of installed asar (header diff = this file only, unpacked 294/294 hash-identical). E2E verified on CLI 3087: chat file reference -> [data-video-preview] video readyState 4, boot 0 errors. Validation gate = vm.SourceTextModule (ESM), NOT node --check (CJS blind spot, see P35 async-loss incident in docs/handoff.md).",
+      "note": "2026-09-12: applied to runtime tree + staged repack of installed asar (header diff = this file only, unpacked 294/294 hash-identical). E2E verified on CLI 3087: chat file reference -> [data-video-preview] video readyState 4, boot 0 errors. Validation gate = vm.SourceTextModule (ESM), NOT node --check (CJS blind spot, see P35 async-loss incident in docs/handoff.md). DEPLOYED 2026-09-12 17:38 (hash f47d0aa2..) on a LIVE-base rebuild: concurrent P38 (video gate in dsh-tool-fs) preserved untouched, documentpreview pre-state verified byte-identical to baseline; backup app.asar.pre-p37-20260912-173854",
       "v209": {
         "file": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
         "anchor": "applyP37Video / VIDEO_BODY_ID$P37"
