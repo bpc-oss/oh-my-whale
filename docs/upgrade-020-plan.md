@@ -174,3 +174,14 @@
 | m1 路径头损坏实为 8 个且含重建文件 | **接受**：Phase 1 门禁加"a/ 侧须与 0.2.0 上游原型逐字节一致"校验，`.patch` 降归档、`.diff` 为权威源 |
 | m2 双轨判据空转 | **接受**：闸门改为 P30，且 P30 复测通过前视为未建立 |
 | m3 根因表述错误（并非"转为传递依赖"） | **接受**：改为"两版元包中均非直接依赖，rev.1 取样漏掉" |
+
+## 10. Phase 0 执行记录（2026-09-29 10:41）
+
+- 回滚包：`~/.dsh/backups/pre-upgrade-020-20260929-104054/`（installed 309 文件 2.4GB 含历史 asar 备份、runtime-tree 22,096 文件 224MB、profile 配置 + 17 条 junction 清单、健康报告、BASELINE.json）
+- **回滚校验**：备份 `app.asar` sha256 = `96a936f18346ac34…`，与装机件逐字节一致 ✓
+- **升级相关门禁全绿**：`verify -Source asar-root` 38 项 FAIL=0；`profile verify` 9/9 FAIL=0；`drift-scan` 的 **patches 段 CLEAN** ✓
+- **drift-scan 整体 = HAS_DRIFT，归因单一在途改动（非升级引入）**：
+  - `dsh-full-remote` 迁移中：profile package.json 语义变动（removed+added）、新落位 `~/.dsh/vendor-pkgs/fr/package`、plugins 段 unregistered
+  - `plugins.removed` 2 项
+  - `pluginSources.new_unregistered`：运行时自动物化的 `.dsh-module-fallback` 包（immer/scheduler/react-dom/uqr）
+  - 以上均为**并行工作与运行时自动行为**，不在本次升级的回滚路径上。升级后漂移以**本条记录的冻结态为基线**比对，不追求理想 CLEAN。
