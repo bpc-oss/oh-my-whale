@@ -210,3 +210,8 @@
 # 图片/文件预览依赖它；2026-09-12 曾误禁，报 "sidebarRight: no registered tab type claims <url>" 后恢复。
 - id: ui-sidebar-files
   disabled: true
+
+# 已卸载插件（@dsh-external/dsh-vision-toolkit）：disabled 阻断其 bundle patch 自装配。
+# 与上面的 `- id: vision-toolkit` 并存：前者拦 bundle patch，后者拦 super-injector 的包名 id 自装配。
+- id: dsh-vision-toolkit
+  disabled: true

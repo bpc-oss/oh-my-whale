@@ -52,9 +52,17 @@ Two related traps:
 # read-only drift check across every registered override
 powershell -NoProfile -File .\local-overrides\verify.ps1
 
-# re-apply one patch after a DSH update wiped it (review the diff first)
-git -C $HOME\.dsh apply --check ..\local-overrides\<file>.patch   # dry
-git -C $HOME\.dsh apply ..\local-overrides\<file>.patch
+# re-apply one patch after a DSH update wiped it (review the diff first).
+# Each patch has its OWN root directory - run git from that directory:
+#   dsh-settings-native-vision-and-bunny-model.patch      -> $HOME\.dsh
+#   dsh-preset-autoprompt-resident-read-image.patch       -> $HOME\.dsh\.agent-presets\autoprompt
+#   zcode-commandcode-reasoning-levels.patch              -> $HOME\.zcode
+#   kimi-code-0.36.1-commandcode-space-bunny-alpha.patch  -> $HOME\.kimi-code
+# Example (zcode):
+git -C $HOME\.zcode apply --check -p1 <path>\zcode-commandcode-reasoning-levels.patch   # dry
+git -C $HOME\.zcode apply -p1        <path>\zcode-commandcode-reasoning-levels.patch
+# Key-bearing files store secrets redacted as {{COMMANDCODE_API_KEY}}:
+# redact the target copy the same way before applying, or the context will not match.
 ```
 
 The autoprompt preset yml is **privacy-hostile** (it embeds absolute user paths), so its

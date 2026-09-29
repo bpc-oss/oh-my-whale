@@ -114,16 +114,26 @@ foreach ($p in $patches) {
       $body = (Get-Content $p.live -Raw) -replace "`r`n", "`n"
       if ($p.secret -or $diff -match '\{\{COMMANDCODE_API_KEY\}\}') {
         # keep benign markers (api_key = "local") so hunk context still matches
-        $body = [regex]::Replace($body, '(?i)(api_key\s*=\s*)"(sk-[^"]+|[A-Za-z0-9]{32,})"', '$1"{{COMMANDCODE_API_KEY}}"')
-        $body = [regex]::Replace($body, '(?i)(api_key\s*=\s*)"([^"]{16,})"', '$1"{{COMMANDCODE_API_KEY}}"')
+        # redact only secret-looking values; benign markers (api_key = "local") must
+        # stay byte-identical or the hunk context will not match. The placeholder is
+        # unquoted because check-private treats a quoted >=8-char value as a secret.
+        $body = [regex]::Replace($body, '(?i)(api_key\s*=\s*)"(sk-[^"]+|[A-Za-z0-9_]{16,})"', '$1{{COMMANDCODE_API_KEY}}')
       }
       $tgt = Join-Path $tmp ($p.rel -replace '/', [IO.Path]::DirectorySeparatorChar)
       New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($tgt)) | Out-Null
       [IO.File]::WriteAllText($tgt, $body)
       $dp = Join-Path $tmp 'p.diff'
       [IO.File]::WriteAllText($dp, $diff)
-      & git -C $tmp apply -p1 -R --check $dp *> $null
-      $bad = ($LASTEXITCODE -ne 0)
+      $prevEap = $ErrorActionPreference
+      $ErrorActionPreference = 'Continue'
+      try {
+        $null = & git -C $tmp apply -p1 -R --check $dp 2>&1
+        $bad = ($LASTEXITCODE -ne 0)
+      } catch {
+        $bad = $true
+      } finally {
+        $ErrorActionPreference = $prevEap
+      }
     } finally { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
   }
   Check ('patch applicable: ' + $p.name) (-not $bad) 'reverse-apply check => forward-applies once an update wipes it'
