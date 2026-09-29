@@ -20,10 +20,21 @@
 ## 二、38 个内核补丁条目的归属
 
 - **34 个已移植**到 0.2.0 树
-- **3 个上游已吸收**（强行套会造成重复注册，比不套更糟）
-  - `P8` 0.2.0 的 `dsh-client-ui-reference` 提供 @ 提及源，且会把子代理子会话排到其他会话前面——是 P8 的严格超集
-  - `P13` 0.2.0 没有 SSE 写入器了；会话事件走多路复用 WebSocket
-    （`dsh-api-gateway/lib/types/stream-server.js`），写入已串进 promise 链并带背压，该补丁要摊薄的每帧开销不存在
+- **3 个未移植**，理由各不相同（见下）：2 个上游已吸收、1 个不可照搬
+  - `P8` 0.2.0 的 `dsh-client-ui-reference` 提供 @ 提及源，且会把子代理子会话排到其他会话前面。
+    **功能上**是 P8 的超集（且插入的 token 带导航与 codec，比 P8 的裸文本 `@name ` 更强）。
+    唯一未覆盖的是 P8 附带的一层外观：把原始 `@<子会话标题>` 文本渲染成 chip 的
+    `lexicon`/`subscribeLexicon`。那依赖不稳定的展示标题，属外观而非功能，故不补。
+  - `P13` **不能照搬，账本依据已更正**。SSE 写入器确实没了，但 WebSocket 写入器
+    仍然是「每条消息一次 `JSON.stringify` + 一次 `socket.send` + 一个 promise」
+    （`dsh-api-gateway/lib/types/stream-server.js` 的 `send()`）——之前写的
+    「没有每帧开销可摊薄」是**错的**，我采信了子代理的说法没有自己核。
+    promise 链解决的是顺序与背压，不是每帧成本。
+    它也无法按原样移植：`parseRemoteStreamClientMessage` 用 `exactKeys` 严格校验，
+    **一帧只允许一条消息**，把多帧 join 在一起会直接破坏客户端协议。
+    要做需要两端一起加批量消息类型，那是协议改动，不是补丁。
+    成本对照：0.2.0 的每帧成本仍**低于** P13 当初针对的 SSE 路径（文本已 stringify、
+    没有 `controller.enqueue`、没有重复 encode），所以这是回归风险而非已知故障。
   - `P17b` 0.2.0 的 DeepSeek Messages 序列化器对任何非图片块直接 `unsupported`，
     且没有 DeepSeek 系模型声明 video；这类路由走 `P20` 抽帧降级才对
 - **1 个属 profile 域**（`P5` super-injector，在 profile 层不在内核树）

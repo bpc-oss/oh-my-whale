@@ -1,4 +1,4 @@
-﻿{
+{
  "version": "1",
  "baseline": {
   "shell": "2.0.9",
@@ -220,10 +220,10 @@
    "sourceBroken": true,
    "diffTarget": "current",
    "purpose": "SSE batch flush (20 frames / 30ms idle) — cut per-frame enqueue+stringify overhead under high event volume; renderer messages were trickling after task completion",
-   "status": "upstream",
+   "status": "not-portable",
    "note": "2026-08-22 applied to running kernel. Backup .bak-sse-batch-20260822. Marker 'BATCH_MAX = 20' in sseResponse. A0 2026-09-10: source .bak not present in install tree (verified absent) -> sourceBroken; A1 will reverse-build the diff from the current installed file vs official @0.1.1-rc.2. See apiproxySequence. verifyfix 2026-09-10: v205 retarget to dsh-api-gateway/lib/index.js (BATCH_MAX = 20 present); rc.2 path kept in rc2Target. | v209 2026-09-11 rewrite: original sseResponse BATCH_MAX=20 landing did not survive the 0.1.5 gateway refactor as-is — rebased onto RemoteStreamMuxConnection write chain (WRITE_BATCH_MAX=20 / 30ms idle / 1MiB high-water backpressure, consts @270-279, flushBatch @375-389, drainBuffered @416-418). Verify anchor 'BATCH_MAX = 20' still hits (substring of WRITE_BATCH_MAX = 20 @275).",
    "v209": "REWRITTEN 2026-09-11 onto gateway send chain: @deepseek-ai/dsh-api-gateway/lib/index.js@269-279 (P13 comment + WRITE_BATCH_MAX=20/WRITE_BATCH_IDLE_MS/WRITE_BUFFER_HIGH_WATER_BYTES/WRITE_DRAIN_* consts), @371 (terminal/full-batch flush trigger)/@375-389 (flushBatch + recursive batch pump)/@416-418 (drainBuffered backpressure waits). Locate with grep WRITE_.",
-   "portNote": "SUPERSEDED-UPSTREAM: 0.2.0 has no SSE writer; session events moved to a multiplexed WebSocket (dsh-api-gateway/lib/types/stream-server.js) that already serialises writes with back-pressure."
+   "portNote": "Re-checked on 0.2.0 and the earlier \"no cost to amortise\" claim was WRONG. The SSE writer is gone, but the WebSocket writer still costs one JSON.stringify + one socket.send + one promise per message (dsh-api-gateway/lib/types/stream-server.js send()). The promise chain fixes ordering and back-pressure, not the per-frame cost. It cannot be batched as written: parseRemoteStreamClientMessage parses EXACTLY ONE message per text with strict exactKeys validation, so joining frames would break the protocol on the client side. Porting needs a batch message type on both ends - a protocol change, not a patch. Context for the cost: the per-frame cost is lower than the SSE path P13 was written against (already-stringified text, no controller.enqueue, no re-encode), so this is a regression risk rather than a known outage."
   },
   {
    "id": "P14",
