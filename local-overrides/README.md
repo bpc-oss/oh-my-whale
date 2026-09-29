@@ -1,4 +1,4 @@
-﻿# Managed local overrides (post-baseline client/config changes)
+# Managed local overrides (post-baseline client/config changes)
 
 Registered 20260929. These are changes made **after** the v209 baseline was captured and
 that no `bootstrap.ps1` template covers. They live here so a DSH Desktop update, a
@@ -13,7 +13,7 @@ them silently.
 | preset cordis rows (`promise-guard` mount, compaction cap) | `local-overrides/preset-cordis-rows/README.md` | `~/.dsh/.agent-presets/<preset>/agent.cordis.yml` |
 | autoprompt residentTools | `local-overrides/dsh-preset-autoprompt-resident-read-image.patch` | `~/.dsh/.agent-presets/autoprompt/agent.cordis.yml` |
 | Local preset plugin `promise-guard` | `plugins/standalone/dsh-promise-guard/` + `plugins/SOURCES.json` | `~/.dsh/.agent-presets/<preset>/promise-guard.mjs` |
-| Legacy vision-toolkit removal (bundle + dep + disabled row) | `profile/package.json.template`, `profile/cordis.patch.yml.template`, `plugins/SOURCES.json` | `~/.dsh/profiles/web/*` |
+| Legacy vision-toolkit removal (bundle + dep + disabled row) | `profile/package.json.template`, `profile/cordis.patch.yml.template`, `plugins/SOURCES.json` | `~/.dsh/profiles/web/*` — **web profile only** (see scope note) |
 | DSH settings (local vision backend, bunny model caps) | `local-overrides/dsh-settings-native-vision-and-bunny-model.patch` | `~/.dsh/settings.yaml` |
 | zcode reasoning levels | `local-overrides/zcode-commandcode-reasoning-levels.patch` | `~/.zcode/v2/provider_config.json` |
 | kimi-code provider + model | `local-overrides/kimi-code-0.36.1-commandcode-space-bunny-alpha.patch` | `~/.kimi-code/config.toml` |
@@ -23,6 +23,28 @@ Two cordis rows are registered per preset because no template carries them:
 - `- id: promise-guard` + `name: ./promise-guard.mjs` — without it the plugin file is inert.
 - `dsh-compaction-basic.maxTokens: 32768` (+ `compactionRetries: 2`) — the shipped 8192 cannot
   summarize a 233k-token Max-effort session, so compaction never shrinks the context.
+
+## Scope note: which profile loses the legacy vision-toolkit
+
+The uninstall registration covers **`~/.dsh/profiles/web` only** — the interactive
+DSH Desktop profile, where `read_image` replaced the cloud-VLM toolkit (the old
+block uploaded every image to a cloud endpoint; see the settings patch header).
+
+**`~/.dsh/profiles/bpc-operator` intentionally keeps `dsh-vision-toolkit`.** That
+profile is the governed operator agent, and its `AGENTS.md` contract grants
+"exactly eight MCP tools and a small set of vision operations" (perception is a
+first-class role in its work-order loop). Removing the toolkit there would break
+the contract, so `verify.ps1` asserts it is *still present* — a well-meaning
+"cleanup" that strips bpc-operator fails the self-check.
+
+Two related traps:
+
+- `profile/package.json.template.bak-20260929` still contains vision-toolkit; do
+  **not** restore a template from that backup after an upgrade.
+- After an upgrade, replay from the **HEAD** templates, not an older copy: the
+  in-flight kernel upgrade (0.1.5-rc.1 -> 0.2.0-rc.1, `docs/upgrade-020-plan.md`)
+  edits the same `profile/cordis.patch.yml.template` (sidebar rows) and an older
+  template copy would resurrect the toolkit chain.
 
 ## Apply / verify
 

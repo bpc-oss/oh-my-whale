@@ -12,25 +12,21 @@
 # baseline: sha256 34459aad2627fad8…
 # current:  sha256 81cda48f42c3e73d…
 # verify:   local-overrides/verify.ps1
+# apply:    from {{USERPROFILE}}\.kimi-code  ->  git apply -p1 <this file>
+# note:     keys are redacted ({{COMMANDCODE_API_KEY}}); apply to a copy whose key lines use the placeholder
 # secrets:  API keys redacted ({{COMMANDCODE_API_KEY}}) — keep it that way
 #
-diff --git a/a/kimi-code/config.toml (pre-change) b/b/kimi-code/config.toml
-index ea7d208..a8061ca 100644
---- a/a/kimi-code/config.toml (pre-change)
-+++ b/b/kimi-code/config.toml
-@@ -1,4 +1,4 @@
--default_model = "bai/qwen3.8-flash"
-+default_model = "commandcode/space-bunny-alpha"
- default_permission_mode = "yolo"
- extra_skill_dirs = [ "C:\\Users\\Administrator\\.agent-os\\skills" ]
- 
+diff --git a/config.toml b/config.toml
+index be50864..427deee 100644
+--- a/config.toml
++++ b/config.toml
 @@ -47,6 +47,11 @@ type = "openai"
  api_key = "local"
  base_url = "http://127.0.0.1:18011/v1"
  
 +[providers.commandcode]
 +type = "openai"
-+api_key = {{COMMANDCODE_API_KEY}}
++api_key = "{{COMMANDCODE_API_KEY}}"
 +base_url = "https://api.commandcode.ai/provider/v1"
 +
  [models."deepseek/deepseek-v4-flash"]

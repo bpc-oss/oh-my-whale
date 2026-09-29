@@ -20,10 +20,10 @@
 # verify:   local-overrides/verify.ps1
 # secrets:  API keys redacted ({{COMMANDCODE_API_KEY}}) — keep it that way
 #
-diff --git a/a/settings.yaml (pre-change) b/b/settings.yaml
+diff --git a/settings.yaml b/settings.yaml
 index 981d3ff..98eab39 100644
---- a/a/settings.yaml (pre-change)
-+++ b/b/settings.yaml
+--- a/settings.yaml
++++ b/settings.yaml
 @@ -10,7 +10,7 @@ ui-theme:
    preference: light
  agent-default-model:

@@ -113,7 +113,7 @@
 - 门禁：FAIL=0。
 
 ### Phase 4 — profile 与客户端插件兼容
-- 8 个 client-runtime 依赖包实机验证（bash-terminal、better-sidebar、super-injector、vision-toolkit、plugin-manager、genui、openpencil、verification、litkit）；P08（子代理 UI）；0.2.0 变动的 `dsh-cordis-client-runner` 对客户端加载链的影响。
+- client-runtime 依赖包实机验证：bash-terminal、better-sidebar、super-injector、plugin-manager、genui、openpencil、verification、litkit；P08（子代理 UI）；0.2.0 变动的 `dsh-cordis-client-runner` 对客户端加载链的影响。**vision-toolkit 已从 web profile 卸载**（2026-09-29，另一 agent 登记，见 `local-overrides/README.md` 的 scope 说明：bpc-operator 按其 AGENTS.md 契约**保留**该工具），故不在本阶段验证列表内。
 - 门禁：实机记录 + 截图。
 
 ### Phase 5 — 会话历史回归（命门）
@@ -185,3 +185,12 @@
   - `plugins.removed` 2 项
   - `pluginSources.new_unregistered`：运行时自动物化的 `.dsh-module-fallback` 包（immer/scheduler/react-dom/uqr）
   - 以上均为**并行工作与运行时自动行为**，不在本次升级的回滚路径上。升级后漂移以**本条记录的冻结态为基线**比对，不追求理想 CLEAN。
+
+## 11. 并行工作交叉影响（2026-09-29 独立审查记录）
+
+另一 agent 在本升级在飞期间提交了 `d934b38`（vision-toolkit 卸载 + 本地覆盖登记）。独立审查结论 **APPROVE_WITH_FINDINGS**，处置如下（我方代修）：
+
+- BLOCKER（4 个登记 patch 头部不可 `git apply`，升级后无法恢复）→ 已规范为 `diff --git a/<rel> b/<rel>` + 真实行号；autoprompt/kimi 两个按当前实况重建；**反向可应用**（等价于正向可应用）逐个验证通过，并把该检查固化进 `local-overrides/verify.ps1`（新增 4 项常设门禁）。
+- MAJOR（`profiles/bpc-operator` 仍装/挂 vision-toolkit，"已卸载"口径不完整）→ 查其 `AGENTS.md` 契约（"恰好八个 MCP 工具 + 一组 vision 操作"），判定为**按设计保留**，已在 `local-overrides/README.md` 写明 scope，并在 verify 中加断言"若有人误删 bpc-operator 的工具链则失败"。
+- MINOR（live 独有的 `dsh-vision-toolkit` 行模板缺失 → 已补入模板；verify 只看 live → 已加模板侧断言 + 两种 id 形式的 live+template 双查；本方案过期包名 → 本节已更新；`.bak-20260929` 模板含工具链是误恢复坑 → 已在 README 标注）。
+- 关键联动：**升级重放必须从 HEAD 模板取**（`d934b38` 已改模板，旧副本会复活工具链）。
