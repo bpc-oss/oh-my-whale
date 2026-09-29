@@ -121,7 +121,8 @@ const header = [
   '# ---------------------------------------------------------------------------',
 ].join('\n');
 
-const addition = `${header}\n- insert:\n${blocks.join('\n')}\n`;
+const END_MARKER = '# END oh-my-whale generated preset declarations';
+const addition = `${header}\n- insert:\n${blocks.join('\n')}\n${END_MARKER}\n`;
 
 console.log(`presets found: ${dirs.length}`);
 for (const r of report) console.log(`  ${r.name.padEnd(26)} entries=${String(r.entries).padStart(3)} relpaths=${r.rewrites} order=${r.order ?? '-'}`);
