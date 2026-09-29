@@ -1,0 +1,49 @@
+# oh-my-whale registered local override — dsh-settings-native-vision-and-bunny-model.patch
+#
+# Two independent, verified changes to the DSH settings document:
+# 1) `vision-toolkit.provider` repointed from the cloud (`https://api.b.ai/v1`,
+#    model `hy3`, credential `BAI_API_KEY`) to the local engine
+#    (`{{DGX_HEAD_URL}}/v1`, `{{SERVED_MODEL_NAME}}`, `{{DGX_VLLM_API_KEY_ENV}}`).
+#    Reason: the legacy toolkit was uploading every image to a cloud VLM (host log
+#    showed `model=hy3 upstreamMs=11998/15252`). After the repoint the same call ran
+#    as `model=GLM-5.3-Flash-EXL3`. The plugin is now uninstalled, so this block is
+#    inert but kept as the re-install contract.
+# 2) `commandcode` provider: `stealth/space-bunny-alpha` now declares
+#    `input: [text, image]` and `reasoningEfforts {low, high, max}`. It had neither,
+#    so the model was text-only in the UI and effort was unset. Both facts were probed
+#    against the live endpoint (red image -> "Red"; low/medium/high/max -> HTTP 200;
+#    `disabled`/`enabled` -> HTTP 400 with the accepted set in the error).
+#
+# target:   settings.yaml
+# baseline: sha256 46f9ce2cba1d5e0d…
+# current:  sha256 c4ca3819b6fafdb1…
+# verify:   local-overrides/verify.ps1
+# secrets:  API keys redacted ({{COMMANDCODE_API_KEY}}) — keep it that way
+#
+diff --git a/a/settings.yaml (pre-change) b/b/settings.yaml
+index 981d3ff..98eab39 100644
+--- a/a/settings.yaml (pre-change)
++++ b/b/settings.yaml
+@@ -10,7 +10,7 @@ ui-theme:
+   preference: light
+ agent-default-model:
+   provider: commandcode
+-  model: deepseek/deepseek-v4.1-flash
++  model: stealth/space-bunny-alpha
+   reasoningEffort: max
+ llm-pi-ai:
+   providers:
+@@ -316,6 +316,13 @@ llm-pi-ai:
+         - id: stealth/space-bunny-alpha
+           name: Space Bunny Alpha
+           contextWindow: 1000000
++          input:
++            - text
++            - image
++          reasoningEfforts:
++            low: low
++            high: high
++            max: max
+         - id: stealth/pixel-canary
+           name: Pixel Canary
+           contextWindow: 262144

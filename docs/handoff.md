@@ -251,3 +251,32 @@ pnpm build              # tsup → lib/index.js
 
 > 插件动了任何代码 → 源码修（不是副本修）→ typecheck + test + build → 三副本同步 →
 > 重启所有端 → 旧会话回归（历史可加载 + 记录/投影 schema 全过）。四步缺一，迟早翻车。
+
+---
+
+## 8. 视觉链路：原生 read_image 取代外部 toolkit（2026-09-29）
+
+### 结论
+多模态路由上 `vision_*` 工具是**历史包袱**：它们为纯文本 agent 而生，把图片上传到外部 VLM 换回一段文字。宿主模型自带视觉 + DSH 原生 `read_image`（图片直接进请求）才是正解，且零额外模型调用、零外传。
+
+### 三个坑（下次遇到直接对号入座）
+1. **工具未挂载 ≠ keep-set 能救**：toolkit 的 schema 在技能加载前不进装配集，任何 keep 过滤都是空集。要么改用原生工具，要么让技能预加载。
+2. **disabled 条目的 id 必须是行 id，不是包名**：`super-injector` 的自动卸载写 `id: dsh-vision-toolkit`，而 bundle patch 的行 id 是 `vision-toolkit` → 拦不住；日志只留一行 `client 模块表已移除`，插件仍然活着。真正生效要重启宿主。
+3. **loader 按路径缓存 mjs**：改 preset 的 `.mjs` 后新会话可能仍跑旧代码（本次靠重启才看到常量切换生效）；`agent.cordis.yml` 则是每次请求重算。
+
+### 能力实测表（写声明前先探，别照抄同级模型）
+| 声明 | 探针 | 结论 |
+|---|---|---|
+| `input: image` | base64 纯红 PNG → chat/completions | 答 `Red`，reasoning 含 `(255,0,0)` |
+| `tool_use` | 带 `tools` 的请求 | `finish_reason: tool_calls`，参数正确 |
+| `reasoning_key` | 看响应字段 | 是 `message.reasoning`，不是 `reasoning_content` |
+| `support_efforts` | 逐值扫 | 只接受 `low/medium/high/xhigh/max`；`disabled/enabled` 400 |
+
+### 防丢
+所有改动已登记（preset 源 / 插件源+指纹 / profile 模板 / `local-overrides/` 脱敏 diff）。DSH 更新后先跑：
+
+```powershell
+powershell -NoProfile -File .\local-overrides\verify.ps1
+```
+
+有 `DRIFT` 就按 `local-overrides/README.md` 逐条回填。

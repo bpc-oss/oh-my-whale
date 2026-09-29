@@ -1,0 +1,35 @@
+# oh-my-whale registered local override — zcode-commandcode-reasoning-levels.patch
+#
+# zcode: `stealth/space-bunny-alpha` had `optionSpecs.reasoningLevel.values =
+# [disabled, enabled, max]`, but the provider rejects `disabled` and `enabled`
+# (HTTP 400: expected one of "low"|"medium"|"high"|"xhigh"|"max"). Replaced with
+# the verified set. The model entry itself was already present and image-capable.
+# The provider API key in this file is redacted to {{COMMANDCODE_API_KEY}}.
+#
+# target:   zcode/v2/provider_config.json
+# baseline: sha256 5bcb1cd933a7d94a…
+# current:  sha256 0a5cc01b442ffe39…
+# verify:   local-overrides/verify.ps1
+# secrets:  API keys redacted ({{COMMANDCODE_API_KEY}}) — keep it that way
+#
+diff --git a/a/zcode/v2/provider_config.json (pre-change) b/b/zcode/v2/provider_config.json
+index 056fd65..4a0ee32 100644
+--- a/a/zcode/v2/provider_config.json (pre-change)
++++ b/b/zcode/v2/provider_config.json
+@@ -604,10 +604,12 @@
+             "optionSpecs": {
+               "reasoningLevel": {
+                 "values": [
+-                  "disabled",
+-                  "enabled",
+-                  "max"
+-                ]
++   "low",
++   "medium",
++   "high",
++   "xhigh",
++   "max"
++ ]
+               },
+               "maxOutputTokens": {
+                 "max": 128000

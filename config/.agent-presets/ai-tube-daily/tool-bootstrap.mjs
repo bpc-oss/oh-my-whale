@@ -132,6 +132,14 @@ const DEFAULT_BOOTSTRAP_TOOLS = ['bash', 'str_replace_editor']
 /** Discovery tools always resident after promotion (the tool-search pattern). */
 const RESIDENT_DISCOVERY_TOOLS = ['dev_tool_search', 'skill_search', 'skill_load']
 
+/**
+ * Native DSH image reader. `read_image` returns the image (or video) itself,
+ * so the model looks at a picture with its own multimodal input instead of
+ * delegating to an external vision service. Kept resident because looking at
+ * an image is a first-class step, not a rare detour.
+ */
+const RESIDENT_VISION_TOOLS = ['read_image']
+
 function stringList(value, field) {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || item.length === 0)) {
     throw new TypeError(`${name}: ${field} must be a non-empty array of non-empty strings`)
@@ -251,7 +259,13 @@ export function apply(ctx, config) {
         // discovery tools + whatever the model explicitly unlocked via
         // dev_tool_search — instead of dumping the whole Standard catalog at
         // once (the post-promotion regression fix; see the header note).
-        const keep = new Set([...bootstrapTools, ...RESIDENT_DISCOVERY_TOOLS, ...unlockedFor(context.agent?.session)])
+        const keep = new Set([
+          ...bootstrapTools,
+          ...RESIDENT_DISCOVERY_TOOLS,
+          ...RESIDENT_VISION_TOOLS.filter((toolName) =>
+            assembled.tools.some((tool) => tool.name === toolName)),
+          ...unlockedFor(context.agent?.session),
+        ])
         return keepTools(assembled, keep, false)
       }
       // Controlled phase: the bootstrap pair; after a compaction, plus the

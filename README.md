@@ -52,6 +52,7 @@ oh-my-whale/
 │   ├── FINGERPRINTS.json      # 本地插件源码指纹（capture-sources.ps1 生成）
 │   ├── inventory.md
 │   └── standalone/            # 4 个本地插件源码
+├── local-overrides/           # 基线之后的受管覆盖（settings/zcode/kimi 脱敏 diff + verify.ps1）
 ├── scripts/                   # 工具
 │   ├── capture.sh             # 从本机捕获补丁
 │   ├── capture-sources.ps1    # 采集本地插件源码指纹（git HEAD / dirty / 版本 / tgz sha256）

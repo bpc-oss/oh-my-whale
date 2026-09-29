@@ -69,21 +69,26 @@
   config:
     writeEveryEvents: 5000
     writeIntervalMs: 30000
+# 20260929 卸载遗留外部视觉工具链（原生 read_image 取代）。回滚=删掉下面每行的 '# ' 前缀。
+# 注意：super-injector 写的 id 是包名 dsh-vision-toolkit，拦不住 bundle patch；
+# 必须用行 id vision-toolkit 才能真正阻断自装配。
+# - id: vision-toolkit
+#   config:
+#     provider:
+#       baseUrl: http://127.0.0.1:18005/v1
+#       credential: DGX_SPARK_VLLM_API_KEY
+#       model: Qwen/Qwen3-VL-2B-Instruct
+#     language: zh
+#     timeoutMs: 180000
+#     maxImageBytes: 10485760
+#     maxImagePixels: 40000000
+#     concurrency: 1
+#     runtime:
+#       mode: managed
+#       python: '{{USER_HOME}}\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe'
+#     allowedDirs: []
 - id: vision-toolkit
-  config:
-    provider:
-      baseUrl: http://127.0.0.1:18005/v1
-      credential: DGX_SPARK_VLLM_API_KEY
-      model: Qwen/Qwen3-VL-2B-Instruct
-    language: zh
-    timeoutMs: 180000
-    maxImageBytes: 10485760
-    maxImagePixels: 40000000
-    concurrency: 1
-    runtime:
-      mode: managed
-      python: '{{USER_HOME}}\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe'
-    allowedDirs: []
+  disabled: true
 # P0-1 verification 插件（2026-08-20 重构：全局引擎移除，只保留客户端）。
 # 引擎改为只在 enforce-standard preset 挂载（enforce 模式）——其他会话零验证开销。
 # 客户端保持全局：仅在会话有验证状态时渲染 UI（无引擎的会话无状态、无 UI）。

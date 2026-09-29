@@ -1,5 +1,29 @@
 # Changelog
 
+
+## [0.3.2] - 20260929 — 视觉链路改走原生 read_image；遗留 vision-toolkit 卸载并全面登记
+
+### 决策：多模态路由不再借道外部视觉服务
+- **本地模型本来就有视觉**：`LANGUAGE_MODEL_ONLY=0`（引擎注释原文 `0 = load vision tower`），启动参数带 `--limit-mm-per-prompt {"image":48,"video":1}` / `--mm-processor-kwargs {"max_image_tokens":2048}`；实测 64×64 纯红 PNG 直接 POST `/v1/chat/completions` → 答 `Red`，reasoning 给出 `(255,0,0)`。
+- **DSH 原生 `read_image`** 把图片字节放进模型请求本身（输出 `{type:"image", attachment}`），0 额外模型调用；实测在本机读回截图并直接描述内容。`vision_glance` 这类工具是给**纯文本 agent** 的补丁：`vision_glance/ground/detect` 把图发给外部服务换文字（宿主日志实测 `model=hy3 upstreamMs=11998/15252`，每次看图都外传 + 12–15s）。
+- **“说要调视觉工具却直接结束”** 的根因：toolkit 的 10 个 schema 只在**技能加载后**才注册进 Agent 作用域（`exposure.ts` 的 `hasLoadedVisionSkill`），模型看不到工具 → 只能空口承诺。keep-set 过滤**原理上**救不了（工具在激活前根本不存在于装配集）——之前那版 `RESIDENT_VISION_TOOLS` 是死代码，已替换为 `['read_image']`。
+
+### 变更
+- 6 个 standard-family preset 的 `tool-bootstrap.mjs`：`RESIDENT_VISION_TOOLS` → `['read_image']`；autoprompt 的 `residentTools` 同步（源已回写 `config/.agent-presets/`）。
+- web profile 卸载 `@dsh-external/dsh-vision-toolkit`：`package.json` 去 bundle+dependency、配置行注释、并补 `- id: vision-toolkit / disabled: true`（**行 id 必须是 `vision-toolkit`**：super-injector 写的是包名 `dsh-vision-toolkit`，拦不住 bundle 自装配）。`plugins/SOURCES.json` 标记 `removed_from_profile`。
+- 卸载需**重启 DSH**：`dev_uninject_plugin` 返回 OK 但实测 `vision_toolkit_activate` 仍返回 10 个工具（只清了 client 模块表）；重启后 loader 报 `patch: entry vision-toolkit not found`、工具检索无命中 = 真正卸载。
+- `settings.yaml`：`vision-toolkit.provider` 指回本地引擎（插件卸载前先断外传）；`commandcode` 的 `stealth/space-bunny-alpha` 补 `input: [text, image]` + `reasoningEfforts`（原来两者皆无，UI 里是纯文本模型）。四项能力**全部实测**：图片→`Red`；`tools`→`finish_reason: tool_calls`；reasoning 字段名 `reasoning`；effort 合法集 `low|medium|high|xhigh|max`（`disabled/enabled` → HTTP 400）。
+- zcode：`reasoningLevel.values` 从 `[disabled, enabled, max]` 改为 `[low, medium, high, xhigh, max]`（前两个会 400）。kimi-code 0.36.1：新增 `commandcode` provider + `commandcode/space-bunny-alpha`（`kimi doctor` OK、`kimi -p` 回 PONG）。
+- 新增本地 preset 插件 `dsh-promise-guard`（“说了没做”→ 记 warn + 注入一条纠正 turn；9/9 单测通过；限流 3/15min、跳过子代理与提问步）。
+
+### 登记（防“下次更新就没了”）
+- preset 源 → `config/.agent-presets/`；插件源 → `plugins/standalone/dsh-promise-guard/` + `plugins/SOURCES.json`；profile 模板 → `profile/package.json.template`、`profile/cordis.patch.yml.template`。
+- 模板覆盖不到的受管改动（settings/zcode/kimi）→ 新增 `local-overrides/`（脱敏 diff + `README.md` + **`verify.ps1` 只读漂移检查**），并在 README 目录树登记。
+- `scripts/check-private.ps1` 保持绿：所有 patch 内密钥脱敏为 `{{COMMANDCODE_API_KEY}}`。
+
+### 已知无害残留
+- 开机 2 行 `[W] [loader] patch: entry … not found` = disabled 阻断行在起作用（条目已不存在）。删掉可让日志全静，代价是插件可能被自动装回。
+- 恢复旧会话时偶发 `anchored-tool-bootstrap: missing=["vision_glance"]`：unlock 记录来自会话历史里的 `tool/call` 事件（源码注释：resume/reload 会保留），工具已卸载 → 只报一行，`continuing with what is available`。
 ## [0.3.1] - 2026-09-12 — 双 Sidebar 按钮去重（P31）+ routed-subagent preset-child 修复 + profile verify 占位符修复
 
 - **dsh-routed-subagent preset-child 修复（上游 1838fca）**：带 preset 的子代理 starting 即失败 `cannot get property "agent" without inject`——根因：routed 的 setup 用 `childCtx.agent` accessor，而内核把 setup 跑在**子 agent 自身 scope**（无 agent accessor；官方 dsh-subagent:1077 用第二参数 `child` 取 session）。改 `setup(childCtx, child)` + `child.session`；端到端验证子代理 completed（25s，回复 ok）。桌面版 host 需重启才加载。

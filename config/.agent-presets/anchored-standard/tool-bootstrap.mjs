@@ -132,6 +132,14 @@ const DEFAULT_BOOTSTRAP_TOOLS = ['bash', 'str_replace_editor']
 /** Discovery tools always resident after promotion (the tool-search pattern). */
 const RESIDENT_DISCOVERY_TOOLS = ['dev_tool_search', 'skill_search', 'skill_load']
 
+/**
+ * Native DSH image reader. `read_image` returns the image (or video) itself,
+ * so the model looks at a picture with its own multimodal input instead of
+ * delegating to an external vision service. Kept resident because looking at
+ * an image is a first-class step, not a rare detour.
+ */
+const RESIDENT_VISION_TOOLS = ['read_image']
+
 function stringList(value, field) {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || item.length === 0)) {
     throw new TypeError(`${name}: ${field} must be a non-empty array of non-empty strings`)
@@ -227,7 +235,15 @@ export function apply(ctx, config) {
   /** Narrow the assembled catalog to a keep-set; validate required names. */
   const keepTools = (assembled, keep, missingAllowsFullCatalog) => {
     const available = new Set(assembled.tools.map((tool) => tool.name))
-    const missing = [...keep].filter((toolName) => !available.has(toolName))
+    // p45 (2026-09-27): tolerate short unlock names - a keep entry that is not
+    // an exact tool name also keeps assembled tools whose name ENDS WITH the
+    // entry (e.g. "chrome_profiles" keeps "mcp__chrome_faithful__chrome_profiles").
+    const effKeep = new Set()
+    for (const toolName of keep) {
+      if (available.has(toolName)) { effKeep.add(toolName); continue }
+      for (const a of available) if (a.endsWith(toolName) || toolName.endsWith(a)) effKeep.add(a)
+    }
+    const missing = [...keep].filter((toolName) => !effKeep.has(toolName))
     if (missing.length > 0) {
       warnOnce(
         `${name}: expected every phase tool; missing=${JSON.stringify(missing)} — `
@@ -237,7 +253,7 @@ export function apply(ctx, config) {
     }
     return {
       ...assembled,
-      tools: assembled.tools.filter((tool) => keep.has(tool.name)),
+      tools: assembled.tools.filter((tool) => effKeep.has(tool.name)),
     }
   }
 
@@ -251,7 +267,13 @@ export function apply(ctx, config) {
         // discovery tools + whatever the model explicitly unlocked via
         // dev_tool_search — instead of dumping the whole Standard catalog at
         // once (the post-promotion regression fix; see the header note).
-        const keep = new Set([...bootstrapTools, ...RESIDENT_DISCOVERY_TOOLS, ...unlockedFor(context.agent?.session)])
+        const keep = new Set([
+          ...bootstrapTools,
+          ...RESIDENT_DISCOVERY_TOOLS,
+          ...RESIDENT_VISION_TOOLS.filter((toolName) =>
+            assembled.tools.some((tool) => tool.name === toolName)),
+          ...unlockedFor(context.agent?.session),
+        ])
         return keepTools(assembled, keep, false)
       }
       // Controlled phase: the bootstrap pair; after a compaction, plus the

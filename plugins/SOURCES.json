@@ -66,7 +66,10 @@
       "ref": "main",
       "package_spec": "github:Anionex/dsh-vision-toolkit#main",
       "install_type": "github",
-      "description": "Vision toolkit"
+      "description": "Vision toolkit",
+      "removed_from_profile": "20260929",
+      "removed_reason": "Legacy external vision service; superseded by the native read_image tool on multimodal routes. Uninstalled from the web profile (bundle + dependency + disabled row).",
+      "replacement": "read_image (native DSH tool) — see config/.agent-presets/<preset>/tool-bootstrap.mjs"
     },
     {
       "id": "@liustack/modlens",
@@ -222,6 +225,24 @@
       "package_spec": "file:{{USER_HOME}}/dev/dsh-governance",
       "install_type": "file-dir",
       "description": "AgentOS local DSH governance plugin (native admission reader / capability router / policy guard)"
+    },
+    {
+      "id": "dsh-promise-guard",
+      "kind": "local-preset-plugin",
+      "source": "plugins/standalone/dsh-promise-guard",
+      "description": "Promise guard: no-tool promise steps become a logged error plus a corrective turn",
+      "installed_to": "~/.dsh/.agent-presets/<preset>/promise-guard.mjs",
+      "mounted_in": [
+        "ai-tube-daily",
+        "anchored-standard",
+        "autoprompt",
+        "enforce-rsi-standard",
+        "enforce-standard",
+        "j-space-standard",
+        "verifier-standard"
+      ],
+      "sha256": "57b1d84672f7f1562d9ff3608c2ba167daca9a89b26d57230ddd598738c3f34b",
+      "registered": "20260929"
     }
   ]
 }

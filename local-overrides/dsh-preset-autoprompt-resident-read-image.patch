@@ -1,0 +1,37 @@
+# oh-my-whale registered local override — autoprompt residentTools
+#
+# autoprompt's residentTools listed the 10 legacy `vision_*` tools, which are not
+# available on this machine and made the entry meaningless. Replaced with the native
+# `read_image`, so image reading never depends on the removed vision-toolkit plugin.
+#
+# Stored as a diff on purpose: the full preset yml embeds machine paths and is not
+# privacy-clean, so only the override is registered here.
+#
+# target:   presets/autoprompt/agent.cordis.yml   (live: {{USERPROFILE}}\.dsh\.agent-presets\autoprompt\agent.cordis.yml)
+# verify:   local-overrides/verify.ps1
+#
+
+--- a/presets/autoprompt/agent.cordis.yml
++++ b/presets/autoprompt/agent.cordis.yml
+@@ residentTools @@
+-    residentTools:
+-      - subagent_routed
+-      - todo_write
+-      - get_goal
+-      - create_goal
+-      - update_goal
+-      - ask_user_question
+-      - job_output
+-      - job_kill
+-      - job_list
++    residentTools:
++      - subagent_routed
++      - todo_write
++      - get_goal
++      - create_goal
++      - update_goal
++      - ask_user_question
++      - job_output
++      - job_kill
++      - job_list
++      - read_image

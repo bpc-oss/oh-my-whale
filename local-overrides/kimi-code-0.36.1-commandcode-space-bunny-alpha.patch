@@ -1,0 +1,55 @@
+# oh-my-whale registered local override — kimi-code-0.36.1-commandcode-space-bunny-alpha.patch
+#
+# kimi-code 0.36.1: added the `commandcode` provider and the
+# `commandcode/space-bunny-alpha` model entry — `capabilities = [thinking, tool_use,
+# vision]`, `reasoning_key = "reasoning"` (the endpoint returns `message.reasoning`),
+# `support_efforts = [low, medium, high, xhigh, max]`, context 1M / output 128k.
+# Every capability was probed before being declared; `default_model` untouched.
+# Verified live: `kimi doctor` OK and `kimi -p "..." -m commandcode/space-bunny-alpha`
+# returned PONG. The API key is redacted to {{COMMANDCODE_API_KEY}}.
+#
+# target:   kimi-code/config.toml   (live: {{USERPROFILE}}\.kimi-code\config.toml)
+# baseline: sha256 34459aad2627fad8…
+# current:  sha256 81cda48f42c3e73d…
+# verify:   local-overrides/verify.ps1
+# secrets:  API keys redacted ({{COMMANDCODE_API_KEY}}) — keep it that way
+#
+diff --git a/a/kimi-code/config.toml (pre-change) b/b/kimi-code/config.toml
+index ea7d208..a8061ca 100644
+--- a/a/kimi-code/config.toml (pre-change)
++++ b/b/kimi-code/config.toml
+@@ -1,4 +1,4 @@
+-default_model = "bai/qwen3.8-flash"
++default_model = "commandcode/space-bunny-alpha"
+ default_permission_mode = "yolo"
+ extra_skill_dirs = [ "C:\\Users\\Administrator\\.agent-os\\skills" ]
+ 
+@@ -47,6 +47,11 @@ type = "openai"
+ api_key = "local"
+ base_url = "http://127.0.0.1:18011/v1"
+ 
++[providers.commandcode]
++type = "openai"
++api_key = {{COMMANDCODE_API_KEY}}
++base_url = "https://api.commandcode.ai/provider/v1"
++
+ [models."deepseek/deepseek-v4-flash"]
+ provider = "deepseek_responses"
+ model = "deepseek-v4-flash"
+@@ -238,6 +243,16 @@ max_output_size = 131072
+ capabilities = [ "tool_use", "vision" ]
+ display_name = "GLM-5.3 Flash EXL3 (local DGX Spark)"
+ 
++[models."commandcode/space-bunny-alpha"]
++provider = "commandcode"
++model = "stealth/space-bunny-alpha"
++max_context_size = 1000000
++max_output_size = 128000
++capabilities = [ "thinking", "tool_use", "vision" ]
++display_name = "Space Bunny Alpha (CommandCode)"
++reasoning_key = "reasoning"
++support_efforts = [ "low", "medium", "high", "xhigh", "max" ]
++
+ [thinking]
+ enabled = true
+ effort = "high"
