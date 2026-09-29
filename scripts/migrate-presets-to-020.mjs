@@ -65,17 +65,31 @@ for (const name of dirs) {
   // host-process-entry.js sets `loader.internal = void 0` on the host plane, so
   // the loader falls back to a BARE `import(name)`. A Windows path is not a
   // valid module specifier, so the entry never starts and the preset reports
-  // "agent-preset/invalid: <first entry>: never started ...". file:// URLs are
-  // the form dynamic import() accepts.
+  // "never started" with ERR_UNSUPPORTED_ESM_URL_SCHEME. file:// URLs are the
+  // form dynamic import() accepts.
+  //
+  // BOTH forms fail the same way and both need rewriting:
+  //   name: ./x.mjs              relative to the preset dir under 0.1.5; under
+  //                              0.2.0 the rows live in the profile patch layer
+  //                              so it would resolve against the PROFILE dir
+  //   name: C:/Users/.../x.mjs   already absolute, still not a specifier
   let rewrites = 0;
-  const rewritten = body.replace(
-    /^(\s*(?:- )?id:\s*\S+\s*\n\s*name:\s*)(['"]?)(\.\/[^'"\n]+)\2\s*$/gm,
-    (_m, head, q, rel) => {
-      rewrites++;
-      const abs = resolve(dir, rel).replace(/\\/g, '/');
-      return `${head}${q}file:///${abs}${q}`;
-    }
-  );
+  const rewritten = body
+    .replace(
+      /^(\s*(?:- )?id:\s*\S+\s*\n\s*name:\s*)(['"]?)(\.\/[^'"\n]+)\2\s*$/gm,
+      (_m, head, q, rel) => {
+        rewrites++;
+        const abs = resolve(dir, rel).replace(/\\/g, '/');
+        return `${head}${q}file:///${abs}${q}`;
+      }
+    )
+    .replace(
+      /^(\s*(?:- )?id:\s*\S+\s*\n\s*name:\s*)(['"]?)([A-Za-z]:[\\/][^'"\n]*\.(?:mjs|js|cjs))\2\s*$/gm,
+      (_m, head, q, abs) => {
+        rewrites++;
+        return `${head}${q}file:///${abs.replace(/\\/g, '/')}${q}`;
+      }
+    );
 
   const meta = readPresetMeta(join(dir, 'preset.yml'));
   const lines = [];
