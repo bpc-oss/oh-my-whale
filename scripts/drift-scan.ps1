@@ -29,35 +29,48 @@ $OldKernel = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
 $ProfileModules = "$env:USERPROFILE\.dsh\profiles\web\node_modules"
 
 if ($Installed) {
-  # installed mode: unpack the LIVE resources\app.asar into patches\host\.asar-cache
-  # (same cache + stamp scheme as verify.ps1 v4, so the two scripts share one 170MB
-  # one-time extraction). The install directory is only ever READ.
-  $Asar = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktop\resources\app.asar"
-  if (-not (Test-Path $Asar)) { Write-Host "ERROR: installed mode: app.asar not found: $Asar" -ForegroundColor Red; exit 1 }
-  $CacheRoot = Join-Path $Repo "patches\host\.asar-cache"
-  $CacheTree = Join-Path $CacheRoot "app"
-  $StampFile = Join-Path $CacheRoot ".stamp"
-  $asi = Get-Item $Asar
-  $key = ("{0}|{1}" -f $asi.Length, $asi.LastWriteTimeUtc.Ticks)
-  $fresh = $false
-  if ((Test-Path (Join-Path $CacheTree "node_modules")) -and (Test-Path $StampFile)) {
-    if ((Get-Content $StampFile -Raw).Trim() -eq $key) { $fresh = $true }
-  }
-  if (-not $fresh) {
-    Write-Host "asar-cache: extracting $Asar (~170MB, one-time; cache kept for reuse)..."
-    if (Test-Path $CacheTree) { Remove-Item $CacheTree -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path $CacheTree | Out-Null
-    & npx --yes @electron/asar extract $Asar $CacheTree 2>&1 | Out-String | Out-Null
-    $code = $LASTEXITCODE
-    if ($code -ne 0 -or -not (Test-Path (Join-Path $CacheTree "node_modules"))) {
-      Write-Host "ERROR: asar extract failed (exit $code); cache dir: $CacheTree" -ForegroundColor Red; exit 1
+  # Desktop shell 2.0.16 (kernel 0.2.0-rc.1) STOPPED packing the app: the tree
+  # ships unpacked at resources\app\. Only fall back to the asar extraction cache
+  # when that older layout is present (shell <= 2.0.15).
+  $UnpackedApp = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktop\resources\app"
+  $Asar        = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktop\resources\app.asar"
+  if (Test-Path (Join-Path $UnpackedApp "node_modules")) {
+    # Unpacked layout: read the install in place. Nothing is copied or extracted.
+    $KernelDir = Join-Path $UnpackedApp "node_modules"
+    $InstalledLayout = "unpacked (shell 2.0.16+)"
+  } elseif (Test-Path $Asar) {
+    # Legacy layout: unpack the LIVE resources\app.asar into patches\host\.asar-cache
+    # (same cache + stamp scheme as verify.ps1 v4, so the two scripts share one
+    # 170MB one-time extraction). The install directory is only ever READ.
+    $CacheRoot = Join-Path $Repo "patches\host\.asar-cache"
+    $CacheTree = Join-Path $CacheRoot "app"
+    $StampFile = Join-Path $CacheRoot ".stamp"
+    $asi = Get-Item $Asar
+    $key = ("{0}|{1}" -f $asi.Length, $asi.LastWriteTimeUtc.Ticks)
+    $fresh = $false
+    if ((Test-Path (Join-Path $CacheTree "node_modules")) -and (Test-Path $StampFile)) {
+      if ((Get-Content $StampFile -Raw).Trim() -eq $key) { $fresh = $true }
     }
-    Set-Content -Path $StampFile -Value $key -NoNewline
-    Write-Host "asar-cache: extraction complete"
+    if (-not $fresh) {
+      Write-Host "asar-cache: extracting $Asar (~170MB, one-time; cache kept for reuse)..."
+      if (Test-Path $CacheTree) { Remove-Item $CacheTree -Recurse -Force }
+      New-Item -ItemType Directory -Force -Path $CacheTree | Out-Null
+      & npx --yes @electron/asar extract $Asar $CacheTree 2>&1 | Out-String | Out-Null
+      $code = $LASTEXITCODE
+      if ($code -ne 0 -or -not (Test-Path (Join-Path $CacheTree "node_modules"))) {
+        Write-Host "ERROR: asar extract failed (exit $code); cache dir: $CacheTree" -ForegroundColor Red; exit 1
+      }
+      Set-Content -Path $StampFile -Value $key -NoNewline
+      Write-Host "asar-cache: extraction complete"
+    } else {
+      Write-Host "asar-cache: reusing cached extraction ($CacheTree)"
+    }
+    $KernelDir = Join-Path $CacheTree "node_modules"
+    $InstalledLayout = "app.asar (shell <=2.0.15)"
   } else {
-    Write-Host "asar-cache: reusing cached extraction ($CacheTree)"
+    Write-Host "ERROR: installed mode: neither an unpacked app tree nor app.asar found under $env:LOCALAPPDATA\Programs\DSH Desktop\resources" -ForegroundColor Red
+    exit 1
   }
-  $KernelDir = Join-Path $CacheTree "node_modules"
 } elseif (Test-Path $RuntimeTreeModules) {
   $KernelDir = $RuntimeTreeModules
 } else {
@@ -68,7 +81,7 @@ $KernelVersion = if (Test-Path "$KernelDir\@deepseek-ai\dsh\package.json") {
 } else { "unknown" }
 
 Write-Host "=== oh-my-whale drift scan ===" -ForegroundColor Cyan
-Write-Host ("KernelDir : {0} ({1}){2}" -f $KernelDir, $KernelVersion, $(if ($Installed) { " [installed app.asar]" } else { "" }))
+Write-Host ("KernelDir : {0} ({1}){2}" -f $KernelDir, $KernelVersion, $(if ($Installed) { " [installed: $InstalledLayout]" } else { "" }))
 Write-Host "Repo      : $Repo"
 Write-Host ""
 

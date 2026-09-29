@@ -78,10 +78,17 @@ $bpcKept = (Test-Path $bpcPkg) -and ((Get-Content $bpcPkg -Raw) -match 'dsh-visi
 Check 'bpc-operator keeps toolkit (by contract)' $bpcKept 'governed operator profile must keep its vision operations'
 
 # 5. client configs
-$set = Join-Path $dsh 'settings.yaml'
+# Kernel 0.2.0 (desktop 2.0.16+) migrated the settings document out of
+# ~/.dsh/settings.yaml and into the live config layer
+# profiles/web/cordis.patch.yml (the `llm-pi-ai` row), renaming the old file to
+# settings.yaml.imported. Resolve whichever one the current kernel actually
+# reads so these two checks stay meaningful across the upgrade.
+$setLegacy = Join-Path $dsh 'settings.yaml'
+$setNew    = Join-Path $dsh 'profiles\web\cordis.patch.yml'
+$set = if (Test-Path $setLegacy) { $setLegacy } else { $setNew }
 $bunny = (Test-Path $set) -and (Select-String -Path $set -Pattern 'stealth/space-bunny-alpha' -Context 0,12 |
   Where-Object { $_.Context.PostContext -match 'input:' } | Measure-Object).Count
-Check 'dsh settings bunny caps' ($bunny -ge 1) 'space-bunny-alpha declares input + reasoningEfforts'
+Check 'dsh settings bunny caps' ($bunny -ge 1) ("space-bunny-alpha declares input + reasoningEfforts (in {0})" -f (Split-Path -Leaf $set))
 $zc = Join-Path $HOME '.zcode\v2\provider_config.json'
 $zcObj = if (Test-Path $zc) { Get-Content $zc -Raw | ConvertFrom-Json } else { $null }
 $zcStr = if ($zcObj) { ($zcObj | ConvertTo-Json -Depth 40 -Compress) } else { '' }
@@ -93,11 +100,33 @@ $kc = Join-Path $HOME '.kimi-code\config.toml'
 $kk = (Test-Path $kc) -and ((Get-Content $kc -Raw) -match 'commandcode/space-bunny-alpha')
 Check 'kimi-code model entry' $kk 'commandcode/space-bunny-alpha present'
 
-# 6. the four registered diffs must still be APPLICABLE. The 2026-09-29 review
+# 5b. web-profile custom config ANCHORS (replaces the retired settings diff).
+#     Kernel 0.2.0 regenerates profiles/web/cordis.patch.yml on every boot, so a
+#     unified diff can never forward-apply. These anchors are the honest
+#     drift check: each custom provider / model row must still be present.
+$anchorFile = Join-Path $whale 'local-overrides\dsh-web-profile-custom-config.anchors.json'
+$webPatch   = Join-Path $dsh 'profiles\web\cordis.patch.yml'
+if ((Test-Path $anchorFile) -and (Test-Path $webPatch)) {
+  $anchors = (Get-Content $anchorFile -Raw | ConvertFrom-Json).anchors
+  $webSrc = Get-Content $webPatch -Raw
+  $missing = @()
+  foreach ($a in $anchors) {
+    $n = ([regex]::Matches($webSrc, $a.pattern, [Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    if ($n -lt $a.min) { $missing += $a.id }
+  }
+  $anchorMsg = if ($missing.Count) { "missing: $($missing -join ', ')" } else { "$($anchors.Count) custom rows present in cordis.patch.yml" }
+  Check 'web profile custom config anchors' ($missing.Count -eq 0) $anchorMsg
+} else {
+  Check 'web profile custom config anchors' $false 'anchor file or live profile patch missing'
+}
+
+# 6. the registered diffs must still be APPLICABLE. The 2026-09-29 review
 #    found all four had unusable headers: drift was detectable but recovery after
 #    an update was impossible. Reverse-apply == "forward-applies to pre-state".
+#    The former 'dsh settings' entry was dropped on 2026-09-29: its target file
+#    (~/.dsh/settings.yaml) no longer exists after the 0.2.0 migration and the
+#    replacement is kernel-generated, so no diff can be forward-applicable.
 $patches = @(
-  @{ name = 'dsh settings';     file = 'dsh-settings-native-vision-and-bunny-model.patch';      live = (Join-Path $dsh 'settings.yaml'); rel = 'settings.yaml'; secret = $false },
   @{ name = 'autoprompt preset'; file = 'dsh-preset-autoprompt-resident-read-image.patch';     live = (Join-Path $dsh '.agent-presets\autoprompt\agent.cordis.yml'); rel = 'agent.cordis.yml'; secret = $false },
   @{ name = 'zcode config';     file = 'zcode-commandcode-reasoning-levels.patch';              live = (Join-Path $HOME '.zcode\v2\provider_config.json'); rel = 'v2/provider_config.json'; secret = $true },
   @{ name = 'kimi-code config'; file = 'kimi-code-0.36.1-commandcode-space-bunny-alpha.patch'; live = (Join-Path $HOME '.kimi-code\config.toml'); rel = 'config.toml'; secret = $true }

@@ -1,0 +1,87 @@
+{
+  "_comment": [
+    "oh-my-whale registered local override — dsh-web-profile-custom-config",
+    "",
+    "SUPERSEDES dsh-settings-native-vision-and-bunny-model.patch (retired 2026-09-29).",
+    "",
+    "Why: kernel 0.2.0 (desktop 2.0.16) migrated the settings document out of",
+    "~/.dsh/settings.yaml and into the LIVE CONFIG LAYER profiles/web/cordis.patch.yml",
+    "(the `llm-pi-ai` row). The old file was renamed to settings.yaml.imported. That",
+    "file is kernel-generated (reconciled on every boot), so a unified diff against a",
+    "pristine baseline can never forward-apply — the old patch was a recovery fiction.",
+    "",
+    "This file replaces it with assertions that are checkable at any time: each anchor",
+    "must be present in the live file. Recovery is re-adding the rows, not replaying a diff."
+  ],
+  "target": "profiles/web/cordis.patch.yml",
+  "superseded": "dsh-settings-native-vision-and-bunny-model.patch",
+  "superseded_on": "2026-09-29",
+  "anchors": [
+    {
+      "id": "llm-pi-ai-entry",
+      "why": "the whole custom-provider block hangs off this row",
+      "pattern": "^- id: llm-pi-ai$",
+      "min": 1
+    },
+    {
+      "id": "provider-dgx-spark-glm53-exl3",
+      "why": "local DGX Spark GLM-5.3 Flash EXL3 (video-capable)",
+      "pattern": "^      dgx-spark-glm53-exl3:$",
+      "min": 1
+    },
+    {
+      "id": "provider-dgx-spark-vllm",
+      "why": "local DGX Spark vLLM endpoint",
+      "pattern": "^      dgx-spark-vllm:$",
+      "min": 1
+    },
+    {
+      "id": "provider-bai",
+      "why": "b.ai gateway (reasoning-effort tiers)",
+      "pattern": "^      bai:$",
+      "min": 1
+    },
+    {
+      "id": "provider-teamoroute",
+      "why": "teamo route provider",
+      "pattern": "^      teamoroute:$",
+      "min": 1
+    },
+    {
+      "id": "provider-tokenrouter",
+      "why": "token router provider",
+      "pattern": "^      tokenrouter:$",
+      "min": 1
+    },
+    {
+      "id": "provider-zai-coding-cn",
+      "why": "z.ai coding endpoint",
+      "pattern": "^      zai-coding-cn:$",
+      "min": 1
+    },
+    {
+      "id": "provider-commandcode",
+      "why": "commandcode endpoint; hosts stealth/space-bunny-alpha",
+      "pattern": "^      commandcode:$",
+      "min": 1
+    },
+    {
+      "id": "provider-stepfun",
+      "why": "stepfun endpoint",
+      "pattern": "^      stepfun:$",
+      "min": 1
+    },
+    {
+      "id": "model-space-bunny-alpha",
+      "why": "custom model entry with contextWindow + input + reasoningEfforts",
+      "pattern": "- id: stealth/space-bunny-alpha",
+      "min": 1
+    },
+    {
+      "id": "video-modality-declared",
+      "why": "P20 video modality survived the 0.2.0 settings migration; requires the dsh-llm-pi-ai schema patch (patches/post-install/p20-video-modality.mjs). If this disappears, re-apply that patch and re-import settings.yaml.imported.",
+      "pattern": "^\\s*- video$",
+      "min": 1
+    }
+  ]
+}

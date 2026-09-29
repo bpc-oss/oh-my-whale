@@ -14,9 +14,31 @@ them silently.
 | autoprompt residentTools | `local-overrides/dsh-preset-autoprompt-resident-read-image.patch` | `~/.dsh/.agent-presets/autoprompt/agent.cordis.yml` |
 | Local preset plugin `promise-guard` | `plugins/standalone/dsh-promise-guard/` + `plugins/SOURCES.json` | `~/.dsh/.agent-presets/<preset>/promise-guard.mjs` |
 | Legacy vision-toolkit removal (bundle + dep + disabled row) | `profile/package.json.template`, `profile/cordis.patch.yml.template`, `plugins/SOURCES.json` | `~/.dsh/profiles/web/*` — **web profile only** (see scope note) |
-| DSH settings (local vision backend, bunny model caps) | `local-overrides/dsh-settings-native-vision-and-bunny-model.patch` | `~/.dsh/settings.yaml` |
+| DSH custom provider/model config (local endpoints, bunny caps, video modality) | `local-overrides/dsh-web-profile-custom-config.anchors.json` | `~/.dsh/profiles/web/cordis.patch.yml` — **since kernel 0.2.0** |
+| Kernel-tree patches (P20 video modality schema) | `patches/post-install/*.mjs` | `%LOCALAPPDATA%\Programs\DSH Desktop\resources\app\node_modules\...` |
 | zcode reasoning levels | `local-overrides/zcode-commandcode-reasoning-levels.patch` | `~/.zcode/v2/provider_config.json` |
 | kimi-code provider + model | `local-overrides/kimi-code-0.36.1-commandcode-space-bunny-alpha.patch` | `~/.kimi-code/config.toml` |
+
+### 2026-09-29: the settings diff was retired, replaced by anchors
+
+Kernel 0.2.0 (desktop 2.0.16) migrated the settings document out of `~/.dsh/settings.yaml`
+into the **live config layer** `~/.dsh/profiles/web/cordis.patch.yml` (the `llm-pi-ai`
+row), renaming the old file to `~/.dsh/settings.yaml.imported`. That file is now
+**kernel-generated and rewritten on every boot**, so a unified diff against a pristine
+baseline can never forward-apply — `dsh-settings-native-vision-and-bunny-model.patch` was a
+recovery fiction and is retired as `.superseded-20260929`.
+
+`dsh-web-profile-custom-config.anchors.json` replaces it with assertions that are actually
+checkable: each custom provider / model row must still be present in the live file.
+**Recovery is re-adding the rows, not replaying a diff.**
+
+The kernel-side counterpart is separate and still a real patch:
+`patches/post-install/p20-video-modality.mjs` adds `video` to `dsh-llm-pi-ai`'s closed
+modality union. Without it 0.2.0 rejects the whole `llm-pi-ai` section and every custom
+provider silently disappears. Shell 2.0.16 ships **unpacked**, so an auto-update silently
+reverts it — run `scripts/apply-post-install-patches.ps1` after any shell upgrade and gate
+on `scripts/verify-kernel-patches.ps1`.
+
 
 Two cordis rows are registered per preset because no template carries them:
 
@@ -52,9 +74,13 @@ Two related traps:
 # read-only drift check across every registered override
 powershell -NoProfile -File .\local-overrides\verify.ps1
 
+# after ANY DSH Desktop shell upgrade / auto-update (2.0.16+ ships unpacked)
+powershell -NoProfile -File .\scripts\verify-kernel-patches.ps1          # read-only
+powershell -NoProfile -File .\scripts\apply-post-install-patches.ps1     # re-apply
+powershell -NoProfile -File .\scripts\apply-post-install-patches.ps1 -Check   # report only
+
 # re-apply one patch after a DSH update wiped it (review the diff first).
 # Each patch has its OWN root directory - run git from that directory:
-#   dsh-settings-native-vision-and-bunny-model.patch      -> $HOME\.dsh
 #   dsh-preset-autoprompt-resident-read-image.patch       -> $HOME\.dsh\.agent-presets\autoprompt   (path a/agent.cordis.yml)
 #   zcode-commandcode-reasoning-levels.patch              -> $HOME\.zcode
 #   kimi-code-0.36.1-commandcode-space-bunny-alpha.patch  -> $HOME\.kimi-code
