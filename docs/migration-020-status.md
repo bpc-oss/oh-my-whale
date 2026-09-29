@@ -49,6 +49,21 @@
 | `dsh-plugin-manager` | 第三方 `dsh-plugin-manager@0.1.0`（hrhgit）与官方 `@deepseek-ai/dsh-plugin-manager@0.2.0-rc.1` 争同一个 `pluginManager` 服务且 typert codec 不兼容 → 移除第三方，用官方的 |
 | `module-resolution-*.js` | 未注册父模块的裸 `@deepseek-ai/*` 兜底解析到 app 树 |
 
+## 四之二、bundle 列表与升级前逐项对齐
+
+以 `package.json.bak-subagentui-020-*`（升级前最后一次改动）为基线：
+
+```
+pre-upgrade: 23 | now: 23
+MISSING now: ["dsh-plugin-manager"]     <- 故意：与官方 0.2.0 版争同一个服务
+added now  : ["dsh-local-presets"]      <- 新增：preset 层包
+```
+
+**没有任何 bundle 丢失。** 14 条 `compatibility.json` 豁免里有 3 条
+（`@bpc-oss/dsh-verification`、`@bpc-oss/dsh-client-ui-verification`、
+`dsh-token-meter-hermes`）本来就不在 `dsh.profile.bundles` 里——它们通过自己的
+通道组合，升级前也是如此，不是这次迁移造成的缺口。
+
 ## 五、实测（CDP 驱动真实 renderer，`scripts/cdp-eval.mjs`）
 
 - 客户端启动清单 **80 条**（迁移前基线 73），13 个第三方插件全部在
