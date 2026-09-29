@@ -80,6 +80,13 @@ $KernelVersion = if (Test-Path "$KernelDir\@deepseek-ai\dsh\package.json") {
   (Get-Content "$KernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
 } else { "unknown" }
 
+# Authority note for the kernel-patch section below: after the 0.2.0 port the
+# per-patch check is a TEXTUAL reverse-apply, and most ports were hand-rewritten
+# against a reshaped 0.2.0 file. A rewritten-but-correct patch therefore reports
+# LOST here. scriptserify-patch-port.mjs is the authority: it asserts the
+# capability each patch exists to provide, not the patch's original text.
+$PortMeter = Join-Path $PSScriptRoot "verify-patch-port.mjs"
+$AppRoot = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktopesourcespp"
 Write-Host "=== oh-my-whale drift scan ===" -ForegroundColor Cyan
 Write-Host ("KernelDir : {0} ({1}){2}" -f $KernelDir, $KernelVersion, $(if ($Installed) { " [installed: $InstalledLayout]" } else { "" }))
 Write-Host "Repo      : $Repo"

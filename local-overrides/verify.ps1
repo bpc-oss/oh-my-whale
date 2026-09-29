@@ -90,12 +90,28 @@ $bunny = (Test-Path $set) -and (Select-String -Path $set -Pattern 'stealth/space
   Where-Object { $_.Context.PostContext -match 'input:' } | Measure-Object).Count
 Check 'dsh settings bunny caps' ($bunny -ge 1) ("space-bunny-alpha declares input + reasoningEfforts (in {0})" -f (Split-Path -Leaf $set))
 $zc = Join-Path $HOME '.zcode\v2\provider_config.json'
-$zcObj = if (Test-Path $zc) { Get-Content $zc -Raw | ConvertFrom-Json } else { $null }
-$zcStr = if ($zcObj) { ($zcObj | ConvertTo-Json -Depth 40 -Compress) } else { '' }
-$zcAt = $zcStr.IndexOf('"modelId":"stealth/space-bunny-alpha"')
-$zcSeg = if ($zcAt -ge 0) { $zcStr.Substring($zcAt, [Math]::Min(700, $zcStr.Length - $zcAt)) } else { '' }
-$zl = ($zcAt -ge 0) -and (-not ($zcSeg -match '"disabled"')) -and ($zcSeg -match '"xhigh"')
-Check 'zcode reasoning levels' $zl 'no invalid disabled/enabled values'
+# 2026-09-29: the old check sliced 700 chars after the modelId string and grepped
+# for "disabled". Because the key is ABSENT when the model is enabled, the window
+# ran past this rule into the next one in providerModelRules and reported a false
+# DRIFT on a correct config. Assert on the rule object instead.
+$zl = $false
+if (Test-Path $zc) {
+  $zcObj = Get-Content $zc -Raw | ConvertFrom-Json
+  $rule = @($zcObj.config.modelConfigRules.providerModelRules) |
+    Where-Object { $_.modelId -eq 'stealth/space-bunny-alpha' } | Select-Object -First 1
+  if ($rule) {
+    $cfg = $rule.config
+    $levels = @($cfg.optionSpecs.reasoningLevel.values)
+    # enabled means: either no `enabled` key at all, or explicitly true.
+    $enabledOk = ($null -eq $cfg.PSObject.Properties['enabled']) -or ($cfg.enabled -eq $true)
+    $hasDisabled = $null -ne $cfg.PSObject.Properties['disabled']
+    # The retired zcode patch asserted exactly this: the provider rejects the
+    # `disabled` and `enabled` levels (HTTP 400) and accepts only this set.
+    $valid = @('low','medium','high','xhigh','max')
+    $zl = $enabledOk -and (-not $hasDisabled) -and (($levels -join ',') -eq ($valid -join ','))
+  }
+}
+Check 'zcode reasoning levels' $zl 'space-bunny-alpha: reasoningLevel == low,medium,high,xhigh,max; enabled, no disabled key'
 $kc = Join-Path $HOME '.kimi-code\config.toml'
 $kk = (Test-Path $kc) -and ((Get-Content $kc -Raw) -match 'commandcode/space-bunny-alpha')
 Check 'kimi-code model entry' $kk 'commandcode/space-bunny-alpha present'
@@ -123,12 +139,12 @@ if ((Test-Path $anchorFile) -and (Test-Path $webPatch)) {
 # 6. the registered diffs must still be APPLICABLE. The 2026-09-29 review
 #    found all four had unusable headers: drift was detectable but recovery after
 #    an update was impossible. Reverse-apply == "forward-applies to pre-state".
-#    The former 'dsh settings' entry was dropped on 2026-09-29: its target file
-#    (~/.dsh/settings.yaml) no longer exists after the 0.2.0 migration and the
-#    replacement is kernel-generated, so no diff can be forward-applicable.
+#    Two entries were dropped on 2026-09-29 because their targets stopped being
+#    stable text files: 'dsh settings' moved into a kernel-generated
+#    profiles/web/cordis.patch.yml, and 'zcode config' drifted out of the diff's
+#    baseline. Both are covered by value assertions above instead.
 $patches = @(
   @{ name = 'autoprompt preset'; file = 'dsh-preset-autoprompt-resident-read-image.patch';     live = (Join-Path $dsh '.agent-presets\autoprompt\agent.cordis.yml'); rel = 'agent.cordis.yml'; secret = $false },
-  @{ name = 'zcode config';     file = 'zcode-commandcode-reasoning-levels.patch';              live = (Join-Path $HOME '.zcode\v2\provider_config.json'); rel = 'v2/provider_config.json'; secret = $true },
   @{ name = 'kimi-code config'; file = 'kimi-code-0.36.1-commandcode-space-bunny-alpha.patch'; live = (Join-Path $HOME '.kimi-code\config.toml'); rel = 'config.toml'; secret = $true }
 )
 foreach ($p in $patches) {
