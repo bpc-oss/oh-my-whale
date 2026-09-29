@@ -115,3 +115,35 @@ Start-Process "$env:LOCALAPPDATA\Programs\DSH Desktop\DSH Desktop.exe" `
 ```
 
 `node scripts\cdp-eval.mjs --list` 列出目标，`--expr "<js>"` 在页面里求值。
+
+## 6. 0.2.0 树里缺的传递依赖：`uqr`
+
+壳 2.0.16 内置的 0.2.0-rc.1 树**没有** `uqr`，但树里有模块要 import 它，于是每次启动：
+
+```
+[E] [host-resolved-root-include] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'uqr'
+```
+
+`uqr@0.1.3` 是单文件二维码编码器（ESM/CJS 双导出，无依赖）。装到**两处**，
+因为解析锚点可能是 app 树也可能是 profile：
+
+```powershell
+npm pack uqr@latest          # 解包后
+Copy-Item package  "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app\node_modules\uqr" -Recurse
+Copy-Item package  "$env:USERPROFILE\.dsh\profiles\web\node_modules\uqr" -Recurse
+```
+
+定位手法留个教训：这条报错的 `imported from .../lib/index.js` 是**锚点**，
+不是真实来源——`resolveWithState` 会把 parentURL 改写成 `DESKTOP_ENTRY_URL`。
+按报错文本去搜文件会白费时间。想拿真实来源只能在 `resolve()` 钩子里记
+`context.parentURL`；但**别把 `await` 写进非 async 的解析函数**，我这么干过一次，
+直接把 renderer 干崩了。
+
+## 7. 已确认与本次升级无关的噪音
+
+| 现象 | 结论 |
+|---|---|
+| `agents-anywhere-runtime` EACCES | 端口占用，0.1.5 时代就有 |
+| `browse-directory-picker: service "directoryPicker" has been registered` | **上游 0.2.0 自身冲突**：`dsh-host-directory-picker` 与 `dsh-api-workspace-controller` 都 provide 该服务且都被组合。已用 pristine 快照逐字节比对四个 `dsh-host-directory-picker*` 包，均未改动。非致命，先注册者胜出 |
+| `patch: entry "vision-toolkit" / "dsh-vision-toolkit" / "test-run-plugin" / "agentos-dsh-lco" not found` | 插件已卸载，`disabled: true` 阻断自装配的**故意**残留行 |
+| `patch: id is required for non-insert patches` | 同上，同一类 |
