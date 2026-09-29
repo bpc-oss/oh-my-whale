@@ -65,7 +65,16 @@ const CHECKS = [
   { id: 'P12', why: 'fork request schema mirrors agentPreset',
     files: ['@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/manager.js'], needles: ['agentPreset'] },
   { id: 'P13', why: 'SSE batch flush (frames/idle window)',
-    up: { why: 'superseded upstream: 0.2.0 has no SSE writer. Session events moved to a multiplexed WebSocket (dsh-api-gateway/lib/types/stream-server.js) which already serialises writes through a promise chain with back-pressure, so the per-frame enqueue+stringify cost this patch amortised no longer exists.' } },
+    // NOT absorbed upstream. The per-frame cost survives the transport change:
+    // the 0.2.0 WebSocket writer still does one JSON.stringify + one
+    // socket.send + one promise per message (dsh-api-gateway/lib/types/
+    // stream-server.js send()). The promise chain fixes ordering and back-
+    // pressure, not the per-frame cost.
+    // Also NOT portable as written: parseRemoteStreamClientMessage parses
+    // exactly ONE message per text with strict exactKeys validation, so joining
+    // frames breaks the client protocol. Doing it needs a batch message type on
+    // both ends. Tracked, not silently dropped - see manifest P13.portNote.
+    up: { why: 'NOT portable on 0.2.0: the WebSocket transport has no batch primitive (one message per frame, strict exactKeys). The per-frame cost is lower than the SSE path this patch targeted, so this is a regression risk to watch, not a known outage.' } },
   { id: 'P14', why: 'fiber.dispose() may be sync -> no unguarded .catch',
     files: ['@deepseek-ai/dsh-file-reference-local/lib/index.js'], needles: ['dispose'] },
   { id: 'P15', why: 'agent/disposed listener logs error.stack',
