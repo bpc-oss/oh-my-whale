@@ -120,7 +120,7 @@ python -c "import json,glob; [print(o['name'],t) for pj in glob.glob('**/package
 
 ### kimi code 升级后：重打 maxRetries 无限重试补丁
 `~/.kimi-code/bin/kimi.exe` 是 Bun 单文件可执行，官方 `kimi upgrade` 在 Windows 不支持自动更新（提示手动跑 `irm https://code.kimi.com/kimi-code/install.ps1 | iex`——**先下载审查再执行，不要盲管 iex**）。升级会覆盖二进制，本地 `maxRetries:-1` 补丁必然丢失。
-- 补丁器：`scripts/kimi/pimi` 目录下的 `patch-kimi-maxretries.py`（三处 provider client 构造：Anthropic + 2×OpenAI，`maxRetries: 0` → `-1`）
+- 补丁器：`scripts/kimi/patch-kimi-maxretries.py`（三处 provider client 构造：Anthropic + 2×OpenAI，`maxRetries: 0` → `-1`）
 - **铁律一：替换必须字节等长**。改了长度会移位 Bun 内嵌负载，Windows 拒绝加载，报错信息极具误导性（"此版本应用程序不适用于你的处理器架构"）。`" 0"→"-1"` 两字节换两字节才安全。
 - **铁律二：绝不在运行中原地覆写 kimi.exe**。生成 `.patched` 副本，再 `Move-Item` 改名换入。原地覆写曾直接损坏 exe。
 - 2.1.1 带 Authenticode 签名，但等长内容修改可正常加载（实测）——拦路的是长度不是签名。
