@@ -194,3 +194,26 @@
 - MAJOR（`profiles/bpc-operator` 仍装/挂 vision-toolkit，"已卸载"口径不完整）→ 查其 `AGENTS.md` 契约（"恰好八个 MCP 工具 + 一组 vision 操作"），判定为**按设计保留**，已在 `local-overrides/README.md` 写明 scope，并在 verify 中加断言"若有人误删 bpc-operator 的工具链则失败"。
 - MINOR（live 独有的 `dsh-vision-toolkit` 行模板缺失 → 已补入模板；verify 只看 live → 已加模板侧断言 + 两种 id 形式的 live+template 双查；本方案过期包名 → 本节已更新；`.bak-20260929` 模板含工具链是误恢复坑 → 已在 README 标注）。
 - 关键联动：**升级重放必须从 HEAD 模板取**（`d934b38` 已改模板，旧副本会复活工具链）。
+
+## 12. Phase 1-0 完成：真实 0.2.0-rc.1 基线树 + 权威重放（修正 §2.4 数字）
+
+**基线树**：按 0.2.0-rc.1 元包版本线锁步拉取 **229/243** 个 `@deepseek-ai` 包（3,663 文件）+ 9 个非 dsh 包
+（`cordis 4.0.4`、`cordis-plugin-loader 1.0.5`、`pi-ai 0.87.1` 等，772 文件）= 完整 0.2.0-rc.1 树。
+未随 0.2.0 发布的 14 个包保留自身版本线（`dsh-agent-presets`/`dsh-code-runtime`/`dsh-settings-file`/
+`dsh-workflow-worker-thread` 均止于 **0.1.5-rc.3** —— 0.1.5 线到此为终点）。
+
+**权威重放**（对真树、逐 manifest 目标路径）：
+
+| 判定 | 数量 | 条目 |
+|---|---|---|
+| APPLIES | **8** | P02、P14、P15、P17c、P22、P26、**P27、P28** |
+| CONFLICT | **32** | 其余全部 |
+| NO-TARGET | 1 | P05（profile 插件，不在内核树） |
+
+**修正 §2.4**：早前记的 "16 APPLIES / 8 GAP / 30 CONFLICT" 是用**补丁自身 diff 头**定位目标得到的，
+而 2.0.1 世代的 `P7-P9-P13-P18-apiproxy.combined.diff` 等头部写的是已不存在的包名
+（`dsh-host-apiproxy` 实际已并入 `dsh-api-gateway`），会在 npm 上命中同名占位包而产生**假阳性**。
+以 manifest 目标 + 真实树重测后，可直接重放的只有 8 个。以本节数字为准。
+
+**Phase 1-1 范围**：32 个补丁产物（约 20 个唯一 P-id）按新内核代码重写；视频链路一簇（P17/P17b/P18b/
+P18c/P19/P19b/P20/P21/P23/P24）改动最集中。P27/P28（会话格式命门）已确认干净重放。
