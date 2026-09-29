@@ -98,7 +98,7 @@ Check 'kimi-code model entry' $kk 'commandcode/space-bunny-alpha present'
 #    an update was impossible. Reverse-apply == "forward-applies to pre-state".
 $patches = @(
   @{ name = 'dsh settings';     file = 'dsh-settings-native-vision-and-bunny-model.patch';      live = (Join-Path $dsh 'settings.yaml'); rel = 'settings.yaml'; secret = $false },
-  @{ name = 'autoprompt preset'; file = 'dsh-preset-autoprompt-resident-read-image.patch';     live = (Join-Path $dsh '.agent-presets\autoprompt\agent.cordis.yml'); rel = 'presets/autoprompt/agent.cordis.yml'; secret = $false },
+  @{ name = 'autoprompt preset'; file = 'dsh-preset-autoprompt-resident-read-image.patch';     live = (Join-Path $dsh '.agent-presets\autoprompt\agent.cordis.yml'); rel = 'agent.cordis.yml'; secret = $false },
   @{ name = 'zcode config';     file = 'zcode-commandcode-reasoning-levels.patch';              live = (Join-Path $HOME '.zcode\v2\provider_config.json'); rel = 'v2/provider_config.json'; secret = $true },
   @{ name = 'kimi-code config'; file = 'kimi-code-0.36.1-commandcode-space-bunny-alpha.patch'; live = (Join-Path $HOME '.kimi-code\config.toml'); rel = 'config.toml'; secret = $true }
 )

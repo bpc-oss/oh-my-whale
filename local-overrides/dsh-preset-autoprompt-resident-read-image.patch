@@ -7,16 +7,16 @@
 # Stored as a diff on purpose: the full preset yml embeds machine paths and is not
 # privacy-clean, so only the override is registered here.
 #
-# target:   presets/autoprompt/agent.cordis.yml   (live: {{USERPROFILE}}\.dsh\.agent-presets\autoprompt\agent.cordis.yml)
+# target:   agent.cordis.yml   (live: {{USERPROFILE}}\.dsh\.agent-presets\autoprompt\agent.cordis.yml)
 # verify:   local-overrides/verify.ps1
 #
 
---- a/presets/autoprompt/agent.cordis.yml
-+++ b/presets/autoprompt/agent.cordis.yml
-diff --git a/presets/autoprompt/agent.cordis.yml b/presets/autoprompt/agent.cordis.yml
+--- a/agent.cordis.yml
++++ b/agent.cordis.yml
+diff --git a/agent.cordis.yml b/agent.cordis.yml
 index 2ec0f97..195f687 100644
---- a/presets/autoprompt/agent.cordis.yml
-+++ b/presets/autoprompt/agent.cordis.yml
+--- a/agent.cordis.yml
++++ b/agent.cordis.yml
 @@ -102,6 +102,7 @@
        - job_output
        - job_kill

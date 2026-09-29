@@ -55,7 +55,7 @@ powershell -NoProfile -File .\local-overrides\verify.ps1
 # re-apply one patch after a DSH update wiped it (review the diff first).
 # Each patch has its OWN root directory - run git from that directory:
 #   dsh-settings-native-vision-and-bunny-model.patch      -> $HOME\.dsh
-#   dsh-preset-autoprompt-resident-read-image.patch       -> $HOME\.dsh\.agent-presets\autoprompt
+#   dsh-preset-autoprompt-resident-read-image.patch       -> $HOME\.dsh\.agent-presets\autoprompt   (path a/agent.cordis.yml)
 #   zcode-commandcode-reasoning-levels.patch              -> $HOME\.zcode
 #   kimi-code-0.36.1-commandcode-space-bunny-alpha.patch  -> $HOME\.kimi-code
 # Example (zcode):
