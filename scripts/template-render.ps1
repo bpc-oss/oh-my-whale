@@ -12,13 +12,33 @@ $User = $env:USERNAME
 $UserHome = $env:USERPROFILE
 $DshHome = "$UserHome\.dsh"
 
+# Plugin sources root. Probed in the same order drift-scan used; hard-fails when nothing
+# matches, because the alternative is a manifest full of link:/ with no target.
+$PluginSources = $env:OMW_PLUGIN_SOURCES_DIR
+if (-not $PluginSources) {
+  if (Test-Path "E:\ai-files") { $PluginSources = "E:/ai-files" }
+  elseif (Test-Path "$UserHome\ai-files") { $PluginSources = "$UserHome/ai-files" }
+}
+if (-not $PluginSources) {
+  Write-Host "FATAL: cannot resolve PLUGIN_SOURCES_DIR." -ForegroundColor Red
+  Write-Host "  Set OMW_PLUGIN_SOURCES_DIR to the directory holding the plugin repos" -ForegroundColor Red
+  Write-Host "  (probed: E:\ai-files, $UserHome\ai-files)" -ForegroundColor Red
+  exit 1
+}
+Write-Host "PLUGIN_SOURCES_DIR: $PluginSources"
+
 # Collect variable values
 $Vars = @{
   "{{DSH_USER_HOME}}"       = $DshHome
   "{{USER_HOME}}"           = $UserHome
   "{{LOCAL_APP_DATA}}"      = "$UserHome\AppData\Local"
   "{{USER_NAME}}"           = $User
-    "{{PLUGIN_SOURCES_DIR}}"  = $env:OMW_PLUGIN_SOURCES_DIR
+    # Resolved here, not by the caller. The four link:/… plugin specs render to a bare
+    # "link:/" when this is empty, which installs nothing and still reports success.
+    # drift-scan had its own copy of this detect and set the variable before shelling out,
+    # so it passed while bootstrap — the real deploy path — produced a broken manifest.
+    # One definition, in the one place that does the substitution.
+    "{{PLUGIN_SOURCES_DIR}}"  = $PluginSources
   "{{TAILSCALE_HOST}}"      = ""
   "{{UV_PYTHON_PATH}}"      = ""
   "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
