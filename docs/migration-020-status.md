@@ -87,6 +87,38 @@ added now  : ["dsh-local-presets"]      <- 新增：preset 层包
 - 插件市场可用（能列插件、来源、分类、安装按钮）
 - `chrome_faithful` MCP 常驻；`reverse-proxy` 控制面挂在 `/dsh-reverse-proxy`
 
+## 四之三、better-sidebar 侧栏：三处 0.2.0 断裂叠在一起
+
+用户报「右边的侧边栏点不开」。真实原因不是一处，是三层叠加，任何一层单独修都还是打不开：
+
+1. **会话 scope 消失**（我先修错的层）
+   面板组件读 `ctx.sessions.list.getSnapshot().current`。0.1.5 的 list 快照带 `current`，
+   0.2.0 改成 `{ ids, byId, phase, projectionsBySession }` —— 没有 `current`。
+   于是 `store.setSession(undefined)` 恒成立，面板永远停在「无会话」态：
+   开关标签是 `noSession`（"选择一个会话以使用侧边栏"），点了没反应。
+   0.2.0 把这份选择搬到了 `dsh-client-ui-workspace`（服务名 `uiWorkspace`，
+   仍然持久化为 `dsh.sessions.current`），活跃引用是 `uiWorkspace.mainReference.sessionId`。
+
+2. **插件 ctx 的属性访问会抛**（我自己踩的）
+   cordis 对**未 inject** 的服务，属性访问 `ctx.uiWorkspace` 直接抛
+   `cannot get property "uiWorkspace" without inject`，`ctx.get("uiWorkspace")` 才安全。
+   所以**不能**把 `uiWorkspace` 写进 inject 列表——inject 项永远不满足会让整个插件
+   永不激活，连带 renderer 一起挂掉。必须惰性 `ctx.get()`。
+
+3. **图标名整体改名**（会话修好后暴露出来的潜在坑）
+   0.2.0 的 `@deepseek-ai/dsh-client-ui-primitives` 给图标去掉了数字尺寸后缀，
+   改成描边宽度变体：`IconPlusOutline16` → `IconPlusOutlineRegular` /
+   `IconPlusOutlineMedium`（`Medium`/`Regular` 是 stroke 宽度，尺寸仍走 `size` prop，默认 16）。
+   better-sidebar 客户端有 **89 处引用**对不上，React 报 `#130`（元素类型 undefined），
+   面板撞边界错误。已按 `Regular`（1px，对应旧默认）批量改名。
+
+修完的实测：面板 31 个节点、无边界错误、开关标签恢复为「展开底部面板 / 折叠侧边栏」，
+收起后**「展开侧边栏」控件存在且可点**（这正是最初报障的点），面板在屏内 577px。
+
+**验证方法的教训**：我之前把「DOM 里存在某个按钮」当成「侧栏能用」来汇报过，这是错的。
+判断 UI 能不能用必须**真的点一次并观察状态变化**。同理，`node --check` 抓不到 ESM 错误、
+静态门禁抓不到运行时行为——这次的假阳性是我自己的汇报失误，不是工具的问题。
+
 ## 五之二、runtime 层（`local-presets/00-runtime.patch.yml`）
 
 0.2.0 的 `dsh-web-app` 依赖 `dsh-tool-workflow` / `dsh-tool-ralph` / `dsh-workflow-ptc`，

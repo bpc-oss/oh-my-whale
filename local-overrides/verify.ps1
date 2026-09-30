@@ -96,9 +96,16 @@ $zc = Join-Path $HOME '.zcode\v2\provider_config.json'
 # DRIFT on a correct config. Assert on the rule object instead.
 $zl = $false
 if (Test-Path $zc) {
-  $zcObj = Get-Content $zc -Raw | ConvertFrom-Json
-  $rule = @($zcObj.config.modelConfigRules.providerModelRules) |
-    Where-Object { $_.modelId -eq 'stealth/space-bunny-alpha' } | Select-Object -First 1
+  # The file is user-owned and zcode rewrites it whenever it saves. PowerShell
+  # 5.1's ConvertFrom-Json throws on shapes node cannot handle (deep nesting,
+  # duplicate keys, some escapes); an exception here used to abort the WHOLE gate
+  # and report nothing at all, which reads as "no drift" if the exit code is
+  # ignored. Parse defensively and report a real DRIFT instead.
+  $zcObj = $null
+  try { $zcObj = Get-Content $zc -Raw | ConvertFrom-Json }
+  catch { Write-Host ('  zcode config unreadable by PowerShell 5.1 JSON: ' + $_.Exception.Message) }
+  $rule = if ($zcObj) { @($zcObj.config.modelConfigRules.providerModelRules) |
+    Where-Object { $_.modelId -eq 'stealth/space-bunny-alpha' } | Select-Object -First 1 } else { $null }
   if ($rule) {
     $cfg = $rule.config
     $levels = @($cfg.optionSpecs.reasoningLevel.values)
@@ -110,6 +117,25 @@ if (Test-Path $zc) {
     $valid = @('low','medium','high','xhigh','max')
     $zl = $enabledOk -and (-not $hasDisabled) -and (($levels -join ',') -eq ($valid -join ','))
   }
+}
+# 2026-09-30: PowerShell 5.1's ConvertFrom-Json throws on this user-owned file
+# (node parses it fine), which made the gate report a DRIFT on a good config.
+# Read the facts with node instead - scripts/zcode-facts.mjs prints KEY=VALUE.
+$zfacts = @{}
+$zscript = Join-Path $whale 'scripts\zcode-facts.mjs'
+if (Test-Path $zscript) {
+  $zout = & node $zscript $zc 2>$null
+  foreach ($line in $zout) {
+    if ($line -match '^([A-Z_]+)=(.*)$') { $zfacts[$matches[1]] = $matches[2] }
+  }
+}
+if ($zfacts.ContainsKey('PARSE') -and $zfacts['PARSE'] -eq 'ok') {
+  $zl = ($zfacts['RULE_FOUND'] -eq 'true') -and
+        ($zfacts['ENABLED_OK'] -eq 'true') -and
+        ($zfacts['HAS_DISABLED'] -eq 'false') -and
+        ($zfacts['LEVELS'] -eq 'low,medium,high,xhigh,max')
+} elseif ($zfacts.ContainsKey('PARSE')) {
+  $zl = $false
 }
 Check 'zcode reasoning levels' $zl 'space-bunny-alpha: reasoningLevel == low,medium,high,xhigh,max; enabled, no disabled key'
 $kc = Join-Path $HOME '.kimi-code\config.toml'
