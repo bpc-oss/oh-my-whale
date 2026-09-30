@@ -196,15 +196,28 @@ DSH 实际在用的 `@agent-os/dsh-governance` 是本地开发源，peer 指向 
    每一项都注明在 0.2.0 树里的核验依据（字段出现次数、`tools.guard` 的实现片段、
    pre-step 的解构形态），不是照抄旧声明。编译错误 30 → 0。
 
-### 顺带发现的版本污染（未处理，只记录）
+### 顺带发现的版本污染（2026-09-30 已清理）
 
-`~/.dsh/profiles/node_modules/@deepseek-ai/cordis` 是 **4.0.2**，来自 2.0.9 时代的
-`v209-patched-tree`。DSH 运行时用自己的 loader hook 解析到 app 树的 4.0.4，**不受影响**；
-但任何走标准 Node 解析的工具（脚本、CLI、测试）会命中 4.0.2 —— 同一服务的两个类身份。
-治理插件的 `node_modules/.pnpm/` 里还躺着一整套同期的副本（cordis 4.0.1、dsh-agent 0.1.x、
-cosmokit 1.8.2），虽然当前没有链接指向它们。
+`~/.dsh/profiles/node_modules` 不是一个普通的依赖目录，而是 **484 个 junction 组成的农场**，
+**0 个实体文件**，全部指向 `~/.dsh/runtime/v209-patched-tree`（2.0.9 时代、0.1.5-rc.1 的内核树），
+建于 2026-08-13。2.0.16 换成裸目录布局后它就没用了：DSH 运行时用自己的 loader hook 解析到
+app 树的 0.2.0-rc.1，不需要这层中转；而任何走**标准 Node 解析**的工具（脚本、CLI、测试）
+会命中它 —— 拿到 cordis 4.0.2 这种旧类身份。
 
-删除该共享层需要先确认没有东西依赖它，属于独立决策，未擅自处理。
+危害是具体的，不是理论：治理插件适配时，我的探针就撞上过。同一个 `Service` 类，DSH 里是
+4.0.4、探针里是 4.0.2，表现为 `ctx.reflect.provide is not a function` —— 第一次差点误判成
+"插件挂了"。
+
+已删除整个 junction 农场，清单存档在 `~/.dsh/backups/profiles-node_modules-junctions-20260930.txt`
+（488 行，含每个 junction 的目标，可完整重建）。删除后：
+
+- 标准解析从 profile 出发得到 `MODULE_NOT_FOUND`，而不是命中废弃树 ——
+  **快速失败优于静默用错版本**
+- DSH 重启正常，10 项门禁全绿，drift-scan CLEAN
+
+`~/.dsh/runtime/v209-patched-tree`（0.1.5-rc.1 内核树，22096 文件 / 223.9 MB）**保留**：
+它现在是那座 junction 农场的唯一目标，也是 0.1.5 时代唯一的完整内核回滚源。所有补丁都已在
+whale 账本登记，真要删随时可删，但这属于独立决策，没有顺手做掉。
 
 ### 实机验证（0.2.0 rc.1 上逐项）
 
