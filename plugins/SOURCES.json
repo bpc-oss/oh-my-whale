@@ -8,7 +8,10 @@
       "source": "{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
       "package_spec": "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
       "install_type": "file-dir",
-      "description": "Agent OS LCO adapter (local tgz in AgentOS bundles dir)"
+      "description": "Agent OS LCO adapter. REMOVED 2026-09-30 on the user instruction — no longer merely disabled. Do not reinstall: the block is gone from profile/cordis.patch.yml AND from the replay template. Removing it also puts the governance native-admission path (admission / policy guard / capability router / budget) out of scope, because its pointer+snapshot material lived under AgentOS/dsh/native-admission — part of the same LCO evidence tree.",
+      "status": "removed",
+      "removed_by": "user decision 2026-09-30 (\"lco 不要了\")",
+      "removed_from_profile": true
     },
     {
       "id": "@bpc-oss/dsh-client-ui-verification",

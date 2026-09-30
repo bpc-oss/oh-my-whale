@@ -152,12 +152,21 @@ if ((Test-Path $anchorFile) -and (Test-Path $webPatch)) {
   $anchors = (Get-Content $anchorFile -Encoding UTF8 -Raw | ConvertFrom-Json).anchors
   $webSrc = Get-Content $webPatch -Raw -Encoding UTF8
   $missing = @()
+  $unexpected = @()
   foreach ($a in $anchors) {
     $n = ([regex]::Matches($webSrc, $a.pattern, [Text.RegularExpressions.RegexOptions]::Multiline)).Count
     if ($n -lt $a.min) { $missing += $a.id }
+    # An anchor with `max` asserts the ABSENCE of something — used for rows a decision
+    # retired, so a replay that re-adds them is caught. `min: 0` alone would assert nothing.
+    if ($null -ne $a.max -and $n -gt $a.max) { $unexpected += "$($a.id) (found $n, allowed $($a.max))" }
   }
-  $anchorMsg = if ($missing.Count) { "missing: $($missing -join ', ')" } else { "$($anchors.Count) custom rows present in cordis.patch.yml" }
-  Check 'web profile custom config anchors' ($missing.Count -eq 0) $anchorMsg
+  $anchorMsg = if ($missing.Count -or $unexpected.Count) {
+    $parts = @()
+    if ($missing.Count) { $parts += "missing: $($missing -join ', ')" }
+    if ($unexpected.Count) { $parts += "should be absent: $($unexpected -join ', ')" }
+    $parts -join '; '
+  } else { "$($anchors.Count) custom rows present in cordis.patch.yml" }
+  Check 'web profile custom config anchors' (($missing.Count -eq 0) -and ($unexpected.Count -eq 0)) $anchorMsg
 } else {
   Check 'web profile custom config anchors' $false 'anchor file or live profile patch missing'
 }

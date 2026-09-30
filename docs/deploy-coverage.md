@@ -318,3 +318,39 @@ AgentOS/dsh/native-admission/pointers/   2 个 pointer，都是 state: active，
   exit 0 且不报错。已把 verdict 合并到脚本最末端，报告只写一次。双向实测：CLEAN→exit 0；
   缺失基线→ERROR+exit 1。
 - 已部署的 `dist/` 经独立复核与当前 `src/` 的全新构建**逐字节一致**（32 个文件三方 diff）。
+
+## LCO 适配器已移除（2026-09-30，用户指示「lco 不要了」）
+
+之前是**保持关闭**（2026-09-10 起 `disabled: true`，config 保留以便日后启用）。
+现在是**移除**，四处同步：
+
+| 位置 | 变更 |
+|---|---|
+| `~/.dsh/profiles/web/cordis.patch.yml` | 删掉 `- id: agentos-dsh-lco` 整块，换成一段说明为什么它不在了 |
+| `profile/cordis.patch.yml.template` | 同上，并更新顶部 A5 注释（原写"保持 disabled"） |
+| `plugins/SOURCES.json` | 标 `status: removed` / `removed_by`，描述写明**不要重装** |
+| `local-overrides/…anchors.json` | 删掉两条 LCO 断言，换成一条 `min: 0, max: 0` 的**必须保持不存在**断言 |
+
+`max` 断言需要 `verify.ps1` 支持上限 —— 原来只判 `>= min`，`min: 0` 等于什么都不检查，
+所以给检查加了 `max` 分支。阴性对照：把 LCO 行加回 live profile →
+`should be absent: lco-removed-not-reinstalled (found 1, allowed 0)` + DRIFT；移除 → PASS。
+
+### 连带结论：native-admission 那四项能力不再是缺口
+
+之前列出的"打不开的四项"（准入 native / 策略守卫 / 能力路由 / 预算）全部 gate 在
+`nativeSelected`，而它要求 `AgentOS/dsh/native-admission/pointers/` 里有 `state === "active"`
+的 pointer。那两个 pointer 是**测试夹具**（authority 里的 sha256 全是 `aaaa…`/`1111…` 占位符），
+且 `expires_at` 已过期 41 天。
+
+那个目录属于 LCO 的证据树。**LCO 不要了，这条线就没有再追的意义** —— 不是修不好，
+是要修的东西已经不在你的目标里了。
+
+治理插件剩下的两项（完成提交、状态/订阅）不依赖 native admission，继续工作。
+
+### 移除后的验证
+
+- DSH 重启正常，本次启动后 host 日志 **0 条** LCO 相关记录
+  （16:55 那三条 `patch: entry "agentos-dsh-lco" not found` 是上一次运行的 HMR 重放残留，
+  与 `vision-toolkit` 那几条同类）
+- profile 与 whale 两侧均无任何 `agentos-dsh-lco` 引用
+- 10 项门禁全绿，drift-scan CLEAN

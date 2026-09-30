@@ -96,18 +96,6 @@
       "min": 1
     },
     {
-      "id": "agentos-lco-adapter-entry",
-      "why": "LCO is deliberately disabled but its config block is kept so it can be re-enabled; dropping the block loses the thresholds",
-      "pattern": "^- id: agentos-dsh-lco$",
-      "min": 1
-    },
-    {
-      "id": "agentos-lco-bridge-path",
-      "why": "the LCO bridge executable; stored as a credential-style name so no machine path is committed",
-      "pattern": "^    bridgePath: .*agentos-lco-dsh-bridge.exe$",
-      "min": 1
-    },
-    {
       "id": "reverse-proxy-inbound",
       "why": "the phone connects through this block; the port 41180 was measured, not defaulted (45120-48120 is partly reserved on this host)",
       "pattern": "^- id: reverse-proxy$",
@@ -124,6 +112,13 @@
       "why": "the chrome-faithful compatibility block forwards AGENTOS_CHROME_CONFIG into the MCP child env",
       "pattern": "AGENTOS_CHROME_CONFIG",
       "min": 1
+    },
+    {
+      "id": "lco-removed-not-reinstalled",
+      "why": "LCO was removed by user decision on 2026-09-30. This asserts the row stays GONE: a replay that re-added it would silently reintroduce an adapter the user retired.",
+      "pattern": "^- id: agentos-dsh-lco$",
+      "min": 0,
+      "max": 0
     }
   ]
 }

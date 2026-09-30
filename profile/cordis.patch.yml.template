@@ -3,8 +3,7 @@
 # overrides, disables, and insert lists; `!!js` expressions allowed).
 # v209-era rebuild (2026-09-11, from live ~/.dsh/profiles/web/cordis.patch.yml):
 # - trustedHosts 静态化：v209 桌面壳静态校验拒 !!js（见 web-runtime 块注释）。
-# - A5：agentos-dsh-lco 结构断头已修复，但保持 disabled 且不装包（config 保留便于日后启用；
-#   重装走 plugins/SOURCES.json 注册项，不进 package.json 模板）。
+# - A5：agentos-dsh-lco 已于 2026-09-30 按用户指示移除（不再 merely disabled）。
 # - continuous-worker：当前 disabled（v2 冻结在 ~/.dsh/releases/continuous-worker-v2/<hash>，
 #   启用时删 disabled 行并按发布目录核对 databasePath/policyPath）。
 # - 本模板止于 governance 块；其后的 '#Managed by dsh-plugin-manager...' 行是装机期
@@ -188,17 +187,11 @@
     listenPort: 41180
 
 
-# Agent OS LCO adapter — 保持关闭（用户决定 2026-09-10；结构断头已修复，config 保留便于日后启用）
-- id: agentos-dsh-lco
-  disabled: true
-  config:
-    mode: store
-    expectSpillPolicyAbove: 50000
-    sampleRate: 1.0
-    thresholdChars: 4096
-    headChars: 2048
-    tailChars: 512
-    bridgePath: {{AGENT_OS_BRIDGE}}
+# Agent OS LCO adapter — REMOVED 2026-09-30 on the user instruction ("lco 不要了").
+# Had been parked with disabled: true since 2026-09-10; the block is now gone so a replay
+# cannot resurrect it. The native-admission path goes with it: its pointer/snapshot
+# material lived under AgentOS/dsh/native-admission, part of the same LCO evidence tree.
+
 
 # 2026-08-20 v2.0.1 compatibility: chrome-faithful-mcp MCP spawn fails on new shell (Electron main process)
 # failOnStartupError: false makes it warn/retry instead of fatal boot.
