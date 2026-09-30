@@ -354,3 +354,48 @@ AgentOS/dsh/native-admission/pointers/   2 个 pointer，都是 state: active，
   与 `vision-toolkit` 那几条同类）
 - profile 与 whale 两侧均无任何 `agentos-dsh-lco` 引用
 - 10 项门禁全绿，drift-scan CLEAN
+
+## 审查剩余两项 MINOR 的处置（2026-09-30）
+
+### MINOR 9：claim 工具全局注册导致跨 session 泄漏（已修，含行为变更）
+
+`ToolRuntime.register()` 走的是**它自己的** `this.ctx`（`this.layers.effect(this.ctx, ...)`，
+dsh-tools/lib/index.js），而服务是单例 —— 所以 `agentos_submit_claim` 挂载在**全局**，
+不是受治理的那个 agent 上。审查实测：一个完全没有治理的 agent 也能看到并调用它，
+且绑的是**另一个** agent 的 sessionId。
+
+原先 `parseCompletionClaim` 只比对调用方自己传进来的字符串 —— `session_id` 是不可信输入，
+拿它和同样是字符串的 binding 比，等于没比。
+
+修法：`CompletionToolBinding` 增加 `runningSessionId()`（零参访问器，闭包读 `exec.agent`），
+解析时**以真实执行者为准**，不匹配就拒绝。三条路径都有对照：
+
+```
+ACCEPTED  1. 受治理 agent 提交自己的 session
+REJECTED  2. 另一个 agent 提交 session-A 的 id  -> completion session does not match the running session
+REJECTED  3. 无 agent 的执行                     -> completion claim requires a governed session
+```
+
+中途踩了个自己的坑：先把 `runningSessionId` 写成接收 agent 参数的函数，而调用点传的正是
+字面量 `undefined`，导致**正常路径也被拒**。改成闭包读 `exec.agent` 才对。
+
+顺带把插件的三个 peer 依赖（cordis / dsh-agent / dsh-tools）在开发树和已装副本都建了
+junction 指向 app 树 —— 它们只存在于 app 树（2.0.16 裸目录布局），没有这层链接就无法
+在隔离环境里类型检查、构建或加载，**这正是源码能与内核脱节而不被发现的原因之一**。
+
+### MINOR 8：索引签名会吞掉 typo（已修）
+
+`readonly [k: string]: any` 让 `ctx.agnet`、`tools.guardd` 编译通过、运行时才炸。按审查
+给出的实际访问面（`ctx`: on/get/agents；`tools`: guard/register/schemas；`exec`:
+agent/name/callId/rootCallId/signal/arguments/token）改成显式成员，去掉顶层索引签名。
+
+同时按内核真实条件修正两处可选性：`ToolExecution.agent` 是
+`...agent !== undefined ? { agent } : {}`（条件存在），`arguments` 在错误路径上是
+`void 0`（可缺失）—— 原先都声明成必填。
+
+阴性对照：注入 `ctx.gaurd` → `error TS2339: Property 'gaurd' does not exist on type 'Context'`；
+还原 → 0 错。
+
+工具决策类型（`Pre/PostToolDecision`）**保留**索引签名并加注释：内核的真实契约
+（`accept`/`block`、`feedback`、`content`、`value`、`additionalContexts`）比本插件用到的宽，
+在那种地方假装建模整个 union 属于编造，而 typo 也不是现实失效模式。
