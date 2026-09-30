@@ -119,6 +119,18 @@
       "pattern": "^- id: agentos-dsh-lco$",
       "min": 0,
       "max": 0
+    },
+    {
+      "id": "commandcode-retryable-codes",
+      "why": "Added 2026-09-30 with P41. The relay answers an upstream outage with HTTP 200 + text/event-stream and an in-band `data: {...,\"error\":{...}}` chunk, so the status code never reaches the client and the failure classifies as the catch-all PI_AI_ERROR — which is NOT in DEFAULT_RETRYABLE_CODES. Without this row a single transient blip kills the turn and retryPolicy.maxRetries: 1000 is dead config. The kernel reconciles this file on boot, so the row can be dropped without any diff announcing it; this anchor is the only thing that notices.",
+      "pattern": "^            - PI_AI_ERROR$",
+      "min": 1
+    },
+    {
+      "id": "commandcode-retry-max",
+      "why": "Same change: the infinite-retry intent is carried by maxRetries, and the anchor above only proves the code list survived.",
+      "pattern": "^          maxRetries: 1000$",
+      "min": 1
     }
   ]
 }

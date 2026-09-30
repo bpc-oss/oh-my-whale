@@ -1,0 +1,20 @@
+--- a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
++++ b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+@@ -1492,6 +1492,17 @@
+ }
+ function classifyPiAiError(message) {
+ 	if (/\b(?:401|403)\b/.test(message)) return "AUTH";
++	// P41: an OpenAI-compatible relay that fails upstream answers HTTP 200 with
++	// text/event-stream and puts the failure INSIDE the stream as an in-band
++	// `data: {...,"error":{"code":502,"message":"JSON error injected into SSE
++	// stream","metadata":{"error_type":"provider_unavailable"}}}`. pi-ai keeps
++	// only `error.message`, so the status code and error_type are gone by the
++	// time we classify, and the bare text matches no rule below — it used to
++	// fall through to PI_AI_ERROR, which is absent from DEFAULT_RETRYABLE_CODES
++	// and therefore killed the turn on the first transient blip no matter what
++	// retryPolicy.maxRetries said. The wording names an upstream outage, so
++	// classify it the way the dropped 502 would have been classified.
++	if (/\bJSON error injected into\b/i.test(message) || /\binjected into (?:the )?SSE stream\b/i.test(message)) return "SERVER";
+ 	if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE;
+ 	if (/\b429\b|rate.?limit/i.test(message)) return "RATE_LIMIT";
+ 	if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return "INVALID_REQUEST";

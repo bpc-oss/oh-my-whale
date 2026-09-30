@@ -1,6 +1,64 @@
 # Changelog
 
 
+## [0.3.5] - 20260930 — P41/P42：中继伪装成 SSE 的 502 曾直接杀死对话；agent 释放必抛 TypeError
+
+一次实机报障（`session-1363ee2e`，19:45:44 与 19:45:54 连挂两个 turn）牵出两个真实缺陷，都不是
+"模型选错"或"payload 太大"——那两条路都验证过是通的。
+
+### P41 · 中继把上游故障伪装成 200 + SSE 内联 JSON 错误，DSH 把它判成不可重试
+
+`api.commandcode.ai` 上游挂掉时不返回 502，而是返回 **HTTP 200 + `text/event-stream`**，把错误塞进
+流里当一条 `data:`：
+
+```
+data: {"id":"gen-…","object":"chat.completion.chunk",…,"choices":[],
+       "error":{"code":502,"message":"JSON error injected into SSE stream",
+                "metadata":{"error_type":"provider_unavailable"}}}
+```
+
+直接打这个端点可以稳定复现（发一个不支持的 role 就回来了）。pi-ai 只保留 `error.message`，于是
+`code: 502` 和 `error_type` 在分类前就丢了，剩下光秃秃一句 `JSON error injected into SSE stream`，
+在 `classifyPiAiError` 的规则里**一条都不匹配**，落到兜底的 `PI_AI_ERROR`。而 `PI_AI_ERROR` 不在
+`DEFAULT_RETRYABLE_CODES`（`dsh-llm`）里 → `dsh-llm-retry` 直接 `next()` → 轮次当场死掉，
+provider 上配的 `retryPolicy.maxRetries: 1000` 成了死配置。
+
+修法：按被丢掉的那个 502 本来会得到的分类，把它判成 `SERVER`。配套在 commandcode 的
+`retryPolicy` 里显式列出 `retryableCodes`（含 `PI_AI_ERROR`）兜底——这条走的是 live 配置，
+不依赖内核补丁，下次升级自动活着。
+
+同一次会话 16 秒内 4 次失败（2 次 `basic-compaction-engine … Connection error.` + 2 次主调用），
+usage 全是 0/0/0；用该会话真实的 111k token 上下文重放则完全正常。**故障在上游，不在请求。**
+
+### P42 · 每次 agent 释放都抛 TypeError，把诊断和后续监听器一起丢掉
+
+`dsh-tool-subagent` 的 `removeScoped` 写的是 `fiber.dispose().catch(...)`，但 cordis 4 的
+`Fiber.dispose()` 是同步的、返回 `undefined`（cordis 自己每个调用点都包了 `Promise.resolve`），
+所以每次对话关闭都会抛 `Cannot read properties of undefined (reading 'catch')`。这个抛出发生在
+`agent/disposed` 监听器里，**后面那行本来用来记录真实清理失败的 warn 永远不执行**，同链后续监听器
+也被打断。2026-09-30 当天日志里出现 10 次，横跨 5 个会话，每次都紧挨着一条
+`session-projection-cache … SessionHandleClosedError: flush on a closed handle`。
+
+### 验证
+
+- `scripts/test-p41-classify.mjs` — 18/18，含 3 条阴性对照：真正的 `stream ended pending` /
+    `deferred response` / 无关文本必须**仍然**留在不可重试的 `PI_AI_ERROR`。
+- `scripts/test-p42-dispose.mjs` — 钉住 cordis 4 真实形状（`dispose() -> undefined`）；
+    旧写法必须抛、新写法必须不抛，否则测试失败。
+- 两份 patch 均 `patch -p1` 往返重放后与线上文件逐字节一致；把未打补丁的备份喂给
+    `verify-patch-port.mjs`，两条如期变 `TODO`（阴性对照成立）。
+- 全量门禁：patch-port `39 OK / 0 TODO`（42 条）、audit-registry 48/48、esm-syntax 1092 模块 0 错、
+    plugin-imports 21 插件 88 边 0 问题、plugin-activation 24 健康、preset-mounts 426 id 零缺失、
+    drift-scan `CLEAN`、local-overrides 19 锚点全在、check-private OK。
+
+### 同时清理
+
+- **P40 死条目**：上一轮撤销 `dsh-api-session-controller` 活模型选择补丁时，patch 文件和 apply
+    脚本都删了，manifest 里的条目却留着，指向一个不存在的 `host/040-*.patch`。本轮一并移除。
+- 新增锚点 `commandcode-retryable-codes` / `commandcode-retry-max`：`cordis.patch.yml` 是内核
+    每次 boot 都会 reconcile 的文件，diff 察觉不到行被抹掉，只有锚点能察觉（已做阴性对照）。
+
+
 ## [0.3.4] - 20260930 — 全量账本对账：补回丢失项、修 6 个门禁盲点、登记 P38
 
 上一版修好了 better-sidebar，但那只是用户报障的那一个。这轮按"照着 whale 全部登记物逐条对账"做了一遍，

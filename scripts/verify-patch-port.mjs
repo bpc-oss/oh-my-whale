@@ -153,11 +153,18 @@ const CHECKS = [
   // plugin repos, forks — cannot resolve @deepseek-ai/* and dies with ERR_MODULE_NOT_FOUND.
   { id: 'P39', why: 'a video-capable model is not rejected by the frame-extraction guard (needle is the ADDED symbol, not the pre-existing one)',
     files: ['@deepseek-ai/dsh-llm-pi-ai/lib/index.js'], needles: ['modelTakesVideo'] },
-  { id: 'P40', why: "a resumed conversation's request follows the user's later model choice (projection re-read, not captured at construction)",
-    files: ['@deepseek-ai/dsh-api-session-controller/lib/index.js'], needles: ['P40 (2026-09-30)', 'selectionCtx.sessionProjections'] },
   { id: 'P38', why: 'outside-profile @deepseek-ai resolution fallback (load-bearing for presets/forks)',
     files: ['app:/lib/module-resolution-CTTB3FAS.js'],
     needles: ['// DSH patch: a module loaded by file:// URL that lives OUTSIDE every'] },
+  // P41/P42 registered 2026-09-30 from a live failure, both are correctness fixes with no
+  // config-level equivalent. Their needles are the ADDED regex / call shape, not a keyword
+  // that already existed upstream, so a keyword gate could not see them being overwritten.
+  { id: 'P41', why: 'relay-injected SSE error classifies as SERVER so a transient upstream outage is retried instead of killing the turn (PI_AI_ERROR is not in DEFAULT_RETRYABLE_CODES)',
+    files: ['@deepseek-ai/dsh-llm-pi-ai/lib/index.js'],
+    needles: ['JSON error injected into'] },
+  { id: 'P42', why: 'agent disposal no longer throws TypeError on fiber.dispose() (cordis 4 dispose is synchronous), which cut the agent/disposed listener chain short and swallowed the disposal diagnostic',
+    files: ['@deepseek-ai/dsh-tool-subagent/lib/index.js'],
+    needles: ['Promise.resolve(fiber.dispose()).catch'] },
 ];
 
 const rows = [];

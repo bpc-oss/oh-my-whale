@@ -667,15 +667,27 @@
       "kernelLine": "0.2.0-rc.1"
     },
     {
-      "id": "P40",
+      "id": "P41",
       "file": "host",
-      "target": "@deepseek-ai/dsh-api-session-controller/lib/index.js",
-      "patchFile": "host/040-api-session-live-model-selection.patch",
+      "target": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js",
+      "patchFile": "host/041-llm-pi-ai-relay-injected-sse-error-retryable.patch",
       "source": "manual",
       "status": "ported",
-      "purpose": "the model a RESUMED conversation sends to must follow the user's later choice. selectionFor() captured projectionState.pending into `picked` ONCE at construction, and the only later writer of `picked` (selectForNextRequest) has no caller anywhere in the shell — so every request on a resumed conversation fell through to agent.session.requestHeader(), i.e. the model the conversation was CREATED with, while the composer displayed the newly chosen one.",
-      "note": "Re-reads the modelSelection projection on every selection.current access; `picked` stays as the explicit-override channel. Applied by scripts/apply-p40-live-model-selection.mjs (idempotent, refuses if the anchor moved). A first attempt used `this.ctx` inside the getter and was a SILENT NO-OP: `this` in an object-literal getter is the object literal, not the service, so the lookup threw and the surrounding try/catch swallowed it. The context is captured in a closure instead. NEEDS END-TO-END CONFIRMATION: switching a model in a resumed conversation and checking which model actually served the request.",
-      "appliedBy": "scripts/apply-p40-live-model-selection.mjs (idempotent; the .patch is the replayable record)",
+      "purpose": "An OpenAI-compatible relay that loses its upstream answers HTTP 200 with content-type text/event-stream and puts the failure inside the stream as an in-band `data: {...,\"error\":{\"code\":502,\"message\":\"JSON error injected into SSE stream\",\"metadata\":{\"error_type\":\"provider_unavailable\"}}}`. pi-ai keeps only error.message, so the status code and error_type never reach classifyPiAiError, and the bare text matched none of its rules — it fell through to the catch-all PI_AI_ERROR. PI_AI_ERROR is absent from DEFAULT_RETRYABLE_CODES (dsh-llm), so dsh-llm-retry returned next() and killed the turn on the first transient blip regardless of the provider retryPolicy.maxRetries. The rule classifies the relay wording as SERVER, the class the dropped 502 would have received.",
+      "note": "Registered 2026-09-30 from session-1363ee2e-2a8c-4a05-a566-a964477a5cc2, which failed turn 4 and turn 5 back to back with PI_AI_ERROR at 0/0/0 usage while basic-compaction-engine logged \"Connection error.\" twice in the same 16s window. The relay was probed directly and reproduced the in-band error on demand (POST /chat/completions with an unsupported role returns 200 text/event-stream carrying {\"error\":{\"code\":502,\"message\":\"JSON error injected into SSE stream\",\"metadata\":{\"error_type\":\"provider_unavailable\"}}}), and the same real 111k-token context from that session then completed normally, so the payload was not at fault. Verified with scripts/test-p41-classify.mjs: 18/18 including three negative controls that must stay PI_AI_ERROR (stream ended pending, deferred response, unrelated text).",
+      "discovered_by": "host log dsh-2026-09-30 PI_AI_ERROR + direct replay against https://api.commandcode.ai/provider/v1/chat/completions",
+      "kernelLine": "0.2.0-rc.1"
+    },
+    {
+      "id": "P42",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-tool-subagent/lib/index.js",
+      "patchFile": "host/042-tool-subagent-fiber-dispose-promise.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "removeScoped called fiber.dispose().catch(...). Fiber.dispose() is synchronous in cordis 4 — it returns void, which is why cordis wraps its own call sites in Promise.resolve — so the bare .catch threw TypeError: Cannot read properties of undefined (reading 'catch') on every agent disposal. The throw escaped the agent/disposed listener, so the disposal diagnostic the sink was written to log was never emitted and the remaining disposed listeners in the chain were cut short.",
+      "note": "Registered 2026-09-30. The host log carries this TypeError 10 times on 2026-09-30 across five distinct sessions, each immediately preceded by `session-projection-cache ... turn/end write ... failed (cache stays stale): SessionHandleClosedError: flush on a closed handle`, i.e. a session closed while its turn was still ending. Verified with scripts/test-p42-dispose.mjs, which pins the real cordis-4 shape (dispose() -> undefined) and fails if the old call site stops throwing.",
+      "discovered_by": "host log dsh-2026-09-30 agent-registry listener-throw + cordis 4 dispose contract read from cordis/lib/index.js:1123",
       "kernelLine": "0.2.0-rc.1"
     }
   ],

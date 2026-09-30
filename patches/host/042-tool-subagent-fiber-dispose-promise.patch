@@ -1,0 +1,18 @@
+--- a/@deepseek-ai/dsh-tool-subagent/lib/index.js
++++ b/@deepseek-ai/dsh-tool-subagent/lib/index.js
+@@ -641,7 +641,14 @@
+ 		if (fiber === void 0) return;
+ 		scopedInstalls.delete(candidate);
+ 		/* v8 ignore next 3 -- Cordis Fiber disposal contains registration cleanup failures; this is the final diagnostic sink. */
+-		fiber.dispose().catch((error) => {
++		// P42: Fiber.dispose() is synchronous in cordis 4 (it returns void, and
++		// cordis itself wraps every internal call site in Promise.resolve), so
++		// the bare `.catch` threw "Cannot read properties of undefined (reading
++		// 'catch')" on EVERY agent disposal. That escaped the agent/disposed
++		// listener, so the real disposal diagnostic below was never logged and
++		// the remaining disposed listeners in the chain were cut short. Wrap the
++		// call the way cordis does.
++		Promise.resolve(fiber.dispose()).catch((error) => {
+ 			ctx.logger.warn(`tool-subagent: failed to remove recomposed Agent "${candidate.id}" definitions: ${String(error)}`);
+ 		});
+ 	};
