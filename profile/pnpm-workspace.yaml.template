@@ -12,11 +12,16 @@ autoInstallPeers: false
 minimumReleaseAgeExclude:
   - '@deepseek-ai/cosmokit@1.8.2'
   - '@deepseek-ai/schemastery@3.18.1'
+  # 2026-09-30: dsh-client-ui-subagent@0.2.0-rc.2 (published 2026-09-29T09:53Z) sits
+  # inside the minimumReleaseAge cutoff, which makes pnpm reject the WHOLE lockfile and
+  # abort before it can resolve anything. Excluded so the lockfile stays installable.
+  - '@deepseek-ai/dsh-client-ui-subagent@0.2.0-rc.2'
   - dsh-bash-terminal@0.3.11
   - dsh-better-sidebar@0.10.3
   - dsh-plugin-manager@0.1.0
   - '@liustack/modlens'
   - '@liustack/modsearch'
+  - '@zseven-w/dsh-openpencil@0.1.0-rc.2'
 allowBuilds:
   node-pty: true
   protobufjs: true

@@ -117,6 +117,80 @@ added now  : ["dsh-local-presets"]      <- 新增：preset 层包
 
 **教训**：遇到插件在新宿主上报障，先查上游有没有新版本，再决定要不要手写移植。
 
+## 四之二之二、0.24.1 换上去了，但它**从头到尾就没加载过**
+
+上一节把 0.24.1 的架构变化讲清楚了，却漏掉了更要紧的事实：换包之后 better-sidebar
+**一次都没成功激活**。用户看到的"两个按钮位置不对""文件走官方侧栏"，
+在换包后的运行实例里根本不是 0.24.1 的行为——那是宿主自己的 UI。
+
+判据只有一条，host 日志里躺着：
+
+```
+[W] [hmr] better-sidebar (dsh-better-sidebar): failed to import
+    at .../dsh-better-sidebar/lib/index.js:119:115
+[E] [host-resolved-root-include] TypeError: field.volatile is not a function
+```
+
+`super-injector` 的 HMR 每隔几分钟重试一次，每次同样失败，所以日志里反复出现同一行。
+
+### 根因：profile 顶层的 schemastery 影子包
+
+`lib/index.js:119` 是这一行：
+
+```js
+const volatilePrefs = Object.fromEntries(
+  Object.entries(PrefsSchema.dict ?? {}).map(([key, field]) => [key, field.volatile()])
+);
+```
+
+`volatile()` 是 `@deepseek-ai/schemastery` 的方法。版本对不上：
+
+| 位置 | 版本 | 有 `volatile()` |
+|---|---|---|
+| 壳内 host | 3.18.4 | 有（9 处） |
+| **profile 顶层** `node_modules/@deepseek-ai/schemastery` | **3.18.1** | **无** |
+| 连带 `@deepseek-ai/cosmokit` | 1.8.2（host 是 1.8.5） | 无 `createVolatile` |
+
+profile 顶层那个 3.18.1 是 `@bpc-oss/dsh-verification` 的 peer 依赖被 pnpm 提升上来的
+（`pnpm-lock.yaml` 里 `autoInstallPeers: false`，peer 由包管理器代管）。
+它 shadow 掉了 host 的 3.18.4，于是所有从 profile 侧解析 `@deepseek-ai/schemastery`
+的插件拿到的都是 3.18.1。0.24.1 的 peerDependencies 写的是 `^0.2.0-rc.1`（内核线），
+它没把 schemastery 列进 peer，于是踩中了这个洞。
+
+**正确修法不是手改顶层包**。手改会被下一次 `pnpm install` 抹掉（实测：改完跑 install，
+pnpm 立刻按 lock 把顶层恢复成 3.18.1）。正解是让 pnpm 装 better-sidebar 自己的依赖：
+
+```
+node_modules/dsh-better-sidebar/node_modules/@deepseek-ai/schemastery  3.18.4
+node_modules/dsh-better-sidebar/node_modules/@deepseek-ai/cosmokit      1.8.5
+```
+
+Node 的 ESM 解析从 `dsh-better-sidebar/lib/` 出发先命中自己那一份，3.18.1 留在原地
+服务 dsh-verification，两者互不干扰。实测 `createRequire('.../dsh-better-sidebar/lib/index.js')
+.resolve('@deepseek-ai/schemastery')` 落在嵌套的 `lib/index.cjs`（3.18.4）上。
+
+### 顺带挖出来的坑：lock 与实装脱节
+
+装 0.24.1 时只改了 `package.json`（`^0.24.1`），**lock 仍锁在**
+`file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz`。也就是说
+**任何一次 `pnpm install` 都会把插件静默降级回 0.12.2**，而且不会有任何报错。
+
+而 `pnpm install` 当时跑不通：供应链策略 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`
+拦下 `@deepseek-ai/dsh-client-ui-subagent@0.2.0-rc.2`（发布于 cutoff 之后 6 小时），
+pnpm 在解析任何东西之前就整体拒绝。已在 `pnpm-workspace.yaml` 的
+`minimumReleaseAgeExclude` 补上该条目——它本来就在 lock 里，只是没进白名单。
+
+### 另一个被误伤的补丁：P31
+
+`patches/manifest.json` 的 **P31** 把官方右栏的 `ExpandButton` 改成恒返 `null`。
+2026-09-12 的判断是"官方右栏与 better-sidebar 重复，保留 better-sidebar"——
+那时装的是 0.12.2，它自带挂在 `document.body` 的浮动开关，确实重复。
+
+0.24.1 反过来了：它 `inject @deepseek-ai/dsh-client-ui-sidebar-right`，
+用 `sidebar.right.pane.tab` / `.tab.title` 在**官方右栏里**注册 pane。
+官方那个 ExpandButton 不再是重复入口，而是**到达插件 pane 的唯一入口**。
+继续挂着 P31 = 插件看得见、点不开。已撤销。
+
 ## 四之三、better-sidebar 侧栏：三处 0.2.0 断裂叠在一起
 
 用户报「右边的侧边栏点不开」。真实原因不是一处，是三层叠加，任何一层单独修都还是打不开：
@@ -184,7 +258,29 @@ node scripts\verify-patch-port.mjs "$env:LOCALAPPDATA\Programs\DSH Desktop\resou
 powershell -File scripts\apply-post-install-patches.ps1     # 幂等
 powershell -File scripts\verify-kernel-patches.ps1
 node scripts\esm-link-check.mjs "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app"
+node scripts\verify-plugin-activation.mjs                   # 重启 DSH 之后跑
 ```
+
+最后一条是 2026-09-30 新增的。理由见「四之二之二」：插件 import 抛错时**磁盘上一切正常、
+渲染器一切正常**，唯一证据在 host 日志里。`verify-plugin-activation.mjs` 查两件事——
+host 日志里的 import 失败，以及某个传递依赖解析到了**比顶层更旧**的嵌套副本。
+日志超过 6 小时没更新时它会以 exit 2 提示"这个绿只说明日志一直绿，重启再验"。
+
+### 换插件版本时的纪律
+
+`package.json`、`pnpm-lock.yaml`、`node_modules` 三者必须同时对齐。
+只改 `package.json` 的后果不是装不上，而是**下一次任何人跑 `pnpm install`
+都会把它静默降级回旧版**，且全程无报错（0.24.1 就是这么在 lock 里被
+`dsh-better-sidebar-0.12.2-fix108.tgz` 压住的）。
+
+`pnpm install` 跑不通时先看是不是供应链策略：
+
+```
+ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
+```
+
+pnpm 会在解析任何东西**之前**整体拒绝 lockfile。把那个包加进
+`pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 即可。
 
 `compatibility.json` 的豁免是**精确版本**的：插件或内核一升版就要重算，
 否则 0.2.0 那种"整批静默禁用"会再来一次。

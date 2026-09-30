@@ -122,8 +122,15 @@ const CHECKS = [
     files: ['@deepseek-ai/dsh-client-ui-commands/lib/client.js'], needles: ['backoffDelayMs', 'forceRefresh'] },
   { id: 'P30', why: 'desktop-updates policy defaults to false (shell lib, opt-in so a silent upstream update cannot clobber the patched tree)',
     files: ['app:/lib/updates.js'], needles: ['enabled: z.boolean().default(false)'] },
-  { id: 'P31', why: 'right-sidebar ExpandButton hidden',
-    files: ['@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js'], needles: ['ExpandButton'] },
+  // P31 was RETIRED 2026-09-30 (manifest: host-retired). better-sidebar 0.24.1 registers its
+  // panes INSIDE the official right sidebar via the sidebar.right.pane.tab slots, so the
+  // official ExpandButton is the only route to them — hiding it left the plugin visible but
+  // unreachable. The assertion is now inverted: the P31 marker must be GONE and the real
+  // ExpandButton implementation must be back.
+  { id: 'P31', why: 'retired 2026-09-30 — official ExpandButton restored (better-sidebar 0.24.1 lives in it)',
+    files: ['@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js'],
+    antiNeedles: ['P31 (2026-09-12)'],
+    needles: ['data-sidebar-right-expand'] },
   { id: 'P37', why: 'sidebar document preview renders inline video',
     files: ['@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js'], needles: ['applyP37Video'] },
 ];
@@ -142,7 +149,10 @@ for (const c of CHECKS) {
   const missingFiles = c.files.filter((_, i) => !srcs[i]);
   if (missingFiles.length) { rows.push({ id: c.id, state: 'MISSING-FILE', why: c.why, note: missingFiles.join(', '), todo: true }); continue; }
   const absent = c.needles.filter((n) => !srcs.some((s) => s.includes(n)));
-  rows.push({ id: c.id, state: absent.length ? 'TODO' : 'OK', why: c.why, absent });
+  // antiNeedles assert the ABSENCE of a marker — used where a patch was retired and its
+  // fingerprint must not come back (a half-reverted file still carries the comment).
+  const present = (c.antiNeedles ?? []).filter((n) => srcs.some((s) => s.includes(n)));
+  rows.push({ id: c.id, state: absent.length || present.length ? 'TODO' : 'OK', why: c.why, absent, present });
 }
 
 const w = { OK: 0, TODO: 0, UPSTREAM: 0, PROFILE: 0, 'MISSING-FILE': 0 };
@@ -151,6 +161,7 @@ for (const r of rows) {
   const tag = { OK: 'OK      ', TODO: 'TODO     ', UPSTREAM: 'UPSTREAM ', PROFILE: 'PROFILE  ', 'MISSING-FILE': 'NO-FILE  ' }[r.state];
   console.log(`${r.id.padEnd(5)} ${tag} ${r.why}`);
   if (r.absent?.length) console.log(`             missing: ${r.absent.join(', ')}`);
+  if (r.present?.length) console.log(`             should be GONE but found: ${r.present.join(', ')}`);
   if (r.note) console.log(`             ${r.note}`);
 }
 console.log('');

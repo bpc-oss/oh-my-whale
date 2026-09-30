@@ -1,20 +1,8 @@
 {
     "profileDir":  "{{USER_HOME}}\\.dsh\\profiles\\web",
-    "generatedAt":  "2026-09-12T14:08:22.6413089+08:00",
+    "generatedAt":  "2026-09-30T11:19:36.8532717+08:00",
     "version":  "1",
     "entries":  [
-                    {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-                        "id":  "dsh-subagent-model",
-                        "gitHead":  "88253d25a6bf3c499bab1b57f90fd0036d2ecdd5",
-                        "version":  "0.1.0",
-                        "dirtyFiles":  [
-
-                                       ],
-                        "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-                        "install_type":  "link"
-                    },
                     {
                         "source":  "{{USER_HOME}}/dsh-token-meter-hermes",
                         "id":  "dsh-token-meter-hermes",
@@ -30,15 +18,12 @@
                         "install_type":  "file-dir"
                     },
                     {
-                        "source":  "{{USER_HOME}}/dev/dsh-global-tool-discovery",
-                        "id":  "dsh-global-tool-discovery",
-                        "gitHead":  "7607c3ae3508e4ea310c7ffc0d95cf00bfa0a4f9",
-                        "version":  "0.2.1",
-                        "dirtyFiles":  [
-
-                                       ],
-                        "dirty":  0,
-                        "spec":  "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
+                        "source":  "{{USER_HOME}}/dsh-voice-input",
+                        "id":  "dsh-voice-input",
+                        "gitHead":  "",
+                        "version":  "0.1.0",
+                        "dirty":  -1,
+                        "spec":  "link:{{USER_HOME}}/dsh-voice-input",
                         "install_type":  "link"
                     },
                     {
@@ -54,21 +39,25 @@
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{USER_HOME}}/dsh-voice-input",
-                        "id":  "dsh-voice-input",
-                        "gitHead":  "",
+                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+                        "id":  "dsh-subagent-model",
+                        "gitHead":  "88253d25a6bf3c499bab1b57f90fd0036d2ecdd5",
                         "version":  "0.1.0",
-                        "dirty":  -1,
-                        "spec":  "link:{{USER_HOME}}/dsh-voice-input",
+                        "dirtyFiles":  [
+
+                                       ],
+                        "dirty":  0,
+                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{USER_HOME}}/.dsh/profiles/web/.dsh-module-fallback/node_modules/sherpa-onnx-node",
-                        "id":  "sherpa-onnx-node",
-                        "version":  "1.13.5",
-                        "spec":  "link:{{USER_HOME}}\\.dsh\\profiles\\web\\.dsh-module-fallback\\node_modules\\sherpa-onnx-node",
-                        "install_type":  "link",
-                        "unlisted_in_deps":  true
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\.\\local-presets",
+                        "id":  "dsh-local-presets",
+                        "gitHead":  "",
+                        "version":  "0.0.0",
+                        "dirty":  -1,
+                        "spec":  "file:./local-presets",
+                        "install_type":  "file-dir"
                     },
                     {
                         "source":  "{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
@@ -76,6 +65,13 @@
                         "registered_only":  true,
                         "spec":  "",
                         "install_type":  "file-dir"
+                    },
+                    {
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\plugins\\standalone\\dsh-promise-guard",
+                        "id":  "dsh-promise-guard",
+                        "registered_only":  true,
+                        "spec":  "",
+                        "install_type":  null
                     },
                     {
                         "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
@@ -94,6 +90,18 @@
                         "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-experimental\\m2-demo-plugin",
                         "install_type":  "link",
                         "unlisted_in_deps":  true
+                    },
+                    {
+                        "source":  "{{USER_HOME}}/dev/dsh-global-tool-discovery",
+                        "id":  "dsh-global-tool-discovery",
+                        "gitHead":  "7607c3ae3508e4ea310c7ffc0d95cf00bfa0a4f9",
+                        "version":  "0.2.1",
+                        "dirtyFiles":  [
+
+                                       ],
+                        "dirty":  0,
+                        "spec":  "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
+                        "install_type":  "link"
                     },
                     {
                         "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
@@ -139,15 +147,6 @@
                         "install_type":  "local-tgz"
                     },
                     {
-                        "source":  "{{USER_HOME}}/.dsh/releases/continuous-worker-v2/988c9c5",
-                        "id":  "dsh-continuous-worker",
-                        "gitHead":  "",
-                        "version":  "0.1.0",
-                        "dirty":  -1,
-                        "spec":  "link:{{USER_HOME}}/.dsh/releases/continuous-worker-v2/988c9c5",
-                        "install_type":  "link"
-                    },
-                    {
                         "source":  "{{PLUGIN_SOURCES_DIR}}\\\\dsh-fork-to-preset",
                         "id":  "dsh-fork-to-preset",
                         "gitHead":  "1cb7b9f60e52adf5702d37668c81792d748a0aa6",
@@ -160,6 +159,15 @@
                         "install_type":  "link"
                     },
                     {
+                        "source":  "{{USER_HOME}}\\.dsh\\vendor-pkgs\\fr\\package",
+                        "id":  "dsh-full-remote",
+                        "gitHead":  "",
+                        "version":  "0.3.7",
+                        "dirty":  -1,
+                        "spec":  "link:{{USER_HOME}}\\.dsh\\vendor-pkgs\\fr\\package",
+                        "install_type":  "link"
+                    },
+                    {
                         "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\dsh-super-injector-0.3.3.tgz",
                         "id":  "@dsh-external/dsh-super-injector",
                         "sha256":  "f39e98e156316a6e4206f82c1b68582adb0738a6e0a283847f5c176aab33575f",
@@ -167,11 +175,13 @@
                         "install_type":  "local-tgz"
                     },
                     {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\dsh-better-sidebar-0.12.2-fix108.tgz",
-                        "id":  "dsh-better-sidebar",
-                        "sha256":  "bd1d56c42b76bc4a66167b35f16e1f81be01d5732dd0d0c1ebb949cf88c00c93",
-                        "spec":  "file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz",
-                        "install_type":  "local-tgz"
+                        "source":  "{{USER_HOME}}/.dsh/releases/continuous-worker-v2/988c9c5",
+                        "id":  "dsh-continuous-worker",
+                        "gitHead":  "",
+                        "version":  "0.1.0",
+                        "dirty":  -1,
+                        "spec":  "link:{{USER_HOME}}/.dsh/releases/continuous-worker-v2/988c9c5",
+                        "install_type":  "link"
                     }
                 ],
     "notes":  "v209-era baseline (shell 2.0.9 / kernel 0.1.5-rc.1, packed app.asar). Dirty counts on link: sources are EXPECTED and are NOT drift-to-fix: dsh-voice-input carries the V8 fix4 hardening edited straight into the symlink source ({{USER_HOME}}/dsh-voice-input) - no repack needed, edits are live. {{PLUGIN_SOURCES_DIR}} link plugins (dsh-fork-to-preset, dsh-web-billing, dsh-routed-subagent, dsh-subagent-model, dsh-global-tool-discovery, dsh-continuous-worker) show whatever their local dev trees carry, incl. nested-copy patch residues (V5/V6 @deepseek-ai/dsh-subagent twins). V7 (dsh-better-sidebar) and V2/V2.1 (dsh-token-meter-hermes) live in the INSTALLED copies under profiles/web/node_modules, so the vendor tgz sha and the hermes file: source stay unchanged - reinstall reverts them (see plugins/SOURCES.json descriptions)."

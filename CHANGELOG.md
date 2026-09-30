@@ -1,6 +1,31 @@
 # Changelog
 
 
+## [0.3.3] - 20260930 — better-sidebar 0.24.1 真正激活；P31 撤销；新增插件激活门禁
+
+### 根因：0.24.1 换上去了，但它一次都没加载成功
+- 症状：底部面板空白、两个按钮落在 body、文件走官方侧栏。**但换包后的运行实例里根本没有 better-sidebar**——用户看到的是宿主自己的 UI。
+- 唯一证据在 host 日志：`[W] [hmr] better-sidebar: failed to import` + `TypeError: field.volatile is not a function`（`lib/index.js:119`）。super-injector 的 HMR 隔几分钟重试一次，每次同样失败。
+- 原因：profile 顶层 `@deepseek-ai/schemastery` 是 **3.18.1**（dsh-verification 的 peer 被 pnpm 提升上来，`autoInstallPeers: false`），shadow 掉 host 的 3.18.4；连带 cosmokit 1.8.2 vs 1.8.5。0.24.1 的 peerDeps 只写了内核线，没列 schemastery，正好踩中。
+- **修法**：让 pnpm 装 better-sidebar 自己的依赖，得到嵌套 `dsh-better-sidebar/node_modules/@deepseek-ai/{schemastery@3.18.4, cosmokit@1.8.5}`。手改顶层包是错的——下一次 `pnpm install` 会按 lock 立刻还原（实测已发生一次）。
+
+### 顺带挖出两个更值钱的坑
+- **lock 与实装脱节**：装 0.24.1 时只改了 `package.json`（`^0.24.1`），lock 仍锁 `file:vendor-archives/dsh-better-sidebar-0.12.2-fix108.tgz`。**下一次任何 `pnpm install` 都会静默把它降级回 0.12.2，全程无报错。**
+- **供应链策略挡住一切**：`pnpm install` 报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，`@deepseek-ai/dsh-client-ui-subagent@0.2.0-rc.2` 发布于 cutoff 之后 6 小时，pnpm 在解析任何东西之前就整体拒绝 lockfile。已加进 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude`（它本来就在 lock 里，只是没进白名单）。
+
+### P31 撤销
+`patches/manifest.json` 的 P31 把官方右栏 `ExpandButton` 改成恒返 null。2026-09-12 的判断基于 0.12.2（自带 document.body 浮动开关，确实重复）。0.24.1 反过来 inject `dsh-client-ui-sidebar-right`、用 `sidebar.right.pane.tab` 在官方右栏内注册 pane——官方那个按钮不再是重复入口，而是**到达插件 pane 的唯一入口**。继续挂 P31 = 插件看得见、点不开。已撤销（manifest 标 `host-retired`/`retired`，apply.ps1 按 `file -ne "host"` 自动跳过），profile 的 `cordis.patch.yml` 注释同步更新。
+
+### 新门禁
+`scripts/verify-plugin-activation.mjs`：查 host 日志的 import 失败 + 传递依赖是否解析到**比顶层更旧**的嵌套副本（嵌套更新是 pnpm 的正常行为，不报；同版本不报）。默认只扫 profile 的 direct dependencies。日志超 6 小时未更新则 exit 2 提醒重启再验。已做阴性对照（构造失败日志能报出 + exit 1，正常时 exit 0）。
+
+### 实机验证（CDP 驱动真实 renderer）
+- 底部面板 toggle 可点 → `--dsh-sidebar-height: 220px` → 4 个 tab（文件/文件变动/任务管理/侧边对话）→ 点「文件」列出真实目录树。
+- 官方右栏 toggle 恢复（`data-sidebar-right-expand="true"`，x=1557 在 1597 视口内）→ 点开后面板内容是 better-sidebar 的 tab 组。
+
+### 方法教训
+判"插件是否可用"必须看 **host 日志**，不能看磁盘、不能看渲染器控制台、不能看 DOM——import 抛错时这三种全是绿的。这一条已经虚报过两次。
+
 ## [0.3.2] - 20260929 — 视觉链路改走原生 read_image；遗留 vision-toolkit 卸载并全面登记
 
 ### 决策：多模态路由不再借道外部视觉服务
