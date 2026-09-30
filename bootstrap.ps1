@@ -212,11 +212,29 @@ if (-not $SkipInstall) {
     if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: pnpm install"; exit 1 }
   } finally { Pop-Location }
   Write-Host "dependencies installed"
+
+  # omw: the deploy steps the post-deploy gates assert. Without these a fresh machine boots
+  # and then fails gate 4 (kernel patches), gate 10 (local-overrides) and the super-injector
+  # P5 gateway check on arrival. They run AFTER pnpm install on purpose: P5 patches a package
+  # inside the profile's node_modules, and applying it beforehand means install overwrites it.
+  & powershell -NoProfile -ExecutionPolicy Bypass -File "$Repo\patches\profile\apply.ps1" -ProfileDir $ProfileDir 2>&1 |
+    Select-Object -Last 6
+  & powershell -NoProfile -ExecutionPolicy Bypass -File "$Repo\scripts\apply-post-install-patches.ps1" -AppRoot $kernelParent 2>&1 |
+    Select-Object -Last 6
 } else {
   Write-Host "install skipped (-SkipInstall)"
 }
 
 # ---------------- Phase 5: gateway ----------------
+# omw: local-overrides. The anchors and the per-machine diffs are registered in the repo
+# and local-overrides/verify.ps1 asserts the live state matches — so a deploy that never
+# applies them makes its own gate fail on a fresh machine.
+Get-ChildItem "$Repo\local-overrides" -Filter "*.patch" -ErrorAction SilentlyContinue | ForEach-Object {
+  $name = $_.Name
+  Write-Host "  local-override: $name"
+  Write-Host "    (apply manually per local-overrides/README.md — machine-specific by design)" -ForegroundColor DarkGray
+}
+
 Step "Phase 5: deploy plugin-gateway"
 if (Test-Path "$Repo\gateway") {
   New-Item -ItemType Directory -Path "$DshHome\plugin-gateway" -Force | Out-Null
@@ -243,7 +261,18 @@ if ($failSmoke -eq 0) { Write-Host "mjs syntax OK" }
 $siPath = "$ProfileDir\node_modules\@dsh-external\dsh-super-injector\lib\index.js"
 if (Test-Path $siPath) {
   $hits = (Select-String -Path $siPath -Pattern "plugin-gateway" -SimpleMatch | Measure-Object).Count
-  if ($hits -gt 0) { Write-Host "P5 gateway integration: present ($hits)" } else { Write-Host "WARN: P5 gateway missing - run patches/profile/apply.ps1"; $failSmoke = 1 }
+  if ($hits -gt 0) { Write-Host "P5 gateway integration: present ($hits)" }
+else {
+  Write-Host "FAIL: P5 gateway missing after deploy" -ForegroundColor Red
+  Write-Host "  patches/profile/apply.ps1 should have installed it; re-run it directly." -ForegroundColor Red
+  $failSmoke = 1
+}
+# A smoke result that is recorded and then ignored is not a smoke test. Deployed state that
+# fails here must not be reported as a successful bootstrap.
+if ($failSmoke) {
+  Write-Host "DEPLOY INCOMPLETE: smoke failures above. The tree is NOT a working install yet." -ForegroundColor Red
+  exit 1
+}
 }
 
 # ---------------- Phase 6.5: governance split assets ----------------
