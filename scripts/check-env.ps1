@@ -13,17 +13,17 @@ $packedNm    = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpack
 $oldKernel   = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
 
 if (Test-Path "$runtimeTree\@deepseek-ai\dsh\package.json") {
-  $ver = (Get-Content "$runtimeTree\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
+  $ver = (Get-Content "$runtimeTree\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version
   Write-Host "v209 patched runtime tree: $runtimeTree (kernel $ver)"
 } elseif (Test-Path $appAsar) {
   Write-Host "DSH Desktop installed (packed app.asar), but patched runtime tree MISSING: $runtimeTree" -ForegroundColor Yellow
   Write-Host "  -> verify.ps1/drift-scan default source; build it via patches/host/apply.ps1 + scripts/v209/pack-209.ps1"
 } elseif (Test-Path "$packedNm\@deepseek-ai\dsh\package.json") {
   # 2.0.1-2.0.7 era: kernel still in app.asar.unpacked
-  $ver = (Get-Content "$packedNm\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
+  $ver = (Get-Content "$packedNm\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version
   Write-Host "DSH Desktop (pre-2.0.9 unpacked kernel): $ver — upgrade path expects the packed-asar layout"
 } elseif (Test-Path $oldKernel) {
-  $ver = (Get-Content "$oldKernel\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
+  $ver = (Get-Content "$oldKernel\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version
   Write-Host "legacy kernel: $ver (upgrade to DSH Desktop 2.0.9 recommended)"
 } else {
   Write-Host "FAIL: DSH Desktop not installed (install 2.0.9 first)" -ForegroundColor Red

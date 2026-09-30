@@ -18,7 +18,12 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $ManifestPath = Join-Path $Repo "patches\manifest.json"
-$Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+try { $Manifest = Get-Content $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json }
+catch { Write-Host "FATAL: cannot read $ManifestPath - $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+if (-not $Manifest -or -not $Manifest.patches) {
+  Write-Host "FATAL: $ManifestPath parsed but carries no patches. Refusing to report success on an empty registry." -ForegroundColor Red
+  exit 1
+}
 
 if (-not $ProfileDir) { $ProfileDir = "$env:USERPROFILE\.dsh\profiles\web\node_modules" }
 Write-Host "ProfileDir: $ProfileDir"

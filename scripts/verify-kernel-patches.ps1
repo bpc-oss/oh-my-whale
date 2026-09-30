@@ -42,10 +42,10 @@ Write-Host ("  app root : {0}" -f $AppRoot)
 $shell = Join-Path $AppRoot "package.json"
 if (Test-Path $shell) {
   try {
-    $j = Get-Content $shell -Raw | ConvertFrom-Json
+    $j = Get-Content $shell -Encoding UTF8 -Raw | ConvertFrom-Json
     $kernel = "n/a"
     $kp = Join-Path $AppRoot "node_modules\@deepseek-ai\dsh\package.json"
-    if (Test-Path $kp) { $kernel = (Get-Content $kp -Raw | ConvertFrom-Json).version }
+    if (Test-Path $kp) { $kernel = (Get-Content $kp -Encoding UTF8 -Raw | ConvertFrom-Json).version }
     Write-Host ("  shell    : {0} {1}" -f $j.name, $j.version)
     Write-Host ("  kernel   : {0}" -f $kernel)
   } catch {}

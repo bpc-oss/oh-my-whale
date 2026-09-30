@@ -82,7 +82,7 @@ if ($Installed -or -not $RuntimeTree) {
   $KernelDir = $OldKernel   # legacy pre-v209 shell fallback
 }
 $KernelVersion = if (Test-Path "$KernelDir\@deepseek-ai\dsh\package.json") {
-  (Get-Content "$KernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
+  (Get-Content "$KernelDir\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version
 } else { "unknown" }
 
 # Authority note for the kernel-patch section below: after the 0.2.0 port the
@@ -452,8 +452,8 @@ $profilePkg = "$DshHome\profiles\web\package.json"
 $sourcesJson = Join-Path $Repo "plugins\SOURCES.json"
 
 if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
-  $pkg = Get-Content $profilePkg -Raw | ConvertFrom-Json
-  $sources = Get-Content $sourcesJson -Raw | ConvertFrom-Json
+  $pkg = Get-Content $profilePkg -Encoding UTF8 -Raw | ConvertFrom-Json
+  $sources = Get-Content $sourcesJson -Encoding UTF8 -Raw | ConvertFrom-Json
 
   # Build SOURCES lookup: id -> install_type
   $sourceMap = @{}
@@ -517,7 +517,7 @@ if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
         # local-preset-plugin that never lives in bundles, an uninstalled plugin).
         # Those are the registered state, not drift — reporting them as "REMOVED"
         # made four intentional entries read as four losses.
-        $sAll = Get-Content $sourcesJson -Raw | ConvertFrom-Json
+        $sAll = Get-Content $sourcesJson -Encoding UTF8 -Raw | ConvertFrom-Json
         $sList = if ($sAll -is [array]) { $sAll } elseif ($sAll.plugins) { $sAll.plugins } else { @() }
         $sEntry = @($sList) | Where-Object { $_.id -eq $sId } | Select-Object -First 1
         $byDesign = $sEntry -and ($sEntry.status -eq "not-mounted" -or $sEntry.removed_from_profile -or $sEntry.removed_reason -or $sEntry.kind -eq "local-preset-plugin")
@@ -564,7 +564,7 @@ $newKernelPath = "C:\Users\Administrator\AppData\Local\Programs\DSH Desktop\reso
 $oldKernelPath = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
 
 if (Test-Path $profilePkg) {
-  $pkg = Get-Content $profilePkg -Raw | ConvertFrom-Json
+  $pkg = Get-Content $profilePkg -Encoding UTF8 -Raw | ConvertFrom-Json
   foreach ($dep in $pkg.dependencies.PSObject.Properties) {
     $spec = $dep.Value
     if ($spec -notmatch "^link:") { continue }

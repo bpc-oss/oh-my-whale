@@ -8,7 +8,12 @@ param(
 $ErrorActionPreference = "Continue"
 $Repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $ManifestPath = Join-Path $Repo "patches\manifest.json"
-$Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+try { $Manifest = Get-Content $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json }
+catch { Write-Host "FATAL: cannot read $ManifestPath - $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+if (-not $Manifest -or -not $Manifest.patches) {
+  Write-Host "FATAL: $ManifestPath parsed but carries no patches. Refusing to report success on an empty registry." -ForegroundColor Red
+  exit 1
+}
 
 if (-not $KernelDir) {
   $new = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
@@ -30,7 +35,7 @@ foreach ($p in $Manifest.patches) {
   # version check
   $dshPkg = Join-Path $KernelDir "@deepseek-ai\dsh\package.json"
   if (Test-Path $dshPkg) {
-    $ver = (Get-Content $dshPkg -Raw | ConvertFrom-Json).version
+    $ver = (Get-Content $dshPkg -Encoding UTF8 -Raw | ConvertFrom-Json).version
     if ($ver -ne $Manifest.baseline.kernel) { Write-Host "  WARN: kernel $ver != baseline $($Manifest.baseline.kernel)" }
   }
 

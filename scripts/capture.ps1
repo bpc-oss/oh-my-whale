@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Continue"
 $Repo = Split-Path -Parent $PSScriptRoot
 $ManifestPath = Join-Path $Repo "patches\manifest.json"
-$Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+$Manifest = Get-Content $ManifestPath -Encoding UTF8 -Raw | ConvertFrom-Json
 
 # Default kernel dir: prefer new shell v2.0.1 (app.asar.unpacked), fallback old shell
 if (-not $KernelDir) {

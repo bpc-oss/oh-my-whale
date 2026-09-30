@@ -102,7 +102,7 @@ if (Test-Path $zc) {
   # and report nothing at all, which reads as "no drift" if the exit code is
   # ignored. Parse defensively and report a real DRIFT instead.
   $zcObj = $null
-  try { $zcObj = Get-Content $zc -Raw | ConvertFrom-Json }
+  try { $zcObj = Get-Content $zc -Encoding UTF8 -Raw | ConvertFrom-Json }
   catch { Write-Host ('  zcode config unreadable by PowerShell 5.1 JSON: ' + $_.Exception.Message) }
   $rule = if ($zcObj) { @($zcObj.config.modelConfigRules.providerModelRules) |
     Where-Object { $_.modelId -eq 'stealth/space-bunny-alpha' } | Select-Object -First 1 } else { $null }
@@ -149,7 +149,7 @@ Check 'kimi-code model entry' $kk 'commandcode/space-bunny-alpha present'
 $anchorFile = Join-Path $whale 'local-overrides\dsh-web-profile-custom-config.anchors.json'
 $webPatch   = Join-Path $dsh 'profiles\web\cordis.patch.yml'
 if ((Test-Path $anchorFile) -and (Test-Path $webPatch)) {
-  $anchors = (Get-Content $anchorFile -Raw | ConvertFrom-Json).anchors
+  $anchors = (Get-Content $anchorFile -Encoding UTF8 -Raw | ConvertFrom-Json).anchors
   $webSrc = Get-Content $webPatch -Raw
   $missing = @()
   foreach ($a in $anchors) {

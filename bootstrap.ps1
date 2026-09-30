@@ -77,7 +77,7 @@ function Get-OmwPluginSources {
   return $null
 }
 $PluginSources = Get-OmwPluginSources
-$dshVer = (Get-Content "$kernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
+$dshVer = (Get-Content "$kernelDir\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version
 Write-Host "dsh kernel version: $dshVer"
 
 # omw-dryrun: $DryRun only guarded the renderer flag, so a "dry run" overwrote the real
@@ -180,7 +180,7 @@ if (Test-Path "$Repo\config\.agent-presets" -and -not (omw-dryrun "agent-presets
   # preset added to mounted_in is covered without editing this file.
   $sourcesFile = Join-Path $Repo "plugins\SOURCES.json"
   if (Test-Path $sourcesFile) {
-    $src = (Get-Content $sourcesFile -Raw | ConvertFrom-Json)
+    $src = (Get-Content $sourcesFile -Encoding UTF8 -Raw | ConvertFrom-Json)
     $list = if ($src -is [array]) { $src } else { @($src.plugins) }
     foreach ($plugin in $list) {
       if ($plugin.kind -ne "local-preset-plugin" -or -not $plugin.source -or -not $plugin.payload) { continue }
@@ -209,7 +209,7 @@ if (Test-Path "$Repo\config\.agent-presets" -and -not (omw-dryrun "agent-presets
 if (-not $SkipInstall) {
   Step "Phase 4: install profile dependencies"
   # Prepare link/file-dir targets from SOURCES.json
-  $sources = Get-Content "$Repo\plugins\SOURCES.json" -Raw | ConvertFrom-Json
+  $sources = Get-Content "$Repo\plugins\SOURCES.json" -Encoding UTF8 -Raw | ConvertFrom-Json
   $vars = @{
     "{{PLUGIN_SOURCES_DIR}}" = $env:OMW_PLUGIN_SOURCES_DIR
     "{{USER_HOME}}" = $env:USERPROFILE
@@ -330,7 +330,7 @@ if ($failSmoke) {
 
 # ---------------- Phase 6.5: governance split assets ----------------
 Step "Phase 6.5: governance split assets"
-$govSources = Get-Content "$Repo\plugins\SOURCES.json" -Raw | ConvertFrom-Json
+$govSources = Get-Content "$Repo\plugins\SOURCES.json" -Encoding UTF8 -Raw | ConvertFrom-Json
 $govRow = $govSources.plugins | Where-Object { $_.id -eq '@agent-os/dsh-governance' }
 if ($govRow) { Write-Host "SOURCES: @agent-os/dsh-governance present (install_type=$($govRow.install_type), default disabled)" } else { Write-Host "WARN: governance source row missing"; $failSmoke = 1 }
 $govDev = "$env:USERPROFILE\dev\dsh-governance"
