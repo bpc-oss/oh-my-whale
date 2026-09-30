@@ -1,4 +1,4 @@
-﻿# check-private.ps1 - scan for machine-private paths before committing
+# check-private.ps1 - scan for machine-private paths before committing
 # Usage: .\scripts\check-private.ps1 [-RepoDir <path>]
 # Exit 0 = clean; exit 1 = found private data
 param([string]$RepoDir = "")
@@ -44,6 +44,10 @@ $files = Get-ChildItem -Path $RepoDir -Recurse -File |
     $_.FullName -notin $SelfScripts -and
     -not ($AllowedDirs | Where-Object { $f.FullName.StartsWith($_) }) -and
     $_.Name -notmatch '\.(bak|log|exe|tgz|tar|png|jpg|ico)$' -and
+    # .env is gitignored and is EXACTLY where a machine path is meant to live
+    # (PLUGIN_SOURCES_DIR). Scanning it flagged the file whose whole purpose is to hold
+    # that value, while telling you nothing about anything tracked.
+    $_.Name -notmatch '^\.env$' -and
     $_.Name -notmatch '^(\.git|node_modules)$'
   }
 

@@ -6,6 +6,7 @@ param(
   [switch]$SkipPatches,
   [switch]$SkipInstall,
   [switch]$DryRun
+  [switch]$Interactive              # answer the renderer prompts (implies a blocking run)
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,8 +50,40 @@ if (-not $kernelDir) {
   exit 1
 }
 Write-Host "kernel: $kernelDir"
+# apply-post-install-patches.ps1 addresses the app ROOT; the kernel dir is its node_modules.
+# This was passed but never defined, so the child received $null and its failure was
+# indistinguishable from success.
+$kernelParent = Split-Path -Parent $kernelDir
+# One resolution, used by both the renderer (via the environment it reads) and the
+# preset deploy below. Probed in the same order the renderer uses.
+# omw: resolve the plugin sources root. One definition, used by the profile templates AND
+# the preset deploy — if the two disagree, a preset and the profile point at different
+# trees, which is exactly the kind of silent divergence the registry is meant to prevent.
+function Get-OmwPluginSources {
+  $env_ = $env:OMW_PLUGIN_SOURCES_DIR
+  if ($env_) { return $env_ }
+  $envFile = Join-Path $PSScriptRoot ".env"
+  if (-not (Test-Path $envFile)) { $envFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env" }
+  if (Test-Path $envFile) {
+    foreach ($line in Get-Content $envFile) {
+      if ($line -match "^\s*(OMW_PLUGIN_SOURCES_DIR|PLUGIN_SOURCES_DIR)\s*=\s*(.+?)\s*$") {
+        $v = $Matches[2].Trim().Trim('"').Trim("'")
+        if ($v) { return ($v -replace "\\", "/") }
+      }
+    }
+  }
+  $conventional = Join-Path $env:USERPROFILE "ai-files"
+  if (Test-Path $conventional) { return ($conventional -replace "\\", "/") }
+  return $null
+}
+$PluginSources = Get-OmwPluginSources
 $dshVer = (Get-Content "$kernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
 Write-Host "dsh kernel version: $dshVer"
+
+# omw-dryrun: $DryRun only guarded the renderer flag, so a "dry run" overwrote the real
+# ~/.dsh/.agent-presets and ~/.dsh/plugin-gateway. Everything that WRITES under $DshHome
+# is now skipped when -DryRun is set.
+function omw-dryrun { param([string]$What) if ($DryRun) { Write-Host "  [dry-run] skip: $What"; return $true } return $false }
 
 # ---------------- Phase 1: backup ----------------
 Step "Phase 1: backup existing state"
@@ -77,8 +110,12 @@ if (-not $SkipPatches) {
 
 # ---------------- Phase 3: deploy configs ----------------
 Step "Phase 3: render and deploy configs"
+if ($PluginSources) { $env:OMW_PLUGIN_SOURCES_DIR = $PluginSources }
 $renderArgs = @("-OutDir", $DshHome)
-if ($DryRun) { $renderArgs += "-DefaultsOnly" }
+# The renderer prompts five times unless -DefaultsOnly, and Read-Host blocks FOREVER when
+# stdin is redirected — an unattended provisioning run simply hung (exit 124 under a
+# timeout, reproduced in review). Default to non-interactive; -Interactive opts back in.
+if (-not $Interactive) { $renderArgs += "-DefaultsOnly" }
 $renderOut = & powershell -ExecutionPolicy Bypass -File "$Repo\scripts\template-render.ps1" @renderArgs 2>&1
 $renderOut | Write-Host
 
@@ -100,7 +137,7 @@ if (Test-Path $vendorSrc) {
 # presets, including the file:// paths that mount each preset's skills directory. The
 # renderer is dot-sourced here rather than shelled out so the deploy reuses the exact
 # $Vars map the profile templates are rendered with — one definition, one source.
-if (Test-Path "$Repo\config\.agent-presets") {
+if (Test-Path "$Repo\config\.agent-presets" -and -not (omw-dryrun "agent-presets deploy")) {
   New-Item -ItemType Directory -Path "$DshHome\.agent-presets" -Force | Out-Null
   # Credentials are not machine paths: the bounty-pipeline preset text was captured with
   # its real mailbox and password replaced by placeholders, and those cannot be inferred.
@@ -112,7 +149,7 @@ if (Test-Path "$Repo\config\.agent-presets") {
     "{{USER_HOME}}"              = $UserHome
     "{{LOCAL_APP_DATA}}"         = "$UserHome\AppData\Local"
     "{{USER_NAME}}"              = $User
-    "{{PLUGIN_SOURCES_DIR}}"     = $env:OMW_PLUGIN_SOURCES_DIR
+    # Resolved exactly as template-render.ps1 resolves it, so a preset and the profile can
     "{{AGENT_OS_DIR}}"           = "$UserHome\AppData\Local\AgentOS"
     "{{CHROME_FAITHFUL_DIR}}"    = "$UserHome\chrome-faithful"
     "{{BOUNTY_MASTER_EMAIL}}"    = $(if ($env:BOUNTY_MASTER_EMAIL) { $env:BOUNTY_MASTER_EMAIL } else { "{{BOUNTY_MASTER_EMAIL}}" })
@@ -202,6 +239,7 @@ if (-not $SkipInstall) {
     }
   }
 
+  $failPatch = 0
   Push-Location $ProfileDir
   try {
     if (Test-Path "$ProfileDir\pnpm-lock.yaml") {
@@ -219,8 +257,11 @@ if (-not $SkipInstall) {
   # inside the profile's node_modules, and applying it beforehand means install overwrites it.
   & powershell -NoProfile -ExecutionPolicy Bypass -File "$Repo\patches\profile\apply.ps1" -ProfileDir $ProfileDir 2>&1 |
     Select-Object -Last 6
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: patches/profile/apply.ps1 exited $LASTEXITCODE" -ForegroundColor Red; $failPatch = 1 }
   & powershell -NoProfile -ExecutionPolicy Bypass -File "$Repo\scripts\apply-post-install-patches.ps1" -AppRoot $kernelParent 2>&1 |
     Select-Object -Last 6
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: apply-post-install-patches.ps1 exited $LASTEXITCODE" -ForegroundColor Red; $failPatch = 1 }
+  if ($failPatch) { Write-Host "DEPLOY INCOMPLETE: a patch step failed — see above." -ForegroundColor Red; exit 1 }
 } else {
   Write-Host "install skipped (-SkipInstall)"
 }
@@ -258,21 +299,33 @@ Get-ChildItem "$Repo\profile" -Filter "*.mjs" | ForEach-Object {
 if ($failSmoke -eq 0) { Write-Host "mjs syntax OK" }
 
 # verify profile patches (P5 gateway in super-injector runtime copy)
+#
+# Brace discipline matters here and got it wrong once: the `else` bound to the INNER
+# `if ($hits -gt 0)`, and the `if ($failSmoke) { exit 1 }` sat INSIDE the `Test-Path`
+# block — so a missing runtime copy never recorded a failure at all, and the new
+# exit 1 could not fire for the one case it was written for. Three flat statements, no
+# nesting: check presence, then check content, then decide once.
 $siPath = "$ProfileDir\node_modules\@dsh-external\dsh-super-injector\lib\index.js"
-if (Test-Path $siPath) {
-  $hits = (Select-String -Path $siPath -Pattern "plugin-gateway" -SimpleMatch | Measure-Object).Count
-  if ($hits -gt 0) { Write-Host "P5 gateway integration: present ($hits)" }
-else {
-  Write-Host "FAIL: P5 gateway missing after deploy" -ForegroundColor Red
-  Write-Host "  patches/profile/apply.ps1 should have installed it; re-run it directly." -ForegroundColor Red
+if (-not (Test-Path $siPath)) {
+  Write-Host "FAIL: super-injector runtime copy absent at $siPath" -ForegroundColor Red
+  Write-Host "  pnpm install did not place it; the profile cannot load bundles without it." -ForegroundColor Red
   $failSmoke = 1
+} else {
+  $hits = (Select-String -Path $siPath -Pattern "plugin-gateway" -SimpleMatch | Measure-Object).Count
+  if ($hits -gt 0) {
+    Write-Host "P5 gateway integration: present ($hits)"
+  } else {
+    Write-Host "FAIL: P5 gateway missing after deploy" -ForegroundColor Red
+    Write-Host "  patches/profile/apply.ps1 should have installed it; re-run it directly." -ForegroundColor Red
+    $failSmoke = 1
+  }
 }
+
 # A smoke result that is recorded and then ignored is not a smoke test. Deployed state that
 # fails here must not be reported as a successful bootstrap.
 if ($failSmoke) {
   Write-Host "DEPLOY INCOMPLETE: smoke failures above. The tree is NOT a working install yet." -ForegroundColor Red
   exit 1
-}
 }
 
 # ---------------- Phase 6.5: governance split assets ----------------

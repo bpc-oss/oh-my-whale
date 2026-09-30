@@ -14,15 +14,31 @@ $DshHome = "$UserHome\.dsh"
 
 # Plugin sources root. Probed in the same order drift-scan used; hard-fails when nothing
 # matches, because the alternative is a manifest full of link:/ with no target.
-$PluginSources = $env:OMW_PLUGIN_SOURCES_DIR
-if (-not $PluginSources) {
-  if (Test-Path "E:\ai-files") { $PluginSources = "E:/ai-files" }
-  elseif (Test-Path "$UserHome\ai-files") { $PluginSources = "$UserHome/ai-files" }
+# omw: resolve the plugin sources root. One definition, used by the profile templates AND
+# the preset deploy — if the two disagree, a preset and the profile point at different
+# trees, which is exactly the kind of silent divergence the registry is meant to prevent.
+function Get-OmwPluginSources {
+  $env_ = $env:OMW_PLUGIN_SOURCES_DIR
+  if ($env_) { return $env_ }
+  $envFile = Join-Path $PSScriptRoot ".env"
+  if (-not (Test-Path $envFile)) { $envFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env" }
+  if (Test-Path $envFile) {
+    foreach ($line in Get-Content $envFile) {
+      if ($line -match "^\s*(OMW_PLUGIN_SOURCES_DIR|PLUGIN_SOURCES_DIR)\s*=\s*(.+?)\s*$") {
+        $v = $Matches[2].Trim().Trim('"').Trim("'")
+        if ($v) { return ($v -replace "\\", "/") }
+      }
+    }
+  }
+  $conventional = Join-Path $env:USERPROFILE "ai-files"
+  if (Test-Path $conventional) { return ($conventional -replace "\\", "/") }
+  return $null
 }
+$PluginSources = Get-OmwPluginSources
 if (-not $PluginSources) {
   Write-Host "FATAL: cannot resolve PLUGIN_SOURCES_DIR." -ForegroundColor Red
-  Write-Host "  Set OMW_PLUGIN_SOURCES_DIR to the directory holding the plugin repos" -ForegroundColor Red
-  Write-Host "  (probed: E:\ai-files, $UserHome\ai-files)" -ForegroundColor Red
+  Write-Host "  Set OMW_PLUGIN_SOURCES_DIR, or put PLUGIN_SOURCES_DIR=<path> in the repo .env (gitignored)" -ForegroundColor Red
+  Write-Host "  (also probed: \$env:USERPROFILE\ai-files)" -ForegroundColor Red
   exit 1
 }
 Write-Host "PLUGIN_SOURCES_DIR: $PluginSources"
@@ -124,7 +140,13 @@ $mappings = @(
   # 2026-09-30: the local-presets layer (15 files) holds every preset mount, and the
   # profile points at it with "file:./local-presets". It was in the registry but in no
   # mapping, so a replay produced a profile whose bundle had no payload at all.
-  @("$Repo\profile\local-presets",                 "$OutDir\profiles\web\local-presets")
+  @("$Repo\profile\local-presets",                 "$OutDir\profiles\web\local-presets"),
+  # 2026-09-30: super-injector/ was an empty, UNTRACKED directory, so the registry template
+  # never existed and dsh-super-injector (which defaults registryFile to
+  # ~/.dsh/super-injector/registry.json and auto-restores its entries on restart) had nothing
+  # to read: a fresh machine lost its only entry, m2-demo-plugin, with no way back. Rendered
+  # here rather than copied raw by bootstrap, because the entry carries a machine path.
+  @("$Repo\super-injector\registry.json.template",  "$OutDir\super-injector\registry.json")
 )
 
 # Render a whole directory tree through the same substitution. local-presets holds 15
