@@ -87,6 +87,24 @@ added now  : ["dsh-local-presets"]      <- 新增：preset 层包
 - 插件市场可用（能列插件、来源、分类、安装按钮）
 - `chrome_faithful` MCP 常驻；`reverse-proxy` 控制面挂在 `/dsh-reverse-proxy`
 
+### 五之二、better-sidebar 三症状的最终实机确认（2026-09-30）
+
+用户报的三条，逐条点过、看过状态变化（不是"元素存在"就算通过）：
+
+| 症状 | 证据 |
+|---|---|
+| 底部面板按了是空白 | toggle 可点 → `--dsh-sidebar-height: 220px` → 4 个 tab（文件/文件变动/任务管理/侧边对话）→ 点「文件」列出工作区真实目录树 |
+| 右侧栏点不开 / 按钮错位 | P31 撤销后 `data-sidebar-right-expand` 存在且在视口内（x=1557 / 视口 1597）→ 点开后面板在 x=878、宽 719、**在屏内**（P31 撤销前它的内容被 `translateX(719px)` 推出视口） |
+| 生成的文件走官方侧栏 | 右栏文件树点 `OR-FOR-PROVIDERS.md` → 新 tab 出现，带「预览 / 编辑」切换，markdown 正文与表格真实渲染。渲染节点的 class 家族是 `nArs4W_*`（better-sidebar 的 CSS module）+ `cm`（CodeMirror 编辑器），**不是** `dsh-client-ui-sidebar-documentpreview` |
+
+第三条是之前一直没能实测的一条（当时会话里没有文件链接）。用 better-sidebar 自己的文件树
+代验是等价的：用户点的也是文件，而 `files` 这个 kind 已被 0.24.1 用
+`registerFilesKind` 以 `priority: "extension"` 接管，走的就是同一个 pane。
+
+**一个查询陷阱**：点开文件后内容不在 `[data-dockkit-host]` 里了（那个节点会变空），
+真实渲染在 panel 的 `tabHostBody`。我一度因为查错选择器而以为预览是空白的 ——
+与之前"DOM 里有按钮就算能用"是同一类错误，只是方向相反。
+
 ## 四之二、better-sidebar：你装的是 0.12.2，上游已经到 0.24.1
 
 用户报三个症状：底部面板按了是空白、两个按钮落在 `body` 里没进标题栏条、生成的文件仍然用官方侧栏打开。
