@@ -248,7 +248,8 @@
       ],
       "sha256": "57b1d84672f7f1562d9ff3608c2ba167daca9a89b26d57230ddd598738c3f34b",
       "registered": "20260929",
-      "status": "not-mounted"
+      "status": "not-mounted",
+      "payload": "promise-guard.mjs"
     },
     {
       "id": "dsh-local-presets",

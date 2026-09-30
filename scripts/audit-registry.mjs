@@ -61,6 +61,19 @@ function walkFiles(dir, base = dir, out = []) {
 }
 
 /** true for entries the registry itself records as intentionally not installed. */
+/**
+ * Basenames whose canonical copy the registry keeps elsewhere (plugins/standalone/<id>/)
+ * with a sha256 and a mounted_in list, verified in the plugin section. Preset directories
+ * hold installed copies of these; they are coverage, not gaps.
+ */
+function governedPayloads() {
+  const s = readJson(join(REPO, 'plugins', 'SOURCES.json'));
+  const list = Array.isArray(s) ? s : (s?.plugins || []);
+  const out = new Set();
+  for (const p of list) if (p.kind === 'local-preset-plugin' && p.payload) out.add(p.payload);
+  return out;
+}
+
 const notInstalledByChoice = (p) =>
   p.removed_from_profile || p.removed_reason || p.status === 'removed' ||
   /currently disabled|user (disabled|turned off)|kept off/i.test(p.description || '');
@@ -110,11 +123,19 @@ if (existsSync(srcPresets)) {
       if (!existsSync(join(live, f))) { MISS('preset', `${name}/${f}`, 'file absent live'); absent++; }
     }
     if (!absent) OK('preset', name, `${files.length} files present (content check delegated to audit-preset-mounts)`);
-    // The reverse: a live file the registry never captured. Not drift (a live-only
-    // file is usually newer local work), but worth surfacing once so it can be
-    // folded back into the registry rather than living only on this machine.
+    // The reverse: a live file the registry never captured.
+    // Two exclusions, both learned from real false positives:
+    //  - backups: rollback residue, not content
+    //  - payload SOURCES.json already governs: dsh-promise-guard.mjs lives once at
+    //    plugins/standalone/dsh-promise-guard/ with a sha256 and a mounted_in list, and
+    //    the live copies are verified against that hash in the plugin section below. The
+    //    seven "missing" copies it produced were coverage the report could not see, not
+    //    gaps.
+    const governed = governedPayloads();
     const registryExtra = readdirSync(live)
-      .filter((e) => !/\.bak[-.]|\.orig$/.test(e) && !existsSync(join(src, e)));
+      .filter((e) => !/\.bak[-.]|\.orig$|\.bak$/.test(e)
+        && !governed.has(e)
+        && !existsSync(join(src, e)));
     if (registryExtra.length) note('preset', name, 'LIVE-ONLY', `not captured in registry: ${registryExtra.join(', ')}`);
   }
 } else {
