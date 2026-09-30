@@ -185,16 +185,34 @@ DSH 实际在用的 `@agent-os/dsh-governance` 是本地开发源，peer 指向 
 `async execute(args, exec)` 两参数。`tools/pre-execute`、`tools/post-execute`、
 `tools/change`、`agent/pre-step` 四个事件全部健在。
 
-### 修的两处真问题
+### 独立审查推翻的一处结论
 
-1. **`payload.turn` 已不存在。** 0.2.0 的 `agent/pre-step` payload 收窄为
-   `{ agent, messages, signal, step }`，turn 搬到了事件流（`turn/start` 的 `event.data.turn`）。
-   旧代码 `observedTurn: payload.turn` 静默得到 `undefined` —— 连 `number | null` 都不是，
-   序列化时字段直接消失。改为记 `null` 并注释说明，不伪造数字。
-2. **源码在新内核上根本编译不过。** 三个 DSH 包都不发声明，`strict` 下 `import type`
-   无从解析（首次 `tsc` 报 30 个错）。新增 `src/kernel-0.2.d.ts` 提供 ambient 声明，
-   每一项都注明在 0.2.0 树里的核验依据（字段出现次数、`tools.guard` 的实现片段、
-   pre-step 的解构形态），不是照抄旧声明。编译错误 30 → 0。
+第一次适配时我判定「`payload.turn` 在 0.2.0 已被移除」，并把 `observedTurn` 改成 `null`。
+**这个判断是错的**，独立审查用内核源码推翻：
+
+- 真正投递 payload 的是 `dsh-agent-loop`，不是 `dsh-agent`：
+  `waterfall("agent/pre-step", { messages: claimed, ...position, signal }, ...)`，而
+  `position = { turn, step }` —— `turn` 就在 payload 里。
+- 我当时只读了 `dsh-agent` 那个 handler 的**解构** `{ agent, messages, signal, step }`，
+  就断定字段不存在。**解构里没用到的字段，不等于 payload 上没有这个字段。**
+
+已恢复 `observedTurn: payload.turn`，并在两处（`src/status.ts` 与 `src/kernel-0.2.d.ts`）
+写明这个教训与 `dsh-agent-loop` 的出处。这与本轮 P19b 那次是同一个教训的第二次复发：
+**读源码的一段就下结论，等于没验证。**
+
+### 修的真问题
+
+1. **源码在新内核上根本编译不过。** 三个 DSH 包都不发可用声明（`cordis` 的 `types`
+   指向的 `lib/types/index.d.ts` 也不存在，只有 `.d.ts.map`），`strict` 下 `import type`
+   无从解析。新增 `src/kernel-0.2.d.ts` 提供 ambient 声明，每一项都注明在 0.2.0 树里的
+   核验依据。审查复核：带上它是 0 错、去掉是 **40 错**。
+2. **`declare module '@deepseek-ai/cordis' { interface Context { agentOsGovernance } }` 是假契约。**
+   审查实测 `ctx.get('agentOsGovernance')` 从任何 context 都取不到 —— `installScoped` 用的是
+   `ctx.isolate(...)`，隔离出的服务不会以那个名字发布在你手上的 context 上。已删除该增强，
+   改用模块内的 `governanceFor(agent)`。
+3. **`ToolDefinition.output` 声明成可选是错的。** 内核 `defineTool` 与 `register()` 都会在
+   缺失时 throw（`must declare output { schema, render, presentationMeta? }`），声明为可选
+   会让一个编译通过、注册即死的工具溜过去。已改为必填。
 
 ### 顺带发现的版本污染（2026-09-30 已清理）
 
@@ -238,3 +256,65 @@ governance 状态可查     present
 最后一条是**设计内的降级**：插件注释写明 "Task 5 never enforces policy"，且在没有有效
 broker 凭据时 `degradationReasons` 含 `broker-not-configured` / `same-user-cooperative-enforcement`，
 不拒绝是正确的。与上面「receipt 过期 36 天」是同一件事的两面。
+
+## 治理插件各项能力的真实状态（独立审查 + pointer 检查，2026-09-30）
+
+用户要求「各项功能要完美实现」。逐项核实后，**八项能力里只有两项在工作**，其余不是代码问题，
+是 AgentOS 侧从未签发过真实凭据。
+
+| 能力 | 状态 | 原因 |
+|---|---|---|
+| Service 挂载 / per-agent 隔离 | ✅ | 实测 `governanceFor(agent)` 可解析 |
+| 完成提交 `agentos_submit_claim` | ✅ | 走真实 `ToolRuntime` 跑通：参数校验先触发（`changed_files cannot be empty`），合法 claim 返回 `BROKER_UNAVAILABLE`（broker 不可达，行为正确） |
+| 状态 / 准入订阅 | ✅ | 实测 admission 从 `waiting-first-pre-step` 推进到 `observed-first-pre-step`，订阅与拆卸都正确 |
+| **准入 native** | ❌ 不生效 | `installScoped` 仅在配置了 `nativeAdmission` 时构造 `ProductionNativeAdmission`；profile 只配了 `enabled` + `clientActivation` |
+| **策略守卫** | ⚠️ 注册但不执行 | `tools.guard()` 已挂上，但 `nativeSelected === false` 时 `guardExecution` 直接早退 |
+| **能力路由** | ❌ | 同上，`routeCapability` 只从 `preExecute` 到达 |
+| **预算** | ❌ | `MonotonicBudget` 只在 `NativePolicyGuard` 内部构造 |
+| **证据观测** | ❌ | 需要 `observationFactory`，未配 |
+| **记忆** | ❌ 死代码 | `memory.ts` 的 binder 从未被调用，也没有从 `index.ts` 导出 |
+
+### 为什么不能在 DSH 侧把它们打开
+
+四项 native 能力全部 gate 在 `nativeSelected`，而 `ProductionNativeAdmission.selected()` 要求
+pointer 文件存在且 `state === "active"`。AgentOS 侧**确实有**这个目录：
+
+```
+AgentOS/dsh/native-admission/pointers/   2 个 pointer，都是 state: active，snapshot 齐全
+```
+
+但它们是**测试夹具，不是真实签发物**：
+
+- `authority.dsh_home_identity_sha256` = `aaaa…`（64 个 a）
+- `authority.host_identity_sha256` = `1111…`，`task_policy` = `4444…`，`role_map` = `7777…`
+  等**全部是重复字符占位符**；只有 `observed_dsh_sha256` 与 `trusted_registry_sha256` 是真值
+- `expires_at` = 2026-08-20T07:05，**已过期 41 天**
+
+而 `fileMaterialProvider` 只检查 `state === "active"`、**不检查 `expires_at`**。所以如果现在
+在 profile 里配上 `nativeAdmission`，插件会选中这个夹具 pointer，进入签名验证并失败 →
+`admitNative` 返回 false → **每一个 pre-step 都被拒绝，DSH 直接不可用**。
+
+当前「只配 enabled + clientActivation」反而是正确状态。这也是为什么那 86 次历史完成提交
+之后没有新的：**receipt 过期 36 天、pointer 是过期 41 天的夹具，AgentOS 侧从未为这台机器
+重新签发过。** 这不是 DSH 侧能补的。
+
+要恢复这四项能力，需要 AgentOS 侧做两件事：为当前 epoch 重新签发
+`framework-governance client-activation`（完成回传），以及签发一份真实的
+`dsh/native-admission` pointer + snapshot（准入/守卫/路由/预算）。
+
+### 顺带修掉的审查发现
+
+- `observedTurn: null` 是**误判**，已恢复 `payload.turn`。真正投递 payload 的是
+  `dsh-agent-loop`：`waterfall("agent/pre-step", { messages: claimed, ...position, signal })`，
+  `position = { turn, step }`。我当时只读了 `dsh-agent` handler 的**解构**
+  `{ agent, messages, signal, step }` 就断言字段不存在 —— **解构里没用到的字段 ≠ payload 上没有**。
+  这与 P19b 那次是同一教训的第二次复发。
+- `declare module '@deepseek-ai/cordis' { interface Context { agentOsGovernance } }` 是假契约：
+  `ctx.get('agentOsGovernance')` 从任何 context 都取不到（`installScoped` 用 `ctx.isolate`）。
+  已删除，改用模块内 `governanceFor(agent)`。
+- `ToolDefinition.output` 声明成可选是错的：内核 `defineTool`/`register()` 缺失即 throw。
+  已改为必填。
+- `drift-scan` 的 `-Compare` 整段不可达（exit 落在它之前）：`-Compare <缺失文件>` 原本
+  exit 0 且不报错。已把 verdict 合并到脚本最末端，报告只写一次。双向实测：CLEAN→exit 0；
+  缺失基线→ERROR+exit 1。
+- 已部署的 `dist/` 经独立复核与当前 `src/` 的全新构建**逐字节一致**（32 个文件三方 diff）。

@@ -703,24 +703,13 @@ $report = @{
 $report["verdict"] = if ($patchesStatus -eq "CLEAN" -and $configStatus -eq "CLEAN" -and $pluginsStatus -eq "CLEAN" -and $junctionStatus -eq "CLEAN" -and $fpStatus -eq "CLEAN") { "CLEAN" } else { "HAS_DRIFT" }
 
 Write-Host ""
+# One report write, BEFORE any exit. An `exit` above this point left the on-disk report
+# stale (it is gitignored) — a run that reported HAS_DRIFT still left a report claiming
+# CLEAN. A second attempt put the `exit` block here instead, which made the entire
+# -Compare section below unreachable: `-Compare <missing.json>` exited 0, printed no
+# error and produced no delta matrix. So: no exits at all until the very end.
 Write-JsonReport $ReportPath $report
-# The report is written BEFORE the verdict is acted on. An `exit` placed above this line
-# short-circuits the script, so the file on disk stays whatever the previous run left
-# behind (it is gitignored) — which is how a run that reported HAS_DRIFT still left a
-# report claiming CLEAN.
-if ($report.verdict -eq "CLEAN") {
-  Write-Host "VERDICT: CLEAN" -ForegroundColor Green
-  exit 0
-} else {
-  Write-Host "VERDICT: HAS_DRIFT" -ForegroundColor Yellow
-  # A gate that prints HAS_DRIFT and exits 0 cannot fail anything. The independent review
-  # removed a package from dsh.profile.bundles, watched drift-scan detect it, and then
-  # watched the script still return success to the shell.
-  exit 1
-}
-
-# ── Write report ──
-Write-JsonReport $ReportPath $report
+$blockingCount = 0
 
 # ── Compare mode (delta matrix) ──
 if ($Compare) {
@@ -741,6 +730,7 @@ if ($Compare) {
   Write-Host "=== Delta matrix (current vs baseline) ===" -ForegroundColor Cyan
 
   $blocking = @()
+$blockingCount = 0
   $allowlistEntries = @{}
   if (Test-Path $AllowlistPath) {
     $alJson = [System.IO.File]::ReadAllText($AllowlistPath)
@@ -833,3 +823,19 @@ if ($Compare) {
     Write-Host "  To acknowledge: add entries to $AllowlistPath and re-run --compare" -ForegroundColor Yellow
   }
 }
+
+# ── Combined verdict ──
+# Reached only after the report is written and -Compare has run. A gate that prints
+# HAS_DRIFT and exits 0 cannot fail anything; a gate that exits before -Compare cannot
+# report delta blocking either. Both mistakes happened here; both are now impossible
+# because nothing above this line exits.
+if ($Compare -and $blocking.Count -gt 0) {
+  Write-Host "VERDICT: HAS_DRIFT" -ForegroundColor Yellow
+  exit 1
+}
+if ($report.verdict -eq "CLEAN") {
+  Write-Host "VERDICT: CLEAN" -ForegroundColor Green
+  exit 0
+}
+Write-Host "VERDICT: HAS_DRIFT" -ForegroundColor Yellow
+exit 1
