@@ -52,8 +52,12 @@ $files = Get-ChildItem -Path $RepoDir -Recurse -File |
   }
 
 foreach ($f in $files) {
-  $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue -Encoding UTF8
-  if (-not $content) { continue }
+  $content = Get-Content $f.FullName -Raw -Encoding UTF8
+  # A read that yields nothing must be FATAL, not a skip: an empty result here means
+  # the gate examined none of the files it claims to have scanned. That is the failure this
+  # script exists to prevent, so it reports it instead of reporting success.
+  if ($null -eq $content) { Write-Host "FATAL: could not read $($f.FullName)" -ForegroundColor Red; exit 1 }
+  if ($content -eq "") { continue }
   foreach ($pat in $patterns) {
     if ($content -cmatch $pat) {
       Write-Host "PRIVATE: $($f.FullName.Substring($RepoDir.Length+1)) matches '$pat'"
