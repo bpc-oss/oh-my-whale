@@ -83,11 +83,38 @@ if (Test-Path $vendorSrc) {
   }
 }
 
-# Deploy agent-presets
+# Deploy agent-presets THROUGH the template renderer.
+# A raw Copy-Item shipped the {{...}} placeholders verbatim: 83 of them across 13
+# presets, including the file:// paths that mount each preset's skills directory. The
+# renderer is dot-sourced here rather than shelled out so the deploy reuses the exact
+# $Vars map the profile templates are rendered with — one definition, one source.
 if (Test-Path "$Repo\config\.agent-presets") {
   New-Item -ItemType Directory -Path "$DshHome\.agent-presets" -Force | Out-Null
-  Copy-Item "$Repo\config\.agent-presets\*" "$DshHome\.agent-presets\" -Recurse -Force
-  Write-Host "agent-presets deployed ($((Get-ChildItem "$DshHome\.agent-presets" -Directory).Count) presets)"
+  $presetVars = @{
+    "{{DSH_USER_HOME}}"       = $DshHome
+    "{{USER_HOME}}"           = $UserHome
+    "{{LOCAL_APP_DATA}}"      = "$UserHome\AppData\Local"
+    "{{USER_NAME}}"           = $User
+    "{{PLUGIN_SOURCES_DIR}}"  = $env:OMW_PLUGIN_SOURCES_DIR
+    "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
+    "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
+  }
+  Get-ChildItem "$Repo\config\.agent-presets" -Directory | ForEach-Object {
+    $name = $_.Name
+    Get-ChildItem $_.FullName -Recurse -File | ForEach-Object {
+      $rel = $_.FullName.Substring($_.Directory.Parent.FullName.Length).TrimStart("\", "/")
+      $dst = Join-Path "$DshHome\.agent-presets" $rel
+      $dir = Split-Path $dst -Parent
+      if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+      $body = [System.IO.File]::ReadAllText($_.FullName)
+      foreach ($k in $presetVars.Keys) { $body = $body.Replace($k, $presetVars[$k]) }
+      [System.IO.File]::WriteAllText($dst, $body, [System.Text.UTF8Encoding]::new($false))
+    }
+  }
+  $leftover = (Get-ChildItem "$DshHome\.agent-presets" -Recurse -File |
+    Select-String -Pattern "\{\{[A-Z_]+\}\}" | Measure-Object).Count
+  if ($leftover -gt 0) { Write-Host "WARNING: $leftover unresolved placeholder(s) in deployed presets" -ForegroundColor Yellow }
+  Write-Host "agent-presets deployed (rendered, $((Get-ChildItem "$DshHome\.agent-presets" -Directory).Count) presets)"
 }
 
 # ---------------- Phase 4: install dependencies ----------------

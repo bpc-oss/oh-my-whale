@@ -25,6 +25,15 @@ $Vars = @{
   "{{AGENT_OS_BRIDGE}}"     = "C:\ProgramData\AgentOS\LCO-Client\agentos-lco-dsh-bridge.exe"
   "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
   "{{VOICE_MODEL_DIR}}"     = "$UserHome/dsh-voice-input/dsh-voice-models"
+  # 2026-09-30: the bounty-pipeline preset text was captured into the registry with its
+  # real mailbox and password replaced by placeholders. They cannot be guessed, so they
+  # come from the environment when set; when unset the placeholder SURVIVES into the
+  # deployed preset, which the post-render check reports. Silently shipping a literal
+  # "{{BOUNTY_MASTER_PASSWORD}}" into a live preset is how a credential ends up pasted
+  # by hand later.
+  "{{BOUNTY_MASTER_EMAIL}}"    = $(if ($env:BOUNTY_MASTER_EMAIL) { $env:BOUNTY_MASTER_EMAIL } else { "{{BOUNTY_MASTER_EMAIL}}" })
+  "{{AGENTMAIL_INBOX}}"        = $(if ($env:AGENTMAIL_INBOX) { $env:AGENTMAIL_INBOX } else { "{{AGENTMAIL_INBOX}}" })
+  "{{BOUNTY_MASTER_PASSWORD}}" = $(if ($env:BOUNTY_MASTER_PASSWORD) { $env:BOUNTY_MASTER_PASSWORD } else { "{{BOUNTY_MASTER_PASSWORD}}" })
 }
 
 # Auto-detect uv python if present (plan: UV_PYTHON_PATH 自动探测)
@@ -91,11 +100,52 @@ $mappings = @(
   @("$Repo\profile\pnpm-workspace.yaml.template",   "$OutDir\profiles\web\pnpm-workspace.yaml"),
   @("$Repo\profile\cordis.yml",                     "$OutDir\profiles\web\cordis.yml"),
   @("$Repo\profile\session-tool-unlock.mjs",        "$OutDir\profiles\web\session-tool-unlock.mjs"),
-  @("$Repo\profile\global-skill-tools.mjs",         "$OutDir\profiles\web\global-skill-tools.mjs")
+  @("$Repo\profile\global-skill-tools.mjs",         "$OutDir\profiles\web\global-skill-tools.mjs"),
+  # 2026-09-30: the local-presets layer (15 files) holds every preset mount, and the
+  # profile points at it with "file:./local-presets". It was in the registry but in no
+  # mapping, so a replay produced a profile whose bundle had no payload at all.
+  @("$Repo\profile\local-presets",                 "$OutDir\profiles\web\local-presets")
 )
 
+# Render a whole directory tree through the same substitution. local-presets holds 15
+# yaml files that carry {{DSH_USER_HOME}} and {{USER_HOME}}; the single-file renderer
+# above cannot reach them, which is how 86 literal placeholders ended up in the deploy
+# path. Binary and non-template files are copied verbatim.
+function Render-TemplateTree([string]$srcDir, [string]$outDir, [hashtable]$vars) {
+  if (-not (Test-Path $srcDir)) { return }
+  if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
+  Get-ChildItem $srcDir -Recurse -File | ForEach-Object {
+    $rel = $_.FullName.Substring($srcDir.Length).TrimStart("\", "/")
+    $dst = Join-Path $outDir $rel
+    if ($_.Extension -match "^.(yml|yaml|json|mjs|js|cjs|ts|md|txt|template)$") {
+      Render-Template $_.FullName $dst $vars
+    } else {
+      $d = Split-Path $dst -Parent
+      if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+      Copy-Item $_.FullName $dst -Force
+    }
+  }
+}
+
 foreach ($m in $mappings) {
-  if (Test-Path $m[0]) { Render-Template $m[0] $m[1] $Vars }
+
+  if (-not (Test-Path $m[0])) { continue }
+  if ((Get-Item $m[0]).PSIsContainer) { Render-TemplateTree $m[0] $m[1] $Vars }
+  else { Render-Template $m[0] $m[1] $Vars }
+}
+
+# Post-render check: a machine path that survived as literal {{...}} text is the exact
+# failure this file exists to prevent (bootstrap copied presets raw, so 83 placeholders
+# shipped verbatim). Report them instead of letting them reach a live preset. Agent-runtime
+# vars such as {{model}} and {{cwd}} are legitimately literal, so only path-shaped names
+# and the credential placeholders are reported.
+$leftovers = @(Get-ChildItem $OutDir -Recurse -File -ErrorAction SilentlyContinue |
+  Select-String -Pattern "{{[A-Z_]*(HOME|DIR|PATH|CREDENTIAL|EMAIL|INBOX|PASSWORD|KEY)[A-Z_]*}}" -AllMatches |
+  ForEach-Object { $_.Matches.Value } | Sort-Object -Unique)
+if ($leftovers.Count -gt 0) {
+  Write-Host ("WARNING: {0} unresolved placeholder(s) in the rendered output:" -f $leftovers.Count) -ForegroundColor Yellow
+  $leftovers | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+  Write-Host "  Set the matching environment variable, or fill them in by hand after deploy." -ForegroundColor Yellow
 }
 
 Write-Host "Done."
