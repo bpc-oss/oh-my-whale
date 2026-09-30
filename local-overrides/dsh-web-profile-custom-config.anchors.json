@@ -128,9 +128,22 @@
     },
     {
       "id": "commandcode-retry-max",
-      "why": "Same change: the infinite-retry intent is carried by maxRetries, and the anchor above only proves the code list survived.",
-      "pattern": "^          maxRetries: 1000$",
+      "why": "Same change: the infinite-retry intent is carried by maxRetries, and the anchor above only proves the code list survived. Lowered 1000 -> 8 on 2026-09-30: a relay can fail deterministically for one specific request, and 1000 retries against that is an endless loop reprinting the same opaque error, not resilience.",
+      "pattern": "^          maxRetries: 8$",
       "min": 1
+    },
+    {
+      "id": "default-model-off-stealth-line",
+      "why": "2026-09-30. agent-default-model moved off stealth/space-bunny-alpha to z-ai/glm-5.3-flash. That line is healthy for simple requests (6/6) but deterministically refuses a replayed turn carrying parallel tool_calls: 0/6 on a payload that commandcode/z-ai/glm-5.3-flash, yzs/u2-flash and bai/glm-5.3-flash each accepted 6/6. Same relay and key, so this is a model-line swap, not a reconfiguration.",
+      "pattern": "^    model: z-ai/glm-5.3-flash$",
+      "min": 1
+    },
+    {
+      "id": "default-model-not-stealth",
+      "why": "The negative half of the anchor above: the retired line must not creep back as the default. Two independent symptoms made it the wrong default — the deterministic rejection above, and the fact that a rejected turn used to burn 1000 retries.",
+      "pattern": "^    model: stealth/space-bunny-alpha$",
+      "min": 0,
+      "max": 0
     }
   ]
 }
