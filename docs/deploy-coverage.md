@@ -162,3 +162,66 @@ DSH 实际在用的 `@agent-os/dsh-governance` 是本地开发源，peer 指向 
 **结论：接入是完整的，而且曾经真的跑通过 86 次。断在 receipt 过期，且 AgentOS 侧此后
 没有为 DSH 重新签发。** watcher 昨天还在跳，说明不是 AgentOS 整体停了，而是没人重新
 签发这张凭据。
+
+## @agent-os/dsh-governance 适配 0.2.0-rc.1（2026-09-30）
+
+### 为什么以前没发现它对不上新内核
+
+插件**不是 git 仓库**（`~/dev/dsh-governance` 无 `.git`），且 `dist/` 是在 0.1.x 还有
+`.d.ts` 的时候编译的。之后内核换成 0.2.0-rc.1，源码与新内核脱节，但**已编译的 dist 照常加载**，
+所以门禁、启动、实机使用全都看不出问题 —— 直到要重新构建它。
+
+### 依赖面
+
+| 包 | 用法 | 0.2.0 状态 |
+|---|---|---|
+| `@deepseek-ai/cordis` | `Service`（值）、`Context`/`Fiber`（类型） | 4.0.4，**不发 .d.ts**（`types` 指向的 `lib/types/index.d.ts` 不存在，只有 `.d.ts.map`） |
+| `@deepseek-ai/dsh-agent` | 全部 6 处是 `import type` | 0.2.0-rc.1，无类型 |
+| `@deepseek-ai/dsh-tools` | `defineTool`（值）+ 5 个类型 | 0.2.0-rc.1，无类型 |
+
+因为值导入只有 `Service` 和 `defineTool`，**运行时依赖面极小**，逐个核对过签名都没变：
+`tools.guard(fn)` 在 0.2.0 仍是注册式（`layer.guards.append(fn)`，返回 disposer），
+`tools.register(def)` 返回 `this.layers.effect(...)` 即 disposer，`defineTool` 仍是
+`async execute(args, exec)` 两参数。`tools/pre-execute`、`tools/post-execute`、
+`tools/change`、`agent/pre-step` 四个事件全部健在。
+
+### 修的两处真问题
+
+1. **`payload.turn` 已不存在。** 0.2.0 的 `agent/pre-step` payload 收窄为
+   `{ agent, messages, signal, step }`，turn 搬到了事件流（`turn/start` 的 `event.data.turn`）。
+   旧代码 `observedTurn: payload.turn` 静默得到 `undefined` —— 连 `number | null` 都不是，
+   序列化时字段直接消失。改为记 `null` 并注释说明，不伪造数字。
+2. **源码在新内核上根本编译不过。** 三个 DSH 包都不发声明，`strict` 下 `import type`
+   无从解析（首次 `tsc` 报 30 个错）。新增 `src/kernel-0.2.d.ts` 提供 ambient 声明，
+   每一项都注明在 0.2.0 树里的核验依据（字段出现次数、`tools.guard` 的实现片段、
+   pre-step 的解构形态），不是照抄旧声明。编译错误 30 → 0。
+
+### 顺带发现的版本污染（未处理，只记录）
+
+`~/.dsh/profiles/node_modules/@deepseek-ai/cordis` 是 **4.0.2**，来自 2.0.9 时代的
+`v209-patched-tree`。DSH 运行时用自己的 loader hook 解析到 app 树的 4.0.4，**不受影响**；
+但任何走标准 Node 解析的工具（脚本、CLI、测试）会命中 4.0.2 —— 同一服务的两个类身份。
+治理插件的 `node_modules/.pnpm/` 里还躺着一整套同期的副本（cordis 4.0.1、dsh-agent 0.1.x、
+cosmokit 1.8.2），虽然当前没有链接指向它们。
+
+删除该共享层需要先确认没有东西依赖它，属于独立决策，未擅自处理。
+
+### 实机验证（0.2.0 rc.1 上逐项）
+
+用忠实还原的 stub ctx（必须含 `reflect` 与 `isolate`，否则 cordis 的 `Service` 构造就炸）
+驱动 `apply()` 与 `mountAgentOsGovernance`：
+
+```
+挂载 scopes            yes
+订阅事件               agent/pre-step, tools/pre-execute, tools/post-execute,
+                       tools/change, agent/created, agent/disposed
+guard 可调用           true
+pre-step 已接线        true
+governance 状态可查     present
+拆卸后剩余事件          2（apply 层的 created/disposed；fiber 层的 4 个已正确卸载）
+未准入执行被拒绝        false
+```
+
+最后一条是**设计内的降级**：插件注释写明 "Task 5 never enforces policy"，且在没有有效
+broker 凭据时 `degradationReasons` 含 `broker-not-configured` / `same-user-cooperative-enforcement`，
+不拒绝是正确的。与上面「receipt 过期 36 天」是同一件事的两面。

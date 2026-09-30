@@ -1,8 +1,20 @@
 {
     "profileDir":  "{{USER_HOME}}\\.dsh\\profiles\\web",
-    "generatedAt":  "2026-09-30T11:19:36.8532717+08:00",
+    "generatedAt":  "2026-09-30T15:28:47.0166849+08:00",
     "version":  "1",
     "entries":  [
+                    {
+                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+                        "id":  "dsh-subagent-model",
+                        "gitHead":  "88253d25a6bf3c499bab1b57f90fd0036d2ecdd5",
+                        "version":  "0.1.0",
+                        "dirtyFiles":  [
+
+                                       ],
+                        "dirty":  0,
+                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+                        "install_type":  "link"
+                    },
                     {
                         "source":  "{{USER_HOME}}/dsh-token-meter-hermes",
                         "id":  "dsh-token-meter-hermes",
@@ -18,13 +30,13 @@
                         "install_type":  "file-dir"
                     },
                     {
-                        "source":  "{{USER_HOME}}/dsh-voice-input",
-                        "id":  "dsh-voice-input",
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\.\\local-presets",
+                        "id":  "dsh-local-presets",
                         "gitHead":  "",
-                        "version":  "0.1.0",
+                        "version":  "0.0.0",
                         "dirty":  -1,
-                        "spec":  "link:{{USER_HOME}}/dsh-voice-input",
-                        "install_type":  "link"
+                        "spec":  "file:./local-presets",
+                        "install_type":  "file-dir"
                     },
                     {
                         "source":  "{{PLUGIN_SOURCES_DIR}}\\dsh-routed-subagent",
@@ -39,25 +51,13 @@
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-                        "id":  "dsh-subagent-model",
-                        "gitHead":  "88253d25a6bf3c499bab1b57f90fd0036d2ecdd5",
-                        "version":  "0.1.0",
-                        "dirtyFiles":  [
-
-                                       ],
-                        "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-                        "install_type":  "link"
-                    },
-                    {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\.\\local-presets",
-                        "id":  "dsh-local-presets",
+                        "source":  "{{USER_HOME}}/dsh-voice-input",
+                        "id":  "dsh-voice-input",
                         "gitHead":  "",
-                        "version":  "0.0.0",
+                        "version":  "0.1.0",
                         "dirty":  -1,
-                        "spec":  "file:./local-presets",
-                        "install_type":  "file-dir"
+                        "spec":  "link:{{USER_HOME}}/dsh-voice-input",
+                        "install_type":  "link"
                     },
                     {
                         "source":  "{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
@@ -127,7 +127,7 @@
                         "source":  "{{USER_HOME}}/dev/dsh-governance",
                         "id":  "@agent-os/dsh-governance",
                         "gitHead":  "",
-                        "version":  "0.1.0",
+                        "version":  "0.2.0",
                         "dirty":  -1,
                         "spec":  "file:{{USER_HOME}}/dev/dsh-governance",
                         "install_type":  "file-dir"

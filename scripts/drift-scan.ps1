@@ -703,6 +703,11 @@ $report = @{
 $report["verdict"] = if ($patchesStatus -eq "CLEAN" -and $configStatus -eq "CLEAN" -and $pluginsStatus -eq "CLEAN" -and $junctionStatus -eq "CLEAN" -and $fpStatus -eq "CLEAN") { "CLEAN" } else { "HAS_DRIFT" }
 
 Write-Host ""
+Write-JsonReport $ReportPath $report
+# The report is written BEFORE the verdict is acted on. An `exit` placed above this line
+# short-circuits the script, so the file on disk stays whatever the previous run left
+# behind (it is gitignored) — which is how a run that reported HAS_DRIFT still left a
+# report claiming CLEAN.
 if ($report.verdict -eq "CLEAN") {
   Write-Host "VERDICT: CLEAN" -ForegroundColor Green
   exit 0
