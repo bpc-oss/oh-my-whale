@@ -148,7 +148,8 @@
       "package_spec": "file:{{USER_HOME}}/dsh-token-meter-hermes",
       "install_type": "file-dir",
       "description": "Token meter Hermes style (realpath {{USER_HOME}}/dsh-token-meter-hermes, installed via file: COPY not link). V2/V2.1 breakdown-projection clamp patch lives in the installed copy under profiles/web/node_modules - reinstall re-copies from source dir, re-apply V2 after reinstall.",
-      "vendored_backup": "{{REPO}}/vendored/dsh-token-meter-hermes"
+      "vendored_backup": "{{REPO}}/vendored/dsh-token-meter-hermes",
+      "vendored_backup_note": "Reference copy only. No script reads this field: bootstrap does not restore from it, and it must not — the live source for dsh-voice-input is 440M while this copy is 241K, so an automatic restore would install a broken package. The real source is the path in package_spec."
     },
     {
       "id": "dsh-voice-input",
@@ -157,7 +158,8 @@
       "package_spec": "link:{{USER_HOME}}/dsh-voice-input",
       "install_type": "link",
       "description": "Voice input (models dir separate). V8 host-route fix1->fix4 (405 guard / 4MiB cap / Buffer.concat utf8 / try-catch envelope) is applied directly in the symlink source {{USER_HOME}}/dsh-voice-input/lib/index.js - edits take effect live via the symlink, NO repack needed (unlike kernel patches); live-verified POST /voice/ping 200 + GET 405.",
-      "vendored_backup": "{{REPO}}/vendored/dsh-voice-input"
+      "vendored_backup": "{{REPO}}/vendored/dsh-voice-input",
+      "vendored_backup_note": "Reference copy only. No script reads this field: bootstrap does not restore from it, and it must not — the live source for dsh-voice-input is 440M while this copy is 241K, so an automatic restore would install a broken package. The real source is the path in package_spec."
     },
     {
       "id": "@deepseek-ai/dsh-subagent-codex",
