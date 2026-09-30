@@ -111,13 +111,24 @@ added now  : ["dsh-local-presets"]      <- 新增：preset 层包
 | 加载错误 | 整个复验过程 host 日志零 `history unavailable` / `resume failed` / schema 报错 |
 | 内核树残留 | `.bak` / `.orig` 清零（清之前先确认对应内容已在正式文件 + 账本里，备份到 `~/.dsh/backups/kernel-bak-20260930/`） |
 
-**没验成的一条**：用 CDP 切换到**另一个**历史会话。`element.click()` 落到了"新会话"欢迎页，
-换成真实鼠标事件（`Input.dispatchMouseEvent`）后坐标又因 `scrollIntoView` 失效。
-这是 CDP 驱动 UI 的可靠性边界，不是功能证据 —— 用户报过的两类历史错误
-（`Cannot read properties of undefined (reading 'parse')`、
-`Too small: expected number to be >=0`）在本次复验中一次都没出现。
+**没验成的一条**（2026-09-30 晚已补上）：用 CDP 切换到**另一个**历史会话。
+前两次失败的��因都不是功能问题：一次用 `element.click()`，DSH 的会话行只响应指针事件序列，结果落到
+"新会话"欢迎页；一次先 `scrollIntoView` 再取坐标，滚动让坐标失效。第三次按正确顺序做才验成 ——
+**滚动 → 等稳定 → 取视口内坐标 → 立刻派发真实鼠标事件**：
 
-**本轮又踩了一次查询陷阱**：点开文件后内容不在 `[data-dockkit-host]` 里（那个节点会变空），
+- 目标：1 个月前的「询问推文内容如何实现」
+- 标题切过去了，**155 个 `conversation.chat.node`** 完整渲染
+- 内容真实：9月1日 00:27 的「已完成工作 用时 53分40秒」「已重试模型请求（2/∞）」以及子代理的
+  分析全文
+- 零 `history unavailable` / `resume failed` / `Cannot read properties` / `Too small`
+
+**历史加载是好的。** 用户报过的那两类历史错误（`Cannot read properties of undefined (reading
+'parse')`、`Too small: expected number to be >=0`）在这轮全部复验中一次都没出现。
+
+顺带发现会话行的 `children.length` 是 4 而非我假设的 ≤2 —— 按 ≤2 过滤会把 15 个会话全部排除，
+这也是前两次"找不到目标"的直接原因。
+
+**本轮又踩了一次查询陷阱**：点开文件后内容不在 `[data-dockkit-host]` 里（该节点会变空），
 真实渲染在 panel 的 `tabHostBody`。我一度因为查错选择器而以为预览是空白的 ——
 与之前"DOM 里有按钮就算能用"是同一类错误，只是方向相反。**先确认节点在哪，再判断有没有内容。**
 
