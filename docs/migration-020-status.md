@@ -87,6 +87,36 @@ added now  : ["dsh-local-presets"]      <- 新增：preset 层包
 - 插件市场可用（能列插件、来源、分类、安装按钮）
 - `chrome_faithful` MCP 常驻；`reverse-proxy` 控制面挂在 `/dsh-reverse-proxy`
 
+## 四之二、better-sidebar：你装的是 0.12.2，上游已经到 0.24.1
+
+用户报三个症状：底部面板按了是空白、两个按钮落在 `body` 里没进标题栏条、生成的文件仍然用官方侧栏打开。
+查上游才发现真正的原因：**装的是 0.12.2，而 npm `latest` 是 0.24.1**（2026-09-28 发布，
+比内核升级早一天），中间还有 0.19.1 / 0.21.0-rc.1 / 0.21.1 / 0.22.0 / 0.22.1。
+0.24.1 的 peerDependencies 全部是 `^0.2.0-rc.1` —— 它就是为这条内核线做的。
+
+三个症状全是旧版的结构造成的，不是回归：
+
+- 0.12.2 把浮动开关用 `position:fixed` + `appendChild(document.body)` 挂在 body 上，
+  靠 CSS `body[data-dsh-title-bar-compat]` 把它压到标题栏下方——这正是"落在 body 里"；
+- 底部面板是另一个独立 fixed 面板，空的；
+- 0.12.2 拦截 `ctx.workspaces.openPath` 的力度不够，所以文件仍由官方 documentpreview 认领。
+
+**0.24.1 换了架构**，三个症状一起消失：
+
+| | 0.12.2 | 0.24.1 |
+|---|---|---|
+| 形态 | 自带浮动面板 + 独立底部面板 + body 里的 fixed 开关 | 官方右栏内的一个 pane |
+| 插槽 | `conversation.chat.turnTail`、`settings.section` | `sidebar.right.pane.tab`、`sidebar.right.pane.tab.title`、`conversation.session.header.utilities`、`settings.section` |
+| inject | `slots, sessions, connection, workspaces, locale` | 另加 `@deepseek-ai/dsh-client-ui-sidebar-right`、`dsh-client-modules` |
+| 会话解析 | `sessions.list.getSnapshot().current`（0.2.0 已无此字段） | `ctx.get("uiWorkspace")`，并注明旧名保留为旧宿主兜底 |
+
+也就是说：**我上一轮手写的三处移植（会话 scope、89 处图标改名、settings）在 0.24.1 里上游自己已经做了**
+（会话 scope 那条尤其明显，源码注释直说 "The old names stay as the fallback for a host that predates the move"）。
+换包时整目录替换，手写补丁一并作废，`scripts/port-better-sidebar-session-020.mjs` 已删除，
+免得日后被套到 0.24.1 上。
+
+**教训**：遇到插件在新宿主上报障，先查上游有没有新版本，再决定要不要手写移植。
+
 ## 四之三、better-sidebar 侧栏：三处 0.2.0 断裂叠在一起
 
 用户报「右边的侧边栏点不开」。真实原因不是一处，是三层叠加，任何一层单独修都还是打不开：
