@@ -251,6 +251,11 @@ if (-not $SkipInstall) {
   } finally { Pop-Location }
   Write-Host "dependencies installed"
 
+  # omw: profile-side repairs that a fresh pnpm install would wipe. The dead
+  # settingsNamespace import in dsh-bash-terminal makes the whole bash tool fail to load on
+  # kernel 0.2.0-rc.1; node_modules is not tracked, so this must be re-applied here.
+  & node "scriptsix-bash-terminal-import.mjs"
+
   # omw: the deploy steps the post-deploy gates assert. Without these a fresh machine boots
   # and then fails gate 4 (kernel patches), gate 10 (local-overrides) and the super-injector
   # P5 gateway check on arrival. They run AFTER pnpm install on purpose: P5 patches a package
