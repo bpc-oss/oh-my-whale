@@ -1,0 +1,15 @@
+# oh-my-whale runtime layer — the service the workflow tools wait on.
+#
+# 0.2.0's dsh-web-app depends on dsh-tool-workflow / dsh-tool-ralph /
+# dsh-workflow-ptc but NOT on the package that provides the `workflowEngine`
+# service, so both tools pend forever ("waiting for service: workflowEngine").
+# @deepseek-ai/dsh-workflow is the provider and ships in the 0.2.0 tree;
+# nothing inserts it. dsh-workflow-ptc IS already inserted by dsh-web-app,
+# so adding it here is a duplicate loader entry id.
+#
+# A bare `- id: X / name: Y` row is an OVERRIDE keyed by an existing entry id -
+# a top-level row for an entry that does not exist yet is reported as
+# "entry not found" and silently dropped. Adding a new row needs `- insert:`.
+- insert:
+    - id: workflow
+      name: '@deepseek-ai/dsh-workflow'

@@ -133,6 +133,12 @@ const CHECKS = [
     needles: ['data-sidebar-right-expand'] },
   { id: 'P37', why: 'sidebar document preview renders inline video',
     files: ['@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js'], needles: ['applyP37Video'] },
+  // P38 landed in the tree before it was in the manifest (registered 2026-09-30). It is
+  // load-bearing: without it, any module outside the profile trees — preset entries, local
+  // plugin repos, forks — cannot resolve @deepseek-ai/* and dies with ERR_MODULE_NOT_FOUND.
+  { id: 'P38', why: 'outside-profile @deepseek-ai resolution fallback (load-bearing for presets/forks)',
+    files: ['app:/lib/module-resolution-CTTB3FAS.js'],
+    needles: ['// DSH patch: a module loaded by file:// URL that lives OUTSIDE every'] },
 ];
 
 const rows = [];

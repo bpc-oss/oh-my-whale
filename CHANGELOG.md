@@ -1,6 +1,71 @@
 # Changelog
 
 
+## [0.3.4] - 20260930 — 全量账本对账：补回丢失项、修 6 个门禁盲点、登记 P38
+
+上一版修好了 better-sidebar，但那只是用户报障的那一个。这轮按"照着 whale 全部登记物逐条对账"做了一遍，
+结论是**门禁本身比功能更不可靠** —— 多个门禁在扫错的对象或用错的口径，漏报和误报同时存在。
+
+### 真实丢失 / 未登记（已补）
+
+- **P38 从未登记**：profile 树外的模块解析兜底（preset 入口、本地插件 repo、fork 靠它才能解析
+  `@deepseek-ai/*`，否则一律 `ERR_MODULE_NOT_FOUND`）。2026-09-29 起就在内核树里生效，manifest 里
+  没有条目 —— 换机或升级会静默丢掉。已生成 patch（reverse-apply 校验通过）、登记、加门禁断言，
+  并删掉遗留的 `.bak-extfallback`。
+- **`local-presets` 层没有仓库副本**：15 个文件、416K，所有 preset 挂载都声明在这里，profile 用
+  `file:./local-presets` 指向它。此前从未进过 git。drift-scan 抓不到它，因为它压根不在 SOURCES 里，
+  没有可比对象。已 capture 到 `profile/local-presets/`（路径占位化为 `{{DSH_USER_HOME}}`/`{{USER_HOME}}`）。
+- **`autoprompt` preset 只存了 14 个文件中的一个的备份**：真实内容 13 个 .mjs + preset.yml + skills/
+  从未入库，`.agent-presets/autoprompt/` 在仓库里只有一个 `.bak`。已完整 capture。
+- **`dsh-plugin-manager` 丢了**：包不在、lock 不在、vendor 归档没有，而 SOURCES 没有任何移除记录。
+  装回后发现它也缺 `dsh.profile.bundles` 声明（已补）。
+- **vision-toolkit 的 provider override 只在 live 上**：`cordis.patch.yml` 里那段把视觉后端钉到
+  内网 GLM-5.3、避免回落到公网 VLM（那会把每张图外传）的配置，**只存在于这台机器**。它是
+  隐私相关的一半设置，重放即丢。已进 template。
+- **profile 模板落后**：better-sidebar 仍锁在 0.12.2 tarball（重放会装回旧版）、subagent-ui 仍指
+  0.1.0-rc.8、缺 `dsh-local-presets`/`dsh-full-remote`/4 个官方 experimental bundle、却还留着用户
+  主动关掉的 `modlens`/`modsearch`/`dsh-voice-input`（重放会复活）。已全部对齐。
+
+### 门禁盲点（每个都做过阴性对照）
+
+- `verify-plugin-activation` 原本只扫 `logs/` 顶层，而 **host 进程写的是 `logs/host/`** —— 一个以
+  "host 日志是唯一证据"为存在理由的门禁，从头到尾读的是错文件。同时它的正则 `\[pkg\][^\n]*` 匹配
+  该插件的**每一行**日志，把 `[I] dsh-openpencil mounted` 也算成失败（72 条"失败"里没有一条是真的）。
+  还缺三样：没区分"包目录不存在"（静默跳过 → 移走目录仍报 23/23 全绿）、没区分"装着但没被挂载"
+  （plugin-manager 的真实状态）、没做时间过滤（10 小时前修好的 bug 一直算失败）。全部补上，
+  boot 边界从日志里最后一段 >2 分钟的时间空档自动推断。
+- `audit-registry` / `audit-preset-mounts`（新增）：逐字节比 preset 会把模板占位符和 0.2.0 的
+  bundle 改名当成丢失。改成**挂载 id 级**对账 + 文件存在性，426 个挂载 id 全部命中。
+- `drift-scan` 默认扫 `~/.dsh/runtime/v209-patched-tree` —— 那是 **0.1.5 的死树**，自 2.0.16 起
+  没有进程在用它，所有补丁判定都在对着一堆死代码。默认改为扫活动安装，死树需显式 `-RuntimeTree`
+  并告警。manifest 的 `baseline.kernel` 同步 0.1.5 → 0.2.0-rc.1。
+- `local-overrides/verify.ps1` 用 `Select-String -Context 0,1` 找 `disabled: true`，只看得见紧邻的
+  一行 —— live 那一行是注释，于是把一个存在着的行报成缺失。窗口放宽到 0,25。
+- `drift-scan` 把四条"故意关闭"报成 `REMOVED`（读起来像丢失）。现在读 SOURCES 的状态，显示
+  `NOT MOUNTED (by design)` 且不计入 drift。
+- `settings.yaml` 在 0.2.0 已迁进 `cordis.patch.yml` 的 `llm-pi-ai` 行，drift-scan 还在找旧路径，
+  永远报一条黄色。现在识别这次迁移。
+
+### 一个差点造成重复的判断
+
+drift-scan 报 P8（@ 提及子代理）LOST，marker `inputTriggers` 在 0.2.0 的 ui-subagent 里确实是 0。
+我按 0.1.5 的补丁重打了 P8 —— 写之前读了 `dsh-client-ui-reference`，发现它已经注册了
+`{ trigger: "@", name: "reference" }`，且 candidates 里用 `origin === "subagent" && parentId`
+**已经列出子代理**，还带 `section.subagents` 分组和 remote 解析，是原补丁的严格超集。已撤销重打，
+并把结论写进 manifest 标注 **DO NOT RE-LAND**。**读源码，而不是 grep 旧符号名。**
+
+同理查清另外 8 个 LOST：P9 装着（`agentPreset` 21 处）、P25 装着（`__p25` 前缀在 0.2.0 被去掉）、
+P37 装着（`applyP37Video`；它在 `$Symbols` 表里根本没有条目，所以永远报 "no anchor"）、
+P11 被上游更严格地解决（`seedLength` 现在是**非法字段**，直接 throw）、P12 吸收、P13 明确不做
+（0.2.0 的 WebSocket 严格一帧一消息，没有批量原语）、P17b/P18 上游原生（`{type:"video", mediaType,
+url, name}` 三处齐全）。**没有一个补丁真的丢失。**
+
+### 门禁
+
+esm-syntax 0 / esm-link 0 / patch-port 35 OK 0 TODO / kernel-patches 全在 / plugin-activation 24 全绿 /
+audit-registry 56 项全在 / preset-mounts 426 个 id 全在 / drift-scan **CLEAN**（首次）/ privacy OK /
+local-overrides 全绿。
+
 ## [0.3.3] - 20260930 — better-sidebar 0.24.1 真正激活；P31 撤销；新增插件激活门禁
 
 ### 根因：0.24.1 换上去了，但它一次都没加载成功

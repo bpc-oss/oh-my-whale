@@ -53,20 +53,20 @@ $pkg = Join-Path $dsh 'profiles\web\package.json'
 $listed = (Test-Path $pkg) -and ((Get-Content $pkg -Raw) -match 'dsh-vision-toolkit')
 Check 'web profile bundle removed' (-not $listed) 'no dsh-vision-toolkit in profiles/web/package.json'
 $patch = Join-Path $dsh 'profiles\web\cordis.patch.yml'
-$disabled = (Test-Path $patch) -and (Select-String -Path $patch -Pattern '^- id: vision-toolkit' -Context 0,1 |
+$disabled = (Test-Path $patch) -and (Select-String -Path $patch -Pattern '^- id: vision-toolkit' -Context 0,25 |
   Where-Object { $_.Context.PostContext -match 'disabled: true' } | Measure-Object).Count
 Check 'web profile disabled row' ($disabled -ge 1) 'id: vision-toolkit + disabled: true present'
 # the row must also exist in the replay template, otherwise an upgrade replays a
 # template that resurrects the toolkit (the live row alone would pass)
 $tpl = Join-Path $whale 'profile\cordis.patch.yml.template'
-$tplDisabled = (Test-Path $tpl) -and (Select-String -Path $tpl -Pattern '^- id: vision-toolkit' -Context 0,1 |
+$tplDisabled = (Test-Path $tpl) -and (Select-String -Path $tpl -Pattern '^- id: vision-toolkit' -Context 0,25 |
   Where-Object { $_.Context.PostContext -match 'disabled: true' } | Measure-Object).Count
 Check 'template disabled row' ($tplDisabled -ge 1) 'template carries the same disabled row (replay-safe)'
 # both id forms must exist in live AND template: `vision-toolkit` blocks the
 # bundle patch, `dsh-vision-toolkit` blocks super-injector's package-name id
-$dshRowLive = (Select-String -Path $patch -Pattern '^- id: dsh-vision-toolkit' -Context 0,1 |
+$dshRowLive = (Select-String -Path $patch -Pattern '^- id: dsh-vision-toolkit' -Context 0,25 |
   Where-Object { $_.Context.PostContext -match 'disabled: true' } | Measure-Object).Count
-$dshRowTpl = (Select-String -Path $tpl -Pattern '^- id: dsh-vision-toolkit' -Context 0,1 |
+$dshRowTpl = (Select-String -Path $tpl -Pattern '^- id: dsh-vision-toolkit' -Context 0,25 |
   Where-Object { $_.Context.PostContext -match 'disabled: true' } | Measure-Object).Count
 Check 'dsh-vision-toolkit row (live+template)' (($dshRowLive -ge 1) -and ($dshRowTpl -ge 1)) 'super-injector id form present in both, so a replay cannot resurrect it'
 # OUT OF SCOPE BY CONTRACT: profiles/bpc-operator is the governed operator agent -

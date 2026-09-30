@@ -1,0 +1,26 @@
+{
+  "name": "dsh-local-presets",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local agent presets declared for DSH 0.2.0 (one patch layer per preset).",
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./00-runtime.patch.yml",
+        "./preset-ai-tube-daily.patch.yml",
+        "./preset-anchored-standard.patch.yml",
+        "./preset-autoprompt.patch.yml",
+        "./preset-autoprompt-reviewer.patch.yml",
+        "./preset-bounty-pipeline.patch.yml",
+        "./preset-dev.patch.yml",
+        "./preset-dev-reviewer.patch.yml",
+        "./preset-employee-ops.patch.yml",
+        "./preset-enforce-rsi-standard.patch.yml",
+        "./preset-enforce-standard.patch.yml",
+        "./preset-j-space-standard.patch.yml",
+        "./preset-router-standard.patch.yml",
+        "./preset-verifier-standard.patch.yml"
+      ]
+    }
+  }
+}

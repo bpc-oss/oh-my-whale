@@ -1,8 +1,8 @@
 {
   "version": "1",
   "baseline": {
-    "shell": "2.0.9",
-    "kernel": "0.1.5-rc.1",
+    "shell": "2.0.16",
+    "kernel": "0.2.0-rc.1",
     "cordis": "4.0.2",
     "pi-ai": "0.85.1",
     "loader": "1.0.3",
@@ -31,7 +31,8 @@
         "installedAsarSha256": "21a21b14c76e892eda8fc345c9a33f0d56caccbbff66c74d17130ab03707cf80",
         "tree": "{{USERPROFILE}}/.dsh/runtime/v209-patched-tree"
       }
-    }
+    },
+    "note": "Kernel tree scanned by default: %LOCALAPPDATA%ProgramsDSH Desktop\resourcesapp\node_modules (shell 2.0.16+ ships unpacked, no asar). The old .dsh/runtime/v209-patched-tree was the 0.1.5 runtime tree and is no longer the running kernel — drift-scan must be invoked with -Installed."
   },
   "patches": [
     {
@@ -141,9 +142,9 @@
       "sourceFile": "lib/client.js",
       "diffTarget": "current",
       "purpose": "subagent UI input triggers: @ mention source + childLabels (rc.5-era patch, lost in rc.8)",
-      "status": "upstream",
-      "note": "rc.5-era patch: inject inputTriggers + childLabels + @ trigger source. Dragged through rc.7, lost in rc.8. DSH upgrade wipes both profile dependency and host client.js. Idempotent patch script at dsh-routed-subagent/scripts/_patch_ui_subagent.mjs. A0: sourceSpec corrected to @0.1.1-rc.2.",
-      "v209": "@deepseek-ai/dsh-client-ui-subagent/lib/client.js@814 (inject inputTriggers)/837 (childLabels)/862 (registerSource \"ui-subagent: @ source\")",
+      "status": "skip-upstream",
+      "note": "UPSTREAM — DO NOT RE-LAND. An attempt was made on 2026-09-30 to port P8 onto 0.2.0-rc.1 and it was reverted: re-reading dsh-client-ui-reference showed the @ trigger already covers subagent children, so the port would have produced a SECOND source for the same trigger — the duplicate-control problem users already reported once with the sidebar. The 0.1.5-era reason for the patch (ui-subagent owned inputTriggers itself) no longer applies: 0.2.0 moved trigger plumbing into dsh-client-ui-input-trigger and let ui-reference own the @ source. Marker-grep for \"inputTriggers\" in ui-subagent returns 0 and looks alarming; it is not — the capability moved packages, it did not disappear.",
+      "v209": "upstream owns it: @deepseek-ai/dsh-client-ui-reference registers { trigger: \"@\", name: \"reference\" } and its candidates() already list child subagents (summary?.origin === \"subagent\" && summary.parentId === session.sessionId, grouped under a \"section.subagents\" heading). 0.2.0 moved trigger plumbing into dsh-client-ui-input-trigger; ui-subagent no longer owns inputTriggers and must not.",
       "portNote": "ALREADY-UPSTREAM: 0.2.0 ships a superset in dsh-client-ui-reference (@ source + subagent child ordering). Forcing the patch in would register a second, weaker @ source."
     },
     {
@@ -159,7 +160,7 @@
       "purpose": "session.fork supports agentPreset: schema field + composeAgent branch + child meta/selection (rc.5-era capability, lost in rc.8)",
       "status": "ported",
       "note": "2026-08-21 fork-to-preset e2e fix (Codex CLI). composeAgent is the authoritative resolve+mount path; structured preset errors, no bare HTTP 500. A0: sourceSpec corrected to @0.1.1-rc.2; see apiproxySequence. verifyfix 2026-09-10: v205 retarget to dsh-api-session-controller/lib/index.js (PATCH P9 markers); rc.2 path kept in rc2Target. | v205 G5 note 2026-09-11: 官方 fork 按钮不带 agentPreset 参数（子会话经 header.agentPreset+seedLength 继承，已由事件流证实）；request.agentPreset→compose 分支专由 dsh-fork-to-preset 插件路径触发，跨 preset fork 实测待用户窗口。",
-      "v209": "@deepseek-ai/dsh-api-session-controller/lib/index.js@693-696 (PATCH fork-to-preset comment+logger+composeAgent branch)/715-723 (child agent-preset/selected durable commit); typert.host.js@405 (fork schema agentPreset)+@1744 (SessionForkRequest decl); typert.remote-client.js@405",
+      "v209": "@deepseek-ai/dsh-api-session-controller/lib/index.js — the fork-to-preset path, now expressed as `agentPreset` (21 occurrences). The 0.1.5 line numbers are void; the capability marker is the agentPreset handling in the fork request composition.",
       "portNote": "Relocated: host fork is now SessionCommands.fork in dsh-api-session-controller."
     },
     {
@@ -188,10 +189,10 @@
       "sourceFile": "lib/index.js",
       "diffTarget": "current",
       "purpose": "resolveSessionPreset respects header.seedLength: inherited seed events never override child header",
-      "status": "ported",
+      "status": "skip-upstream-stricter",
       "note": "2026-08-21 deepest semantic bug: fork seed copies parent's agent-preset/selected events which overwrote child header in resolver. A0: sourceSpec corrected to @0.1.1-rc.2. verifyfix 2026-09-10: pending-adjudication — v205 resolver may fold this upstream; awaiting G5 fork e2e ruling (todo item 4). verify reports PENDING, not FAIL. | v205: seedLength native (@api-session-controller lib/index.js:1442); verify anchor seedLength = native-replacement proof, no patch applied.",
       "rc2Target": "@deepseek-ai/dsh-agent-presets/lib/index.js",
-      "v209": "not re-landed (status kept skip-native): 0.1.5 seedLength lives in @deepseek-ai/dsh-session/lib/index.js@782 (canonicalHeader validation) + dsh-session-log-deepseek/persistence-jsonl; api-session-controller/lib/index.js has 0 seedLength hits. verify stays PENDING-ADJUDICATION (skip-*), not FAIL.",
+      "v209": "upstream solved it more strictly: @deepseek-ai/dsh-session/lib/index.js validateSessionHeader() now REJECTS the field outright — `if (Object.hasOwn(record, \"seedLength\")) throw new Error(\"session header has invalid field \\\"seedLength\\\"\")`. A header that cannot carry seedLength cannot be overwritten by an inherited seed event, which was the whole point of the 0.1.5 patch.",
       "portNote": "Relocated: resolveSessionPreset is gone; preset is a session projection, so the fold now honours inheritedEventCount in dsh-agent-preset-registry."
     },
     {
@@ -204,9 +205,9 @@
       "sourceFile": "lib/client.js",
       "diffTarget": "current",
       "purpose": "mirror fork request schema (agentPreset) to match host apiproxy",
-      "status": "ported",
+      "status": "skip-absorbed",
       "note": "2026-08-21 fork-to-preset e2e fix. Schema mirror drift: host and client-connection must stay in sync. A0: sourceSpec corrected to @0.1.1-rc.2. | v209 2026-09-11: official dsh-client-connection@0.1.5-rc.1 fork request schema natively carries agentPreset — installed file byte-identical to pristine (verified via diff vs app.asar.pre-patch-20260911 extract). Patch no longer needed; status active -> skip-absorbed.",
-      "v209": "ABSORBED: @deepseek-ai/dsh-client-connection/lib/client.js is byte-identical to pristine 0.1.5-rc.1 (diff vs app.asar.pre-patch-20260911 = 0); official fork request schema natively carries agentPreset (22 hits). No landing lines to record.",
+      "v209": "absorbed: @deepseek-ai/dsh-client-connection/lib/client.js carries no agentPreset-specific code because the fork request schema is forwarded wholesale from the host apiproxy; nothing to patch here.",
       "portNote": "Relocated: dsh-client-connection is transport-only now; the fork schema lives in the api-session-controller typert mirrors and the remotes bundle."
     },
     {
@@ -220,9 +221,9 @@
       "sourceBroken": true,
       "diffTarget": "current",
       "purpose": "SSE batch flush (20 frames / 30ms idle) — cut per-frame enqueue+stringify overhead under high event volume; renderer messages were trickling after task completion",
-      "status": "not-portable",
+      "status": "skip-not-portable",
       "note": "2026-08-22 applied to running kernel. Backup .bak-sse-batch-20260822. Marker 'BATCH_MAX = 20' in sseResponse. A0 2026-09-10: source .bak not present in install tree (verified absent) -> sourceBroken; A1 will reverse-build the diff from the current installed file vs official @0.1.1-rc.2. See apiproxySequence. verifyfix 2026-09-10: v205 retarget to dsh-api-gateway/lib/index.js (BATCH_MAX = 20 present); rc.2 path kept in rc2Target. | v209 2026-09-11 rewrite: original sseResponse BATCH_MAX=20 landing did not survive the 0.1.5 gateway refactor as-is — rebased onto RemoteStreamMuxConnection write chain (WRITE_BATCH_MAX=20 / 30ms idle / 1MiB high-water backpressure, consts @270-279, flushBatch @375-389, drainBuffered @416-418). Verify anchor 'BATCH_MAX = 20' still hits (substring of WRITE_BATCH_MAX = 20 @275).",
-      "v209": "REWRITTEN 2026-09-11 onto gateway send chain: @deepseek-ai/dsh-api-gateway/lib/index.js@269-279 (P13 comment + WRITE_BATCH_MAX=20/WRITE_BATCH_IDLE_MS/WRITE_BUFFER_HIGH_WATER_BYTES/WRITE_DRAIN_* consts), @371 (terminal/full-batch flush trigger)/@375-389 (flushBatch + recursive batch pump)/@416-418 (drainBuffered backpressure waits). Locate with grep WRITE_.",
+      "v209": "deliberately not ported. The 0.2.0 gateway speaks WebSocket, where the protocol is strictly one frame per message with an exactKeys check — there is no batching primitive to hook, so the 0.1.5 \"20 frames / 30ms idle\" flush has no equivalent here. Not drift: a recorded decision.",
       "portNote": "Re-checked on 0.2.0 and the earlier \"no cost to amortise\" claim was WRONG. The SSE writer is gone, but the WebSocket writer still costs one JSON.stringify + one socket.send + one promise per message (dsh-api-gateway/lib/types/stream-server.js send()). The promise chain fixes ordering and back-pressure, not the per-frame cost. It cannot be batched as written: parseRemoteStreamClientMessage parses EXACTLY ONE message per text with strict exactKeys validation, so joining frames would break the protocol on the client side. Porting needs a batch message type on both ends - a protocol change, not a patch. Context for the cost: the per-frame cost is lower than the SSE path P13 was written against (already-stringified text, no controller.enqueue, no re-encode), so this is a regression risk rather than a known outage."
     },
     {
@@ -301,9 +302,9 @@
       "sourcePath": "@deepseek-ai/dsh-llm-deepseek/lib/index.js.bak-video-20260831",
       "diffTarget": "current",
       "purpose": "video block -> video_url wire part in contentParts",
-      "status": "upstream",
+      "status": "skip-upstream",
       "note": "2026-08-31 video modal dev",
-      "v209": "@deepseek-ai/dsh-llm-deepseek/lib/index.js@92-95 (video block -> video_url)",
+      "v209": "upstream owns the video wire part. The capability is exercised through dsh-llm-pi-ai (video_url appears 4x there, plus the P25 offload guard); the @deepseek-ai/dsh-llm-deepseek package is not on that path in 0.2.0. The end-to-end video path was verified working, so this is a move, not a loss.",
       "portNote": "NOT-APPLICABLE: the 0.2.0 DeepSeek Messages serializer rejects any non-image block and no DeepSeek-family model declares video input; video on such a route goes through the P20 frame fallback."
     },
     {
@@ -336,9 +337,9 @@
       "sourcePath": "reconstructed from current (video branches removed)",
       "diffTarget": "current",
       "purpose": "session.prompt accepts video content parts (schema + durablePromptContent passthrough)",
-      "status": "ported",
+      "status": "skip-upstream",
       "note": "2026-08-31 video modal dev; frontend upload entry. A0 2026-09-10: standard a/ b/ header rewrite at {{USERPROFILE}}/.dsh/tmp/rc2-vs-patches/018-host-apiproxy-video-v2.patch — passes git apply -p1 -R --check against the installed tree. Original patchFile kept untouched. See apiproxySequence (shares file with P7/P9/P13). verifyfix 2026-09-10: v205 semantics fan out over 7 files (api-session-controller index+typert x2, api-remotes client, subagent index+typert x2) — target is now an array, verify checks every entry; rc.2 single path kept in rc2Target. Anchors: 'PATCH P18' in index files, literal(\"video\") in typert/remote-client/api-remotes. | v209 2026-09-11 retarget: api-session-controller/lib/index.js and dsh-subagent/lib/index.js have 0 video hits in 0.1.5 (prompt schema flows through typert files) — dropped from target, prior 7-file v205 array preserved under v205Target. New 6th target @deepseek-ai/dsh-attachment/lib/index.js carries the prompt-part pass-through (fast-path + part map) with marker 'P18 v205'; verify symbol set extended with 'P18 v205'.",
-      "v209": "v209 fan-out retarget (see target array): @deepseek-ai/dsh-api-session-controller/lib/typert.host.js@587-591/661-665/1612; @deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js@587/661; @deepseek-ai/dsh-api-remotes/lib/client.js@8274/8354; @deepseek-ai/dsh-subagent/lib/typert.host.js@50/566; @deepseek-ai/dsh-subagent/lib/typert.remote-client.js@50; @deepseek-ai/dsh-attachment/lib/index.js@224-228 (fast-path passthrough, \"P18 v205\" marker @225)/242-243 (main part map). NOTE: the two index.js files carried in the v205 target array have 0 video hits in 0.1.5 — durablePromptContent validation now flows through typert schemas.",
+      "v209": "upstream ships it natively and more completely than the patch did: the session.prompt content schema carries z.object({ type: literal(\"video\"), mediaType, url, name }) in dsh-api-session-controller/lib/typert.host.js and dsh-api-remotes/lib/client.js, and dsh-attachment admitPromptContent() maps part.type === \"video\" through. The 0.1.5 patch only widened the schema.",
       "v205Target": [
         "@deepseek-ai/dsh-api-session-controller/lib/index.js",
         "@deepseek-ai/dsh-api-session-controller/lib/typert.host.js",
@@ -500,7 +501,7 @@
       "purpose": "video gateway size guard: __p25OffloadOldVideos offloads stale video blocks before request sizing",
       "status": "ported",
       "note": "Discovered by A1 orphan scan 2026-09-10 (hand-patched by concurrent session, file mtime 17:42, script p25_patch.js 17:37; 2 x \"// P25\" markers in dsh-llm-pi-ai). p26_manifest.js (18:06) is a registration helper, not a code patch — no P26 marker in any code file. Registered as item 31 of the kernel patch set (v5.2). Shares target file with P17/P19b/P20; A2 found llm-pi-ai image pipeline refactored in 0.1.2 (toPiContext(options, images, onReplayDegrade)) -> P17/P19b/P20/P25 all go to the re-export queue together, replay via combined diff after re-derivation. A2 anchor scan: same file, P20 anchors 2/10 -> P25 presumed same-family drift; verify in Phase 2.",
-      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js@1302 (__p25OffloadOldVideos def)/1972 (pre-request call)"
+      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js — the guard function is `offloadOldVideos` (2 occurrences; the __p25 prefix was dropped in the 0.2.0 port). It runs before request sizing so stale video blocks are offloaded rather than inflating the payload."
     },
     {
       "id": "P26",
@@ -601,10 +602,18 @@
       "status": "ported",
       "purpose": "inline VIDEO preview body for the right-sidebar document preview (user request 2026-09-12): registers a builtin mp4/m4v/mov/webm/ogv documentPreviews entry reusing the ImageBody bytes pipeline (bytes -> Blob -> ObjectURL -> <video controls playsInline>, revoke on unmount). Electron ships proprietary codecs, so H.264 mp4 plays.",
       "note": "2026-09-12: applied to runtime tree + staged repack of installed asar (header diff = this file only, unpacked 294/294 hash-identical). E2E verified on CLI 3087: chat file reference -> [data-video-preview] video readyState 4, boot 0 errors. Validation gate = vm.SourceTextModule (ESM), NOT node --check (CJS blind spot, see P35 async-loss incident in docs/handoff.md). DEPLOYED 2026-09-12 17:38 (hash f47d0aa2..) on a LIVE-base rebuild: concurrent P38 (video gate in dsh-tool-fs) preserved untouched, documentpreview pre-state verified byte-identical to baseline; backup app.asar.pre-p37-20260912-173854",
-      "v209": {
-        "file": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
-        "anchor": "applyP37Video / VIDEO_BODY_ID$P37"
-      }
+      "v209": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js — `applyP37Video` (2 occurrences) plus the playsInline video body. The 0.1.5 anchor expected a literal VIDEO_BODY_ID$P37 marker that the port did not carry."
+    },
+    {
+      "id": "P38",
+      "file": "host",
+      "target": "lib/module-resolution-CTTB3FAS.js",
+      "patchFile": "host/038-module-resolution-outside-profile-fallback.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "resolve @deepseek-ai/* for a module that lives OUTSIDE every registered profile tree (a preset entry .mjs, a plugin dev repo, a fork). Node walks node_modules up from the MODULE directory and never reaches the app tree, so such a module died with ERR_MODULE_NOT_FOUND on its first @deepseek-ai import. This is a LOAD-BEARING patch: without it presets, local plugin repos and forks stop resolving entirely.",
+      "note": "Registered 2026-09-30 during the full registry audit. The patch had been live in the tree since 2026-09-29 (backup left as lib/module-resolution-CTTB3FAS.js.bak-extfallback) but was never in the manifest, so an upgrade or a fresh machine would have dropped it silently. Self-contained: DESKTOP_REQUIRE and pathToFileURL already exist in the file. Backwards compatible - only the previously-throwing case changes; every other specifier defers unchanged.",
+      "discovered_by": "scripts/drift-scan.ps1 -Installed (UNKNOWN modification on the live tree)"
     }
   ],
   "vendorPatches": [

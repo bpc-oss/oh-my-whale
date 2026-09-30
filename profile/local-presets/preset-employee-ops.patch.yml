@@ -1,0 +1,81 @@
+# oh-my-whale generated preset layer.
+#
+# 0.1.5 dsh-agent-presets scanned ~/.dsh/.agent-presets; 0.2.0 splits it into
+# dsh-agent-preset (one preset = one Loader row) + dsh-agent-preset-registry (the
+# service). Nothing scans the directory, so presets must be DECLARED, and the
+# declaration must live in its own bundle patch LAYER - dsh-web-app declares its
+# presets the same way (dsh.bundle.patch is an array of files).
+#
+# Local entry names are file:// URLs: host-process-entry.js clears loader.internal,
+# so the loader does a BARE import(name) and a Windows path is not a module
+# specifier. ./x.mjs would resolve against the profile dir, not the preset dir.
+#
+# Regenerate: node scripts\migrate-presets-to-020.mjs then scripts\extract-preset-layers.mjs --apply
+- insert:
+      - id: preset-employee-ops
+        name: '@deepseek-ai/dsh-agent-preset'
+        config:
+          id: employee-ops
+          plugins:
+            # Employee preset: `employee-ops` — 运维员工类型基座 (M2a).
+            #
+            # 方案 v5 (docs/worker-preset-design.md):
+            #   - preset = agent.cordis.yml 插件组合 (通用能力基座), 非数据模板
+            #   - 员工灵魂 (soul/limits/meta) 由 setup 动态注入 (compilePrompt 产物)
+            #   - 重要: 本 preset 任何 section 不得带 complete:true (防吞掉注入的 soul section)
+            #   - 发现: 经 agent-presets config.roots 注入 (dir: presets/, id: employee-ops)
+            #   - host agent/created 处理器按 session.header.agentPreset.startsWith("employee-") 排除 WorkerRuntime
+
+            # 基础人格 (可追加, 非 complete — 员工灵魂由 setup 注入覆盖/叠加)
+            - id: persona
+              name: '@deepseek-ai/dsh-persona'
+              config:
+                prefix: |-
+                  You are an autonomous AI worker (employee) operating 7x24 on behalf of your employer.
+                  Your soul profile (identity, mission, skills, personality, values, boundaries) is injected
+                  by the employee runtime at dispatch time. Follow it precisely.
+                  You work inside your assigned workspace directory. Report clearly; escalate risks.
+                includeRuntimeContext: true
+
+            # 持久 shell (工作区执行)
+            - id: persistent-shell
+              name: cordis:group
+              group: true
+              isolate:
+                terminals: true
+              config:
+                - id: pty
+                  name: '@deepseek-ai/dsh-terminal'
+
+                - id: terminal-bash
+                  name: '@deepseek-ai/dsh-terminal-bash'
+                  config:
+                    timeoutMs: 300000
+
+                - id: persistent-bash
+                  name: '@deepseek-ai/dsh-tool-bash-persistent'
+                  config:
+                    timeoutMs: 300000
+                    description: |-
+                      Run commands in a bash shell (employee workspace)
+                      * You have no internet access via this tool.
+                      * Working directory is the employee's assigned workspace.
+                      * State persists across calls.
+
+            # 本地文件系统 (员工工作区, 绝对路径)
+            - id: filesystem
+              name: cordis:group
+              group: true
+              isolate:
+                fs: true
+              config:
+                - id: fs-local
+                  name: '@deepseek-ai/dsh-fs-local'
+                  config:
+                    cwd: !!js process.env.DSH_CWD ?? process.cwd()
+
+                - id: str-replace-editor
+                  name: '@deepseek-ai/dsh-tool-str-replace-editor'
+                  config:
+                    maxOutputChars: 16000
+# END oh-my-whale generated preset declarations

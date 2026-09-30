@@ -10,7 +10,8 @@ param(
   [string]$Out = "",                        # output report path (default: drift-report.json)
   [string]$Compare = "",                    # baseline report to compare against
   [string]$Allowlist = "",                  # drift-allowlist.json path (default: docs/drift-allowlist.json)
-  [switch]$Installed,                       # v209: scan installed app.asar (asar-extract cache) instead of the runtime tree
+  [switch]$Installed,                       # (default) scan the LIVE install; kept for explicitness
+  [switch]$RuntimeTree,                     # scan the 0.1.5 runtime tree instead (legacy, NOT the running kernel)
   [switch]$Deep                             # iteration 2: --deep not yet implemented
 )
 
@@ -28,7 +29,7 @@ $RuntimeTreeModules = "$env:USERPROFILE\.dsh\runtime\v209-patched-tree\node_modu
 $OldKernel = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
 $ProfileModules = "$env:USERPROFILE\.dsh\profiles\web\node_modules"
 
-if ($Installed) {
+if ($Installed -or -not $RuntimeTree) {
   # Desktop shell 2.0.16 (kernel 0.2.0-rc.1) STOPPED packing the app: the tree
   # ships unpacked at resources\app\. Only fall back to the asar extraction cache
   # when that older layout is present (shell <= 2.0.15).
@@ -72,7 +73,11 @@ if ($Installed) {
     exit 1
   }
 } elseif (Test-Path $RuntimeTreeModules) {
+  # The 0.1.5 runtime tree. It is NO LONGER the running kernel (shell 2.0.16 ships
+  # 0.2.0-rc.1 unpacked), so scanning it by default reported drift against a tree
+  # nothing executes - every patch verdict was about dead code. It now warns loudly.
   $KernelDir = $RuntimeTreeModules
+  Write-Host "WARNING: scanning the 0.1.5 runtime tree (v209-patched-tree) - that is NOT the running kernel since shell 2.0.16 (0.2.0-rc.1). Re-run with -Installed to scan the live install." -ForegroundColor Yellow
 } else {
   $KernelDir = $OldKernel   # legacy pre-v209 shell fallback
 }
@@ -143,7 +148,7 @@ $Symbols = @{
   "P6"   = "registerTransitionGuard"
   "P7"   = "LIST_PROJECTION_EXCLUDED"
   "P8"   = "ui-subagent: @ source"
-  "P9"   = @('PATCH P9','PATCH (fork-to-preset')
+  "P9"   = @('agentPreset','fork-to-preset')
   "P10"  = @('agentPreset: opts.agentPreset','PATCH P10')
   "P11"  = "seedLength"
   "P12"  = "PATCH P12"
@@ -165,12 +170,14 @@ $Symbols = @{
   "P22"  = "video_url"
   "P23"  = "hasVideos"
   "P24"  = "VIDEO_BLOCK_TOKENS"
-  "P25"  = "__p25OffloadOldVideos"
+  "P25"  = "offloadOldVideos"
   "P26"  = "P26 v205 compat shim"
   "P27"  = @('"video",')
   "P28"  = '"instruction-hint"'
   "P29"  = "backoffDelayMs"
   "P30"  = "keep auto-update checks opt-in"
+  "P37"  = "applyP37Video"
+  "P38"  = "a module loaded by file:// URL that lives OUTSIDE every"
 }
 
 # 1a. Check each manifest patch (file == "host" only, P5 is profile-tree)
@@ -343,6 +350,19 @@ try {
     $actual = $m[1]
     if (-not (Test-Path $rendered)) { continue }
     if (-not (Test-Path $actual)) {
+      # Kernel 0.2.0 (desktop 2.0.16+) migrated the settings document out of
+      # ~/.dsh/settings.yaml into the live config layer: profiles/web/cordis.patch.yml
+      # under the llm-pi-ai row. A missing old path is therefore not a missing file,
+      # it is the completed migration -- PROVIDED the new location carries the
+      # settings root. Verify that, then move on silently.
+      if ($m[0] -eq "settings.yaml") {
+        $migratedTo = Join-Path $DshHome "profiles\web\cordis.patch.yml"
+        if ((Test-Path $migratedTo) -and (Select-String -Path $migratedTo -Pattern "^- id: llm-pi-ai" -Quiet)) {
+          Write-Host "  settings.yaml: migrated into profiles\web\cordis.patch.yml (kernel 0.2.0 layout) - OK" -ForegroundColor DarkGreen
+          $configMatched += "settings.yaml"
+          continue
+        }
+      }
       Write-Host "  $($m[0]): missing (actual)" -ForegroundColor Yellow
       $configDiffers += @{ "file" = $m[0]; "reason" = "actual_missing" }
       continue
@@ -493,8 +513,20 @@ if ((Test-Path $profilePkg) -and (Test-Path $sourcesJson)) {
           Write-Host "  ACKED (removed): $sId (allowlist)" -ForegroundColor DarkGray
           continue
         }
-        Write-Host "  REMOVED: $sId (in SOURCES, not in bundles or dependencies)" -ForegroundColor DarkGray
-        $removed += @{ "id" = $sId; "reason" = "not_in_bundles_or_deps" }
+        # SOURCES may record this entry as deliberately off (user turn-off, a
+        # local-preset-plugin that never lives in bundles, an uninstalled plugin).
+        # Those are the registered state, not drift — reporting them as "REMOVED"
+        # made four intentional entries read as four losses.
+        $sAll = Get-Content $sourcesJson -Raw | ConvertFrom-Json
+        $sList = if ($sAll -is [array]) { $sAll } elseif ($sAll.plugins) { $sAll.plugins } else { @() }
+        $sEntry = @($sList) | Where-Object { $_.id -eq $sId } | Select-Object -First 1
+        $byDesign = $sEntry -and ($sEntry.status -eq "not-mounted" -or $sEntry.removed_from_profile -or $sEntry.removed_reason -or $sEntry.kind -eq "local-preset-plugin")
+        if ($byDesign) {
+          Write-Host "  NOT MOUNTED (by design): $sId" -ForegroundColor DarkGray
+        } else {
+          Write-Host "  REMOVED: $sId (in SOURCES, not in bundles or dependencies)" -ForegroundColor Yellow
+          $removed += @{ "id" = $sId; "reason" = "not_in_bundles_or_deps" }
+        }
       }
     }
   }

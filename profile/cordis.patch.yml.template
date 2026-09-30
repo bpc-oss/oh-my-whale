@@ -88,6 +88,19 @@
 #       python: '{{USER_HOME}}\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe'
 #     allowedDirs: []
 - id: vision-toolkit
+  # The plugin stays uninstalled, but its provider override is kept HERE on purpose:
+  # if it is ever re-enabled, the toolkit's own vLLM default is a PUBLIC cloud
+  # endpoint (https://api.inferera.com/v1, gemini-3.6-flash), which would upload
+  # every image off-box. Pinning it to the on-box GLM-5.3 endpoint makes that
+  # impossible. Losing this block on a replay is a privacy regression, not a
+  # cosmetic one — keep it in sync with profiles/web/cordis.patch.yml.
+  config:
+    provider:
+      credential: DGX_SPARK_VLLM_API_KEY
+      baseUrl: http://192.168.31.221:8888/v1
+      model: GLM-5.3-Flash-EXL3
+    language: zh
+    timeoutMs: 180000
   disabled: true
 # P0-1 verification 插件（2026-08-20 重构：全局引擎移除，只保留客户端）。
 # 引擎改为只在 enforce-standard preset 挂载（enforce 模式）——其他会话零验证开销。
