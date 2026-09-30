@@ -115,3 +115,15 @@ loaded, which is what produced the "said it would look, then stopped" failures.
 Residual capability loss is deliberate: the pixel/graphics operations (crop, pixel_diff,
 dominant_colors, trace, html_screenshot, long-screenshot OCR, extract_foreground) are gone
 with it. They are recoverable by re-adding the bundle; nothing else depends on them.
+
+## compatibility.json 的自检（2026-09-30）
+
+该文件是**精确版本**豁免（`pkg@version` -> DSH 版本列表），条目失效有两种：
+
+- **死条目**：授予的版本已不再安装。本次查出 `@agent-os/dsh-governance@0.1.0` —— 插件已升到
+  0.2.0，而该条目只对 0.1.0 生效，等于没有豁免。已删除。
+- **多余豁免**：内核已满足该插件的 peerDependencies。0.2.0 版 governance 的 peer 是
+  `^0.2.0-rc.1`，正好被当前内核 0.2.0-rc.1 满足，所以**不需要**把它改成 0.2.0 条目，
+  而是直接删掉。
+
+复核脚本：`scripts/audit-compatibility.mjs`（当前 12 条全部仍在承重，0 条死条目）。
