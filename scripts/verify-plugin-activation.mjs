@@ -218,6 +218,7 @@ for (const name of targets) {
   //    exactly that — the schema module for the verification suite, required by both
   //    dsh-verification and dsh-client-ui-verification, and never mounted itself.
   const notWired = [];
+  let route = '';
   if (!OFF.has(name) && !isLibrary(name, dir)) {
     const viaBundle = Array.isArray(bundles) && bundles.includes(name);
     // Only a real insert ROW counts. A plain substring search matched the dozens of
@@ -227,6 +228,12 @@ for (const name of targets) {
       || new RegExp(`^[ \\t]*name:[ \\t]*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[ \\t]*$`, 'm').test(patchText);
     const own = readJson(join(dir, 'package.json'));
     const viaSelf = !!(own?.dsh?.client || own?.dsh?.bundle);
+    // viaSelf fires for EVERY profile package on this machine (they all declare dsh.client
+    // or dsh.bundle), which made the FAIL branch unreachable: the gate could never detect
+    // the "installed, clean log, never mounted" state it was written for. Keep the boolean
+    // for the all-three-absent case, but also record WHICH route applies so a bundle entry
+    // quietly becoming redundant is visible instead of silently doing the work.
+    route = viaBundle ? 'bundles' : viaPatch ? 'cordis.patch.yml' : viaSelf ? 'self-declared' : 'none';
     if (hasBundleList && !viaBundle && !viaPatch && !viaSelf) notWired.push(name);
   }
 
@@ -244,11 +251,11 @@ for (const name of targets) {
   }
 
   const ok = importFail.length === 0 && notWired.length === 0 && shadows.length === 0;
-  rows.push({ name, ver, ok, importFailures: importFail.length, lastHit: importFail.length ? importFail[importFail.length - 1].slice(0, 110) : '', notWired, shadows });
+  rows.push({ name, ver, ok, route, importFailures: importFail.length, lastHit: importFail.length ? importFail[importFail.length - 1].slice(0, 110) : '', notWired, shadows });
 }
 
 for (const r of rows) {
-  console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}@${r.ver}`);
+  console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}@${r.ver}${r.route ? '  [' + r.route + ']' : ''}`);
   if (r.absent) console.log('        ABSENT  declared in the profile package.json but the package directory is gone from node_modules');
   if (r.importFailures) {
     console.log(`        import failures in host log: ${r.importFailures}`);
