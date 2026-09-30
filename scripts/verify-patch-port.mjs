@@ -20,9 +20,19 @@ const ROOT = process.argv[2];
 if (!ROOT) { console.error('usage: node verify-patch-port.mjs <app-root>'); process.exit(2); }
 const NM = join(ROOT, 'node_modules');
 
+const HOME = (process.env.USERPROFILE || process.env.HOME || '').replace(/\\/g, '/');
+const PROFILE_NM = `${HOME}/.dsh/profiles/web/node_modules`;
+
 const read = (rel) => {
-  // "@scope/pkg/..." resolves under node_modules; "app:/..." or a bare "lib/..."
-  // resolves against the app root (the shell's own bundled lib/ is not a package).
+  // Three roots, because patches live in three trees:
+  //   "@scope/pkg/..."  -> the kernel's node_modules
+  //   "app:/..."      -> the shell's own bundled lib/ (not a package)
+  //   "profile:/..."  -> the profile's node_modules, where the P5 gateway patch lives
+  if (rel.startsWith('profile:/')) {
+    const p = join(PROFILE_NM, ...rel.slice('profile:/'.length).split('/'));
+    if (!existsSync(p)) return null;
+    try { return readFileSync(p, 'utf8'); } catch { return null; }
+  }
   const rel0 = rel.replace(/^app:\//, '');
   const base = rel0.startsWith('@') ? NM : ROOT;
   const p = join(base, ...rel0.split('/'));
@@ -45,8 +55,13 @@ const CHECKS = [
     files: ['@earendil-works/pi-ai/dist/api/openai-completions.js'], needles: ['api.b.ai'] },
   { id: 'P4',  why: 'KNOWN_SESSION_EVENT_TYPES accepts verification/change + continuous-worker/change',
     files: ['@deepseek-ai/dsh-session/lib/types/known-event-types.js'], needles: ['verification/change', 'continuous-worker/change'] },
-  { id: 'P5',  why: 'super-injector dev_install + plugin-gateway gate (profile scope, not kernel)',
-    scope: 'profile' },
+  // P5 was listed as scope:'profile', which made this gate print PROFILE and check nothing —
+  // and patches/profile/verify.ps1, which would have caught it, is called by nothing. So a
+  // plain `pnpm install` (which replaces node_modules wholesale) reverted the plugin-install
+  // gateway with no gate noticing. It is now checked like every other patch, against the
+  // LIVE profile tree.
+  { id: 'P5',  why: 'super-injector dev_install + plugin-gateway spawnSync gate (live profile tree)',
+    files: ['profile:/@dsh-external/dsh-super-injector/lib/index.js'], needles: ['plugin-gateway'] },
   { id: 'P6',  why: 'goal verification seam: synchronous pre-commit guard',
     files: ['@deepseek-ai/dsh-goal/lib/index.js'], needles: ['permitRef', 'GoalTransitionGuard'] },
   { id: 'P7',  why: 'session.list drops heavy projection keys',
