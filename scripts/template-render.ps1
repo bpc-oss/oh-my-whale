@@ -43,6 +43,36 @@ if (-not $PluginSources) {
 }
 Write-Host "PLUGIN_SOURCES_DIR: $PluginSources"
 
+$ListenHost = $env:DSH_LISTEN_HOST
+if (-not $ListenHost) {
+  $envFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env"
+  if (Test-Path $envFile) {
+    foreach ($line in Get-Content $envFile -Encoding UTF8) {
+      if ($line -match "^\s*DSH_LISTEN_HOST\s*=\s*(.+?)\s*$") { $ListenHost = $Matches[1].Trim().Trim('"') }
+    }
+  }
+}
+if (-not $ListenHost) {
+  # This host has five IPv4 interfaces, and picking the wrong one is silently broken: the
+  # first draft of this probe returned the WireGuard address (10.66.66.2) while the phone
+  # reaches the box on Ethernet (192.168.x). A proxy bound to a tunnel address binds,
+  # reports success, and nothing can connect.
+  # So: virtual/tunnel adapters are excluded by name AND by range, and 192.168/16 wins —
+  # that is the range a LAN client can actually reach.
+  $VirtualIf = "vEthernet|Mihomo|Loopback|Hyper-V|WSL|WireGuard|Wintun|Tailscale|VPN|Docker|VirtualBox"
+  $addrs = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -notmatch "^(127\.|169\.254\.|198\.18\.)" -and $_.InterfaceAlias -notmatch $VirtualIf })
+  if ($addrs.Count -eq 0) {
+    # Nothing matched the strict filter: fall back to any non-loopback address, still skipping tunnels.
+    $addrs = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+      Where-Object { $_.IPAddress -notmatch "^(127\.|169\.254\.)" -and $_.InterfaceAlias -notmatch $VirtualIf })
+  }
+  $ListenHost = ($addrs |
+    Sort-Object @{ Expression = { if ($_.IPAddress -like "192.168.*") { 0 } elseif ($_.IPAddress -like "10.*") { 2 } else { 1 } } }, IPAddress |
+    Select-Object -First 1 -ExpandProperty IPAddress)
+}
+if ($ListenHost) { Write-Host "DSH_LISTEN_HOST: $ListenHost" } else { Write-Host "DSH_LISTEN_HOST: (none found - set it in .env)" -ForegroundColor Yellow }
+
 # Collect variable values
 $Vars = @{
   "{{DSH_USER_HOME}}"       = $DshHome
@@ -61,6 +91,13 @@ $Vars = @{
   "{{AGENT_OS_BRIDGE}}"     = "C:\ProgramData\AgentOS\LCO-Client\agentos-lco-dsh-bridge.exe"
   "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
   "{{VOICE_MODEL_DIR}}"     = "$UserHome/dsh-voice-input/dsh-voice-models"
+  # Inbound reverse-proxy bind address. Machine-specific and NOT reliably guessable:
+  # this host alone has five IPv4 interfaces (vEthernet, WireGuard, Tailscale, Ethernet,
+  # Mihomo) and binding the wrong one produces a proxy nothing can reach. Resolution order:
+  #   1. DSH_LISTEN_HOST in the environment, or DSH_LISTEN_HOST= in the repo .env
+  #   2. the first private-range IPv4 that is not loopback / link-local / virtual
+  # The probe prints what it picked — a wrong guess must be visible, not silent.
+  "{{DSH_LISTEN_HOST}}"     = $ListenHost
   # 2026-09-30: the bounty-pipeline preset text was captured into the registry with its
   # real mailbox and password replaced by placeholders. They cannot be guessed, so they
   # come from the environment when set; when unset the placeholder SURVIVES into the

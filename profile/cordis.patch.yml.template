@@ -176,6 +176,17 @@
 # 已卸载插件（@dsh-external/test-run-plugin）：disabled 阻断其 bundle patch 自装配
 - id: test-run-plugin
   disabled: true
+# Inbound reverse proxy (the phone connects here). listenHost is machine-specific and
+# resolved at render time — see {{DSH_LISTEN_HOST}} in scripts/template-render.ps1.
+# listenPort 41180 is NOT a default: 45120-48120 is partly reserved on this box, where
+# binding reports EADDRINUSE with nothing listening in netstat, so 41180 was chosen by
+# measurement. Change the listen address from the app: 设置 -> 反向代理.
+# To undo: delete this block and remove the firewall rule "DSH Reverse Proxy Inbound (41180)".
+- id: reverse-proxy
+  config:
+    listenHost: {{DSH_LISTEN_HOST}}
+    listenPort: 41180
+
 
 # Agent OS LCO adapter — 保持关闭（用户决定 2026-09-10；结构断头已修复，config 保留便于日后启用）
 - id: agentos-dsh-lco

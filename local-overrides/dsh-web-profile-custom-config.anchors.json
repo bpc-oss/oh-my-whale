@@ -82,6 +82,48 @@
       "why": "P20 video modality survived the 0.2.0 settings migration; requires the dsh-llm-pi-ai schema patch (patches/post-install/p20-video-modality.mjs). If this disappears, re-apply that patch and re-import settings.yaml.imported.",
       "pattern": "^\\s*- video$",
       "min": 1
+    },
+    {
+      "id": "agentos-governance-entry",
+      "why": "the AgentOS governance plugin is enabled and points at the client-activation receipt it observes through; losing either line silently unhooks DSH from the governance loop",
+      "pattern": "^- id: agent-os-dsh-governance$",
+      "min": 1
+    },
+    {
+      "id": "agentos-governance-client-activation",
+      "why": "the receipt path is the governance plugin's only link to the AgentOS broker state",
+      "pattern": "^    clientActivation: .*framework-governance/state/client-activation.json$",
+      "min": 1
+    },
+    {
+      "id": "agentos-lco-adapter-entry",
+      "why": "LCO is deliberately disabled but its config block is kept so it can be re-enabled; dropping the block loses the thresholds",
+      "pattern": "^- id: agentos-dsh-lco$",
+      "min": 1
+    },
+    {
+      "id": "agentos-lco-bridge-path",
+      "why": "the LCO bridge executable; stored as a credential-style name so no machine path is committed",
+      "pattern": "^    bridgePath: .*agentos-lco-dsh-bridge.exe$",
+      "min": 1
+    },
+    {
+      "id": "reverse-proxy-inbound",
+      "why": "the phone connects through this block; the port 41180 was measured, not defaulted (45120-48120 is partly reserved on this host)",
+      "pattern": "^- id: reverse-proxy$",
+      "min": 1
+    },
+    {
+      "id": "reverse-proxy-listen-port",
+      "why": "the measured port, with listenHost resolved at render time from DSH_LISTEN_HOST",
+      "pattern": "^    listenPort: 41180$",
+      "min": 1
+    },
+    {
+      "id": "agentos-chrome-config-bridge",
+      "why": "the chrome-faithful compatibility block forwards AGENTOS_CHROME_CONFIG into the MCP child env",
+      "pattern": "AGENTOS_CHROME_CONFIG",
+      "min": 1
     }
   ]
 }
