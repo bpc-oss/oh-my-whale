@@ -63,3 +63,23 @@ drift-scan / check-private / local-overrides-verify
 
 每个都做过**阴性对照** —— 制造它要抓的故障，确认它变红且退出码非零。
 一个抓不住自己目标类别的门禁，比没有门禁更糟：它只训练人忽略它。
+
+## AgentOS 接入面的迁移结论（2026-09-30 审计）
+
+用户点名要确认的一项。逐点核对：
+
+| 接入点 | 状态 | 证据 |
+|---|---|---|
+| `@agent-os/dsh-governance` 0.1.0 | ✅ 完整 | 在 `node_modules` 且在 `dsh.profile.bundles`；`enabled: true`；import 零失败；`apply()` 实测为每个 agent 隔离并挂载 fiber、订阅 `agent/created` / `agent/disposed` / `tools/pre-execute` |
+| `agents` 注入服务 | ✅ 存在 | 由 `@deepseek-ai/dsh-agent` 提供，满足插件的 `inject: ['agents']` |
+| `clientActivation` receipt | ✅ 就位 | `client-activation.json` 868 字节，含 `protocol` / `receiptSha256` / `epoch` / `brokerGeneration` / `endpointIdentitySha256` |
+| `agentos-dsh-lco` | ✅ 按设计关闭 | 块在（template 用 `{{AGENT_OS_BRIDGE}}`），`disabled: true` —— 用户 2026-09-10 的决定，配置保留以便日后启用 |
+| `AGENTOS_CHROME_CONFIG` 桥接 | ✅ 在位 | chrome-faithful 兼容块把它转发进 MCP 子进程环境 |
+| `reverse-proxy` | ✅ **本次补登记** | 此前只存在于 live，template 缺失 → 重放会丢掉手机入口 |
+| AgentOS 主目录 / `framework-governance/state` / `plugin-gateway` / `agents-anywhere` | ✅ 存在 | |
+
+**注意**：governance 是 advisory 设计，运行时不打日志，所以"host 日志里没有它的输出"是
+正常的，不能据此判断它没激活。判断依据是挂载路径实测（见上表）。
+
+**本次新增的 7 条 anchors** 保护这些配置不被后续升级静默删除：治理入口、clientActivation、
+LCO 入口、bridgePath、reverse-proxy 入口与端口、chrome-config 桥接。anchors 11 → 18 条。
