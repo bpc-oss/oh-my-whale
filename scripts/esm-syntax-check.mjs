@@ -39,7 +39,14 @@ function profilePluginRoots() {
   if (!HOME) return [];
   const nm = `${HOME}/.dsh/profiles/web/node_modules`;
   let pkg;
-  try { pkg = JSON.parse(readFileSync(`${HOME}/.dsh/profiles/web/package.json`, 'utf8')); } catch { return []; }
+  // A silent [] here made the gate vacuous again: pointed at a wrong USERPROFILE it
+  // reported the exact pre-fix numbers (1092 modules, 0 errors) and exited 0 — a clean
+  // result that meant "nothing was checked". Fail loudly instead.
+  try { pkg = JSON.parse(readFileSync(`${HOME}/.dsh/profiles/web/package.json`, 'utf8')); }
+  catch (err) {
+    console.error(`FATAL: cannot read ${HOME}/.dsh/profiles/web/package.json — the profile half of this gate would be silently skipped: ${err.message}`);
+    process.exit(2);
+  }
   const out = [];
   for (const name of Object.keys(pkg.dependencies || {})) {
     const d = `${nm}/${name}`;

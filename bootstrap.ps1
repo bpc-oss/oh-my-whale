@@ -30,12 +30,24 @@ foreach ($tool in @("git", "node", "npm", "pnpm")) {
 $nodeVer = node --version
 Write-Host "node: $nodeVer, pnpm: $(pnpm --version)"
 
-# Locate kernel dir (new shell v2.0.1 preferred, old shell fallback)
+# Locate kernel dir. Shell 2.0.16 (kernel 0.2.0-rc.1) STOPPED packing the app: the tree
+# ships unpacked at resources\app\node_modules. This script only knew about
+# resources\app.asar.unpacked (shell <= 2.0.15) and the pre-v209 Program Files install, so
+# on the current shell NEITHER existed and bootstrap exited 1 at Phase 0 having deployed
+# nothing. probe order: unpacked -> packed-asar era -> legacy.
 $kernelDir = ""
-$newKernel = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
-$oldKernel = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
-if (Test-Path $newKernel) { $kernelDir = $newKernel } elseif (Test-Path $oldKernel) { $kernelDir = $oldKernel }
-if (-not $kernelDir) { Write-Host "FAIL: no dsh kernel found (install DSH Desktop first)"; exit 1 }
+$kernelCandidates = @(
+  "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app\node_modules",
+  "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules",
+  "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
+)
+foreach ($c in $kernelCandidates) { if (-not $kernelDir -and (Test-Path "$c\@deepseek-ai\dsh\package.json")) { $kernelDir = $c } }
+if (-not $kernelDir) {
+  Write-Host "FAIL: no dsh kernel found. Probed:" -ForegroundColor Red
+  $kernelCandidates | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+  Write-Host "Install DSH Desktop 2.0.16+ first." -ForegroundColor Red
+  exit 1
+}
 Write-Host "kernel: $kernelDir"
 $dshVer = (Get-Content "$kernelDir\@deepseek-ai\dsh\package.json" -Raw | ConvertFrom-Json).version
 Write-Host "dsh kernel version: $dshVer"
@@ -90,25 +102,64 @@ if (Test-Path $vendorSrc) {
 # $Vars map the profile templates are rendered with — one definition, one source.
 if (Test-Path "$Repo\config\.agent-presets") {
   New-Item -ItemType Directory -Path "$DshHome\.agent-presets" -Force | Out-Null
+  # Credentials are not machine paths: the bounty-pipeline preset text was captured with
+  # its real mailbox and password replaced by placeholders, and those cannot be inferred.
+  # They come from the environment when set; when unset the placeholder survives into the
+  # deployed preset and the leftover check below reports it. Silently shipping a literal
+  # {{BOUNTY_MASTER_PASSWORD}} is how a credential gets pasted in by hand later.
   $presetVars = @{
-    "{{DSH_USER_HOME}}"       = $DshHome
-    "{{USER_HOME}}"           = $UserHome
-    "{{LOCAL_APP_DATA}}"      = "$UserHome\AppData\Local"
-    "{{USER_NAME}}"           = $User
-    "{{PLUGIN_SOURCES_DIR}}"  = $env:OMW_PLUGIN_SOURCES_DIR
-    "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
-    "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
+    "{{DSH_USER_HOME}}"          = $DshHome
+    "{{USER_HOME}}"              = $UserHome
+    "{{LOCAL_APP_DATA}}"         = "$UserHome\AppData\Local"
+    "{{USER_NAME}}"              = $User
+    "{{PLUGIN_SOURCES_DIR}}"     = $env:OMW_PLUGIN_SOURCES_DIR
+    "{{AGENT_OS_DIR}}"           = "$UserHome\AppData\Local\AgentOS"
+    "{{CHROME_FAITHFUL_DIR}}"    = "$UserHome\chrome-faithful"
+    "{{BOUNTY_MASTER_EMAIL}}"    = $(if ($env:BOUNTY_MASTER_EMAIL) { $env:BOUNTY_MASTER_EMAIL } else { "{{BOUNTY_MASTER_EMAIL}}" })
+    "{{AGENTMAIL_INBOX}}"        = $(if ($env:AGENTMAIL_INBOX) { $env:AGENTMAIL_INBOX } else { "{{AGENTMAIL_INBOX}}" })
+    "{{BOUNTY_MASTER_PASSWORD}}" = $(if ($env:BOUNTY_MASTER_PASSWORD) { $env:BOUNTY_MASTER_PASSWORD } else { "{{BOUNTY_MASTER_PASSWORD}}" })
   }
+  # The relative path is measured from the PRESET'S OWN directory. Measuring it from the
+  # file's grandparent — which this did at first — silently drops the preset name for
+  # anything nested more than one level deep: autoprompt/skills/autoprompt-pipeline/SKILL.md
+  # never materialised and 33 stray directories appeared at the top of .agent-presets.
   Get-ChildItem "$Repo\config\.agent-presets" -Directory | ForEach-Object {
-    $name = $_.Name
-    Get-ChildItem $_.FullName -Recurse -File | ForEach-Object {
-      $rel = $_.FullName.Substring($_.Directory.Parent.FullName.Length).TrimStart("\", "/")
-      $dst = Join-Path "$DshHome\.agent-presets" $rel
+    $presetSrc = $_.FullName
+    $presetDst = Join-Path "$DshHome\.agent-presets" $_.Name
+    Get-ChildItem $presetSrc -Recurse -File | ForEach-Object {
+      $rel = $_.FullName.Substring($presetSrc.Length).TrimStart("\", "/")
+      $dst = Join-Path $presetDst $rel
       $dir = Split-Path $dst -Parent
       if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
       $body = [System.IO.File]::ReadAllText($_.FullName)
       foreach ($k in $presetVars.Keys) { $body = $body.Replace($k, $presetVars[$k]) }
       [System.IO.File]::WriteAllText($dst, $body, [System.Text.UTF8Encoding]::new($false))
+    }
+  }
+  # local-preset-plugin payloads. SOURCES.json records these as a single source plus an
+  # installed_to pattern and a mounted_in list; nothing else in the deploy path reads those
+  # fields, so the payload never reached the presets and a fresh machine booted without the
+  # guard. Deploying from the registry record keeps the two in step automatically — a
+  # preset added to mounted_in is covered without editing this file.
+  $sourcesFile = Join-Path $Repo "plugins\SOURCES.json"
+  if (Test-Path $sourcesFile) {
+    $src = (Get-Content $sourcesFile -Raw | ConvertFrom-Json)
+    $list = if ($src -is [array]) { $src } else { @($src.plugins) }
+    foreach ($plugin in $list) {
+      if ($plugin.kind -ne "local-preset-plugin" -or -not $plugin.source -or -not $plugin.payload) { continue }
+      $payloadSrc = Join-Path $Repo ($plugin.source -replace '/', '\')
+      $payloadSrc = Join-Path $payloadSrc $plugin.payload
+      if (-not (Test-Path $payloadSrc)) {
+        Write-Host "  MISSING payload for $($plugin.id): $payloadSrc" -ForegroundColor Red
+        continue
+      }
+      foreach ($presetName in @($plugin.mounted_in)) {
+        $dst = Join-Path "$DshHome\.agent-presets" "$presetName\$($plugin.payload)"
+        $dir = Split-Path $dst -Parent
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        Copy-Item $payloadSrc $dst -Force
+      }
+      Write-Host "  $($plugin.id): payload -> $(@($plugin.mounted_in).Count) preset(s)"
     }
   }
   $leftover = (Get-ChildItem "$DshHome\.agent-presets" -Recurse -File |

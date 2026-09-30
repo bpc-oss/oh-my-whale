@@ -22,6 +22,16 @@
  *   2. wired      — listed in the profile's dsh.profile.bundles (or recorded as off)
  *   3. no shadow  — no transitive dep resolving OLDER than the top-level copy
  *
+ * KNOWN BOUNDARY (deliberate, verified by negative control): the NOT WIRED branch is
+ * unreachable on a machine where every direct dependency declares dsh.client or
+ * dsh.bundle — which is all 24 of them here. Removing a package from dsh.profile.bundles
+ * flips its route from [bundles] to [self-declared] and still passes, because self-
+ * assembly IS a legitimate mount path. That is why the route is printed per package: a
+ * bundles entry quietly becoming redundant is a real thing to notice, but it is not
+ * automatically a defect, and a baseline file would only add a thing to forget to update.
+ * Actual loss — a registered package that is absent, or absent from bundles AND patch AND
+ * self-declaration — is covered by the ABSENT check here and by audit-registry.mjs.
+
  * Signal 3 exists because "no import error" is not the same as "runs": a shadowed
  * transitive dep is the failure mode that hides best. A nested NEWER copy is normal
  * pnpm behaviour and is not reported.

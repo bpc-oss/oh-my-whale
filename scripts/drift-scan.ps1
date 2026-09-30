@@ -705,8 +705,13 @@ $report["verdict"] = if ($patchesStatus -eq "CLEAN" -and $configStatus -eq "CLEA
 Write-Host ""
 if ($report.verdict -eq "CLEAN") {
   Write-Host "VERDICT: CLEAN" -ForegroundColor Green
+  exit 0
 } else {
   Write-Host "VERDICT: HAS_DRIFT" -ForegroundColor Yellow
+  # A gate that prints HAS_DRIFT and exits 0 cannot fail anything. The independent review
+  # removed a package from dsh.profile.bundles, watched drift-scan detect it, and then
+  # watched the script still return success to the shell.
+  exit 1
 }
 
 # ── Write report ──
