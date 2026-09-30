@@ -108,3 +108,57 @@ LCO 入口、bridgePath、reverse-proxy 入口与端口、chrome-config 桥接�
 **净结论**：AgentOS 的**准入/门禁**那一半是活的（P5 的 plugin-gateway 门禁本地可用），
 **完成回传**那一半是断的。要恢复需要 AgentOS 侧为当前 epoch 重新签发 receipt
 （`framework-governance client-activation`），不是 DSH 侧能补的 —— 所以这里只记录，不动手。
+
+## AgentOS 侧 DSH 接入清单（AgentOS 目录实查，2026-09-30）
+
+盘的是 `~/AppData/Local/AgentOS` 这一侧，即"AgentOS 的设定里 DSH 接入了哪些"。
+
+### 1. 治理插件 —— AgentOS 分发了一套，DSH 实际用的是另一套
+
+| | 来源 | 内核线（peer `dsh-agent`） | DSH 是否在用 |
+|---|---|---|---|
+| `@agent-os/dsh-bundle` 0.1.0 | `dsh/bundles/*.tgz` | `0.1.0-rc.6` | ❌ |
+| `@agent-os/dsh-bundle` 0.1.1 | 同上 | `0.1.0-rc.6` | ❌ |
+| `@agent-os/dsh-bundle` 0.2.0 | 同上 | `0.1.0-rc.7`（description 写明 "for DSH rc.7"） | ❌ |
+| `agentos-dsh-lco` 0.1.0 | 同上 | — | ❌ 按用户 2026-09-10 决定保持 `disabled: true` |
+| **`@agent-os/dsh-governance` 0.1.0** | **`~/dev/dsh-governance`（本地开发源）** | **`0.1.0-rc.8`** | ✅ **在用** |
+
+**版本号 0.2.0 与当前内核 0.2.0-rc.1 是巧合** —— 那个 bundle 的内核线是 rc.7。
+DSH 实际在用的 `@agent-os/dsh-governance` 是本地开发源，peer 指向 **rc.8**，
+比 AgentOS 分发的三版都新。所以 AgentOS 的 `dsh/bundles/` 目前是**历史分发渠道，未在用**。
+
+### 2. 治理管道 `framework-governance/`
+
+| 目录 | 项数 | 用途 |
+|---|---|---|
+| `inbox/` | 15 | 全部是 `inbound-web-live-*.json` —— DSH web 端投递进来的 |
+| `outbox/` | 5 | 处理结果 |
+| `processed/` | 5 | 已处理 |
+| `keys/` | 2 | 签名密钥对（receipt 里的 `publicKeyHex` / `keyId` 对应这里） |
+| `ledger/` | **0** | 账本为空 |
+| `state/client-activation.json` | 1 | 连接凭据 |
+| `state/completions.jsonl` | **86 条** | **完成记录，全部 `COMPLETION_ACCEPTED`，ack 类型 `agent-os-dsh-protocol-ack`** |
+| `state/watcher-heartbeat.json` | 1 | watcher 心跳 |
+
+### 3. Broker `dsh/broker/`
+
+33 个 `broker-instance-*.tombstone`，**0 个活跃实例**；而 `agentos-lco-broker` 进程活着
+（2026-09-30 10:28 启动）。即：进程在，实例目录全是墓碑 —— 没有活跃 broker 实例在服务。
+
+### 4. 验收证据 `evidence/`
+
+`lco-dsh-phase1` / `phase2` / `phase3` 三个阶段的握手与验收记录。
+
+### 时间线：断点在哪
+
+```
+2026-08-24 15:43   client-activation.json 签发（expiresAt = 08-25 07:43）
+2026-08-24 15:56   completions.jsonl 最后一条成功 —— 签发后 13 分钟
+2026-08-25 07:43   receipt 过期
+2026-09-29 10:49   watcher-heartbeat 最后心跳（watcher 还活着）
+2026-09-30         仍无新成功记录
+```
+
+**结论：接入是完整的，而且曾经真的跑通过 86 次。断在 receipt 过期，且 AgentOS 侧此后
+没有为 DSH 重新签发。** watcher 昨天还在跳，说明不是 AgentOS 整体停了，而是没人重新
+签发这张凭据。
