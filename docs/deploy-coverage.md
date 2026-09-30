@@ -83,3 +83,28 @@ drift-scan / check-private / local-overrides-verify
 
 **本次新增的 7 条 anchors** 保护这些配置不被后续升级静默删除：治理入口、clientActivation、
 LCO 入口、bridgePath、reverse-proxy 入口与端口、chrome-config 桥接。anchors 11 → 18 条。
+
+## AgentOS 运行时连通性：DSH 侧已迁移，对端连接断着（2026-09-30）
+
+上面那张表全是 **DSH 侧**的配置。往 AgentOS 那侧查，三条独立证据一致：
+
+| 证据 | 状态 |
+|---|---|
+| `agentos-lco-broker` 进程 | ✅ 在跑（PID 5956，2026-09-30 10:28 启动） |
+| `client-activation.json` 的 `expiresAt` | ❌ **2026-08-25，已过期 36 天** |
+| receipt 指向的命名管道 `\.\pipe\AgentOS-DSH-06fbf0ca…` | ❌ 不存在 |
+| `watcher-heartbeat.json` | ❌ 最后心跳 2026-09-29 02:49，停在 28 小时前 |
+
+也就是说：receipt 是一张**过期凭据**，它指向的端点也不在。governance 在 DSH 侧挂载正常，
+但它的 completion submitter 没有可用的连接。
+
+**对日常使用没有影响。** `client-connector.js` 的注释写明了设计意图：
+> Lazily-connecting completion submitter. Connection is established on first submission;
+> a failed connection surfaces as a rejected submission and **never fakes a receipt**.
+
+连接是**懒连接** —— 首次"完成提交"时才建立，而那发生在会话结束时，不在会话进行路径上。
+失败表现为一次被拒绝的提交，不会伪造回执，也不会把异常抛进会话。
+
+**净结论**：AgentOS 的**准入/门禁**那一半是活的（P5 的 plugin-gateway 门禁本地可用），
+**完成回传**那一半是断的。要恢复需要 AgentOS 侧为当前 epoch 重新签发 receipt
+（`framework-governance client-activation`），不是 DSH 侧能补的 —— 所以这里只记录，不动手。
