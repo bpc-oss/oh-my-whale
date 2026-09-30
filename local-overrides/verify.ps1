@@ -30,7 +30,7 @@ $guardMissing = @(); $capLow = @()
 Get-ChildItem (Join-Path $dsh '.agent-presets') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
   $yml = Join-Path $_.FullName 'agent.cordis.yml'
   if (-not (Test-Path $yml)) { return }
-  $s = Get-Content $yml -Raw
+  $s = Get-Content $yml -Raw -Encoding UTF8
   if ($s -match '- id: promise-guard' -and (Test-Path (Join-Path $_.FullName 'promise-guard.mjs'))) { }
   elseif (Test-Path (Join-Path $_.FullName 'promise-guard.mjs')) { $guardMissing += $_.Name }
   $m = [regex]::Match($s, "dsh-compaction-basic[\s\S]{0,200}?maxTokens:\s*(\d+)")
@@ -50,7 +50,7 @@ Check 'plugin/promise-guard source' ((Test-Path $live) -and (Test-Path $src) -an
 
 # 4. legacy toolkit stays uninstalled IN THE WEB PROFILE ONLY
 $pkg = Join-Path $dsh 'profiles\web\package.json'
-$listed = (Test-Path $pkg) -and ((Get-Content $pkg -Raw) -match 'dsh-vision-toolkit')
+$listed = (Test-Path $pkg) -and ((Get-Content $pkg -Raw -Encoding UTF8) -match 'dsh-vision-toolkit')
 Check 'web profile bundle removed' (-not $listed) 'no dsh-vision-toolkit in profiles/web/package.json'
 $patch = Join-Path $dsh 'profiles\web\cordis.patch.yml'
 $disabled = (Test-Path $patch) -and (Select-String -Path $patch -Pattern '^- id: vision-toolkit' -Context 0,25 |
@@ -74,7 +74,7 @@ Check 'dsh-vision-toolkit row (live+template)' (($dshRowLive -ge 1) -and ($dshRo
 # operations"; stripping the toolkit there would break that profile's contract.
 # This check FAILS if someone "cleans up" bpc-operator by mistake.
 $bpcPkg = Join-Path $dsh 'profiles\bpc-operator\package.json'
-$bpcKept = (Test-Path $bpcPkg) -and ((Get-Content $bpcPkg -Raw) -match 'dsh-vision-toolkit')
+$bpcKept = (Test-Path $bpcPkg) -and ((Get-Content $bpcPkg -Raw -Encoding UTF8) -match 'dsh-vision-toolkit')
 Check 'bpc-operator keeps toolkit (by contract)' $bpcKept 'governed operator profile must keep its vision operations'
 
 # 5. client configs
@@ -139,7 +139,7 @@ if ($zfacts.ContainsKey('PARSE') -and $zfacts['PARSE'] -eq 'ok') {
 }
 Check 'zcode reasoning levels' $zl 'space-bunny-alpha: reasoningLevel == low,medium,high,xhigh,max; enabled, no disabled key'
 $kc = Join-Path $HOME '.kimi-code\config.toml'
-$kk = (Test-Path $kc) -and ((Get-Content $kc -Raw) -match 'commandcode/space-bunny-alpha')
+$kk = (Test-Path $kc) -and ((Get-Content $kc -Raw -Encoding UTF8) -match 'commandcode/space-bunny-alpha')
 Check 'kimi-code model entry' $kk 'commandcode/space-bunny-alpha present'
 
 # 5b. web-profile custom config ANCHORS (replaces the retired settings diff).
@@ -150,7 +150,7 @@ $anchorFile = Join-Path $whale 'local-overrides\dsh-web-profile-custom-config.an
 $webPatch   = Join-Path $dsh 'profiles\web\cordis.patch.yml'
 if ((Test-Path $anchorFile) -and (Test-Path $webPatch)) {
   $anchors = (Get-Content $anchorFile -Encoding UTF8 -Raw | ConvertFrom-Json).anchors
-  $webSrc = Get-Content $webPatch -Raw
+  $webSrc = Get-Content $webPatch -Raw -Encoding UTF8
   $missing = @()
   foreach ($a in $anchors) {
     $n = ([regex]::Matches($webSrc, $a.pattern, [Text.RegularExpressions.RegexOptions]::Multiline)).Count
@@ -180,9 +180,9 @@ foreach ($p in $patches) {
     $tmp = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N').Substring(0, 8))
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
     try {
-      $text = (Get-Content $pf -Raw) -replace "`r`n", "`n"
+      $text = (Get-Content $pf -Raw -Encoding UTF8) -replace "`r`n", "`n"
       $diff = $text.Substring($text.IndexOf('diff --git'))
-      $body = (Get-Content $p.live -Raw) -replace "`r`n", "`n"
+      $body = (Get-Content $p.live -Raw -Encoding UTF8) -replace "`r`n", "`n"
       if ($p.secret -or $diff -match '\{\{COMMANDCODE_API_KEY\}\}') {
         # keep benign markers (api_key = "local") so hunk context still matches
         # redact only secret-looking values; benign markers (api_key = "local") must

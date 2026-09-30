@@ -24,6 +24,16 @@ Write-Host "KernelDir: $KernelDir"
 if (-not (Test-Path $KernelDir)) { Write-Host "FATAL: KernelDir not found"; exit 1 }
 
 $fail = 0
+
+# Which kernel line this tree is. Patch files in this repo were authored against a
+# specific line; running a 0.1.5 patch on a 0.2.0 tree fails its context check, which is
+# correct behaviour for the file and NOT a deploy failure. The manifest records which
+# line each entry targets, so only the matching ones are attempted here — the others are
+# verified by marker through scripts/verify-patch-port.mjs instead.
+$targetLine = "unknown"
+try { $targetLine = (Get-Content "$KernelDir\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version } catch {}
+$skipped = 0
+$skippedIds = @()
 foreach ($p in $Manifest.patches) {
   if ($p.file -ne "host") { continue }
   $target = Join-Path $KernelDir ($p.target -replace "/", "\")
@@ -65,6 +75,13 @@ foreach ($p in $Manifest.patches) {
   }
 
   # normal patches: git apply -p1 directly on kernel tree
+  # Skip entries authored for a different kernel line, and say so.
+  $entryLine = if ($p.kernelLine) { $p.kernelLine } else { "0.1.5-rc.1" }
+  if ($entryLine -ne $targetLine) {
+    $skipped++
+    $skippedIds += $p.id
+    continue
+  }
   $check = & git -C $KernelDir apply -p1 --check $patchFile 2>&1
   if ($LASTEXITCODE -ne 0) {
     # maybe already applied -> reverse check
@@ -76,4 +93,8 @@ foreach ($p in $Manifest.patches) {
 }
 
 Write-Host ""
+if ($skipped -gt 0) {
+  Write-Host ("  $skipped entr(y/ies) target another kernel line and were not applied: {0}" -f ($skippedIds -join ", ")) -ForegroundColor DarkGray
+  Write-Host ("  they are verified by marker instead: node scripts\verify-patch-port.mjs <app-root>") -ForegroundColor DarkGray
+}
 if ($fail -eq 0) { Write-Host "HOST PATCHES OK" } else { Write-Host "SOME PATCHES FAILED"; exit 1 }

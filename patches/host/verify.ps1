@@ -198,7 +198,7 @@ $Rc2Files = @()
 $Rc2Problems = @()
 if (Test-Path $Rc2Dir) {
   foreach ($d in (Get-ChildItem $Rc2Dir -Filter *.diff | Sort-Object Name)) {
-    $lines = Get-Content $d.FullName
+    $lines = Get-Content $d.FullName -Encoding UTF8
     $hasHdr = [bool]($lines | Where-Object { $_ -like '--- a/*' } | Select-Object -First 1)
     $Rc2Files += [pscustomobject]@{ Name = $d.Name; Header = $hasHdr }
     if (-not $hasHdr) { $Rc2Problems += ("{0}: no '--- a/' header" -f $d.Name) }

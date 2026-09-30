@@ -23,7 +23,7 @@ function Get-OmwPluginSources {
   $envFile = Join-Path $PSScriptRoot ".env"
   if (-not (Test-Path $envFile)) { $envFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env" }
   if (Test-Path $envFile) {
-    foreach ($line in Get-Content $envFile) {
+    foreach ($line in Get-Content $envFile -Encoding UTF8) {
       if ($line -match "^\s*(OMW_PLUGIN_SOURCES_DIR|PLUGIN_SOURCES_DIR)\s*=\s*(.+?)\s*$") {
         $v = $Matches[2].Trim().Trim('"').Trim("'")
         if ($v) { return ($v -replace "\\", "/") }

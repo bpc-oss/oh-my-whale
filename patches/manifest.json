@@ -47,7 +47,8 @@
       "purpose": "loader parent chain cycle guard + parentEntry snapshot",
       "status": "ported",
       "note": "rc.8 loader still 1.0.2; npm install preserved this patch. Re-verify on next loader bump. A0 2026-09-10: source .bak not present in install tree (verified absent) -> sourceBroken; A1 will reverse-build the diff from the current installed file vs official @0.1.1-rc.2.",
-      "v209": "@deepseek-ai/cordis-plugin-loader/lib/index.js@55-56/360/375/379/512"
+      "v209": "@deepseek-ai/cordis-plugin-loader/lib/index.js@55-56/360/375/379/512",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P2",
@@ -60,7 +61,8 @@
       "diffTargetPath": "@deepseek-ai/cordis/lib/index.js.patched-gpd",
       "purpose": "getPropertyDescriptor location cache (CPU 52% -> 25-35%)",
       "status": "ported",
-      "v209": "@deepseek-ai/cordis/lib/index.js@79-81/84/172/178"
+      "v209": "@deepseek-ai/cordis/lib/index.js@79-81/84/172/178",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P3",
@@ -73,7 +75,8 @@
       "purpose": "bai special-case: isDeepSeek inclusion + developerRole exclusion",
       "status": "ported",
       "v209": "@earendil-works/pi-ai/dist/api/openai-completions.js@1266-1270 (isDeepSeek|bai|api.b.ai)",
-      "portNote": "Relocated: 0.2.0 has no per-request isDeepSeek; the b.ai special case now feeds isBai into the wire-compat derivation in @earendil-works/pi-ai."
+      "portNote": "Relocated: 0.2.0 has no per-request isDeepSeek; the b.ai special case now feeds isBai into the wire-compat derivation in @earendil-works/pi-ai.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P4",
@@ -87,7 +90,8 @@
       "purpose": "KNOWN_SESSION_EVENT_TYPES: verification/change + continuous-worker/change",
       "status": "ported",
       "note": "rc.8 still lacks these events. No .bak snapshot; use npm pack original as diff baseline. A0: sourceSpec corrected to real installed version @0.1.1-rc.2.",
-      "v209": "@deepseek-ai/dsh-session/lib/index.js@93 (continuous-worker/change)/136 (verification/change); KNOWN_SESSION_EVENT_TYPES @79"
+      "v209": "@deepseek-ai/dsh-session/lib/index.js@93 (continuous-worker/change)/136 (verification/change); KNOWN_SESSION_EVENT_TYPES @79",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P5",
@@ -101,7 +105,8 @@
       "status": "ported",
       "note": "Preferred fix: rebuild vendor tgz with gateway baked in. P5 patch is archive/audit only.",
       "v209": "n/a — file=profile scope; profile trees live outside app.asar, untouched by the v209 kernel-inside-asar migration. Status kept.",
-      "portNote": "PROFILE-SCOPE: super-injector dev_install + plugin-gateway gate live in the profile layer, not the kernel tree."
+      "portNote": "PROFILE-SCOPE: super-injector dev_install + plugin-gateway gate live in the profile layer, not the kernel tree.",
+      "kernelLine": "profile"
     },
     {
       "id": "P6",
@@ -114,7 +119,8 @@
       "purpose": "verification-seam (GoalTransitionGuard + permitRef): sync pre-commit guard for goal complete",
       "status": "ported",
       "note": "rc.5-era patch migrated through rc.7, LOST in rc.8 (official has no seam). verification goal-guard degrades gracefully without it; patch restores sync interception. Applied 2026-08-21.",
-      "v209": "@deepseek-ai/dsh-goal/lib/index.js@148/160 (permitRef key+spread)/840/849 (dispatchTransitionGuards)/911-938 (verification-seam region, registerTransitionGuard @938)"
+      "v209": "@deepseek-ai/dsh-goal/lib/index.js@148/160 (permitRef key+spread)/840/849 (dispatchTransitionGuards)/911-938 (verification-seam region, registerTransitionGuard @938)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P7",
@@ -130,7 +136,8 @@
       "status": "ported",
       "note": "2026-08-20 patch found by drift-scan (bak_without_manifest). Original write polluted encoding (GBK mojibake in comments); rebuilt clean from npm-pack official + logic. Polluted copy preserved at index.js.bak-gbk-polluted-20260821. A0: sourceSpec corrected to @0.1.1-rc.2; see apiproxySequence for same-file apply order. verifyfix 2026-09-10: v205 retarget — apiproxy net-removed, semantics live in dsh-api-session-controller/lib/index.js (LIST_PROJECTION_EXCLUDED ported); rc.2 path kept in rc2Target.",
       "v209": "@deepseek-ai/dsh-api-session-controller/lib/index.js@1964-1969 (denylist filter loop)/1979 (LIST_PROJECTION_EXCLUDED const)",
-      "portNote": "Relocated: dsh-host-apiproxy split; session.list projection hints are built in dsh-api-session-controller/lib/types/list.js hintsOf()."
+      "portNote": "Relocated: dsh-host-apiproxy split; session.list projection hints are built in dsh-api-session-controller/lib/types/list.js hintsOf().",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P8",
@@ -145,7 +152,8 @@
       "status": "skip-upstream",
       "note": "UPSTREAM — DO NOT RE-LAND. An attempt was made on 2026-09-30 to port P8 onto 0.2.0-rc.1 and it was reverted: re-reading dsh-client-ui-reference showed the @ trigger already covers subagent children, so the port would have produced a SECOND source for the same trigger — the duplicate-control problem users already reported once with the sidebar. The 0.1.5-era reason for the patch (ui-subagent owned inputTriggers itself) no longer applies: 0.2.0 moved trigger plumbing into dsh-client-ui-input-trigger and let ui-reference own the @ source. Marker-grep for \"inputTriggers\" in ui-subagent returns 0 and looks alarming; it is not — the capability moved packages, it did not disappear.",
       "v209": "upstream owns it: @deepseek-ai/dsh-client-ui-reference registers { trigger: \"@\", name: \"reference\" } and its candidates() already list child subagents (summary?.origin === \"subagent\" && summary.parentId === session.sessionId, grouped under a \"section.subagents\" heading). 0.2.0 moved trigger plumbing into dsh-client-ui-input-trigger; ui-subagent no longer owns inputTriggers and must not.",
-      "portNote": "ALREADY-UPSTREAM: 0.2.0 ships a superset in dsh-client-ui-reference (@ source + subagent child ordering). Forcing the patch in would register a second, weaker @ source."
+      "portNote": "ALREADY-UPSTREAM: 0.2.0 ships a superset in dsh-client-ui-reference (@ source + subagent child ordering). Forcing the patch in would register a second, weaker @ source.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P9",
@@ -161,7 +169,8 @@
       "status": "ported",
       "note": "2026-08-21 fork-to-preset e2e fix (Codex CLI). composeAgent is the authoritative resolve+mount path; structured preset errors, no bare HTTP 500. A0: sourceSpec corrected to @0.1.1-rc.2; see apiproxySequence. verifyfix 2026-09-10: v205 retarget to dsh-api-session-controller/lib/index.js (PATCH P9 markers); rc.2 path kept in rc2Target. | v205 G5 note 2026-09-11: 官方 fork 按钮不带 agentPreset 参数（子会话经 header.agentPreset+seedLength 继承，已由事件流证实）；request.agentPreset→compose 分支专由 dsh-fork-to-preset 插件路径触发，跨 preset fork 实测待用户窗口。",
       "v209": "@deepseek-ai/dsh-api-session-controller/lib/index.js — the fork-to-preset path, now expressed as `agentPreset` (21 occurrences). The 0.1.5 line numbers are void; the capability marker is the agentPreset handling in the fork request composition.",
-      "portNote": "Relocated: host fork is now SessionCommands.fork in dsh-api-session-controller."
+      "portNote": "Relocated: host fork is now SessionCommands.fork in dsh-api-session-controller.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P10",
@@ -177,7 +186,8 @@
       "status": "ported",
       "note": "2026-08-21 fork-to-preset e2e fix. Without this the field vanishes between public API and wire. A0: sourceSpec corrected to @0.1.1-rc.2. verifyfix 2026-09-10: v205 retarget to dsh-api-session-controller/lib/client.js (PATCH P10 markers); rc.2 path kept in rc2Target.",
       "v209": "@deepseek-ai/dsh-api-session-controller/lib/client.js@2612 (public sessions.fork spread)/3238 (manager fork spread)",
-      "portNote": "Relocated: dsh-client-runtime is gone; forwarding lives in dsh-api-session-controller client sessions + the dsh-api-remotes bundle."
+      "portNote": "Relocated: dsh-client-runtime is gone; forwarding lives in dsh-api-session-controller client sessions + the dsh-api-remotes bundle.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P11",
@@ -193,7 +203,8 @@
       "note": "2026-08-21 deepest semantic bug: fork seed copies parent's agent-preset/selected events which overwrote child header in resolver. A0: sourceSpec corrected to @0.1.1-rc.2. verifyfix 2026-09-10: pending-adjudication — v205 resolver may fold this upstream; awaiting G5 fork e2e ruling (todo item 4). verify reports PENDING, not FAIL. | v205: seedLength native (@api-session-controller lib/index.js:1442); verify anchor seedLength = native-replacement proof, no patch applied.",
       "rc2Target": "@deepseek-ai/dsh-agent-presets/lib/index.js",
       "v209": "upstream solved it more strictly: @deepseek-ai/dsh-session/lib/index.js validateSessionHeader() now REJECTS the field outright — `if (Object.hasOwn(record, \"seedLength\")) throw new Error(\"session header has invalid field \\\"seedLength\\\"\")`. A header that cannot carry seedLength cannot be overwritten by an inherited seed event, which was the whole point of the 0.1.5 patch.",
-      "portNote": "Relocated: resolveSessionPreset is gone; preset is a session projection, so the fold now honours inheritedEventCount in dsh-agent-preset-registry."
+      "portNote": "Relocated: resolveSessionPreset is gone; preset is a session projection, so the fold now honours inheritedEventCount in dsh-agent-preset-registry.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P12",
@@ -208,7 +219,8 @@
       "status": "skip-absorbed",
       "note": "2026-08-21 fork-to-preset e2e fix. Schema mirror drift: host and client-connection must stay in sync. A0: sourceSpec corrected to @0.1.1-rc.2. | v209 2026-09-11: official dsh-client-connection@0.1.5-rc.1 fork request schema natively carries agentPreset — installed file byte-identical to pristine (verified via diff vs app.asar.pre-patch-20260911 extract). Patch no longer needed; status active -> skip-absorbed.",
       "v209": "absorbed: @deepseek-ai/dsh-client-connection/lib/client.js carries no agentPreset-specific code because the fork request schema is forwarded wholesale from the host apiproxy; nothing to patch here.",
-      "portNote": "Relocated: dsh-client-connection is transport-only now; the fork schema lives in the api-session-controller typert mirrors and the remotes bundle."
+      "portNote": "Relocated: dsh-client-connection is transport-only now; the fork schema lives in the api-session-controller typert mirrors and the remotes bundle.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P13",
@@ -224,7 +236,8 @@
       "status": "skip-not-portable",
       "note": "2026-08-22 applied to running kernel. Backup .bak-sse-batch-20260822. Marker 'BATCH_MAX = 20' in sseResponse. A0 2026-09-10: source .bak not present in install tree (verified absent) -> sourceBroken; A1 will reverse-build the diff from the current installed file vs official @0.1.1-rc.2. See apiproxySequence. verifyfix 2026-09-10: v205 retarget to dsh-api-gateway/lib/index.js (BATCH_MAX = 20 present); rc.2 path kept in rc2Target. | v209 2026-09-11 rewrite: original sseResponse BATCH_MAX=20 landing did not survive the 0.1.5 gateway refactor as-is — rebased onto RemoteStreamMuxConnection write chain (WRITE_BATCH_MAX=20 / 30ms idle / 1MiB high-water backpressure, consts @270-279, flushBatch @375-389, drainBuffered @416-418). Verify anchor 'BATCH_MAX = 20' still hits (substring of WRITE_BATCH_MAX = 20 @275).",
       "v209": "deliberately not ported. The 0.2.0 gateway speaks WebSocket, where the protocol is strictly one frame per message with an exactKeys check — there is no batching primitive to hook, so the 0.1.5 \"20 frames / 30ms idle\" flush has no equivalent here. Not drift: a recorded decision.",
-      "portNote": "Re-checked on 0.2.0 and the earlier \"no cost to amortise\" claim was WRONG. The SSE writer is gone, but the WebSocket writer still costs one JSON.stringify + one socket.send + one promise per message (dsh-api-gateway/lib/types/stream-server.js send()). The promise chain fixes ordering and back-pressure, not the per-frame cost. It cannot be batched as written: parseRemoteStreamClientMessage parses EXACTLY ONE message per text with strict exactKeys validation, so joining frames would break the protocol on the client side. Porting needs a batch message type on both ends - a protocol change, not a patch. Context for the cost: the per-frame cost is lower than the SSE path P13 was written against (already-stringified text, no controller.enqueue, no re-encode), so this is a regression risk rather than a known outage."
+      "portNote": "Re-checked on 0.2.0 and the earlier \"no cost to amortise\" claim was WRONG. The SSE writer is gone, but the WebSocket writer still costs one JSON.stringify + one socket.send + one promise per message (dsh-api-gateway/lib/types/stream-server.js send()). The promise chain fixes ordering and back-pressure, not the per-frame cost. It cannot be batched as written: parseRemoteStreamClientMessage parses EXACTLY ONE message per text with strict exactKeys validation, so joining frames would break the protocol on the client side. Porting needs a batch message type on both ends - a protocol change, not a patch. Context for the cost: the per-frame cost is lower than the SSE path P13 was written against (already-stringified text, no controller.enqueue, no re-encode), so this is a regression risk rather than a known outage.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P14",
@@ -238,7 +251,8 @@
       "purpose": "fiber.dispose() may return undefined → .catch threw TypeError on agent/disposed; heap growth + teardown leak",
       "status": "ported",
       "note": "2026-08-24 found via stack-trace instrumentation in dsh-agent emitDisposed. Backup: index.js.bak-stacktrace-20260824 in dsh-agent (log-only instrumentation). A0: sourceSpec corrected to @0.1.1-rc.2.",
-      "v209": "@deepseek-ai/dsh-file-reference-local/lib/index.js@354 (Promise.resolve(fiber.dispose()))"
+      "v209": "@deepseek-ai/dsh-file-reference-local/lib/index.js@354 (Promise.resolve(fiber.dispose()))",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P15",
@@ -251,7 +265,8 @@
       "purpose": "emitDisposed catch logs error.stack — diagnostic for agent/disposed listener failures (P14 discovery tooling)",
       "status": "skip-optional-diagnostic",
       "note": "2026-08-24 added during P14 root-cause hunt. Keep permanently: future dispose listener failures get a full stack trace in logs. verifyfix 2026-09-10: pending-adjudication (skip-diagnostic-optional) — P14 fix is upstreamed in v205, this log-only diagnostic may be dropped; verify reports PENDING, not FAIL.",
-      "v209": "not re-landed (status kept skip-optional-diagnostic): official 0.1.5 already warns on disposed-listener failures at @deepseek-ai/dsh-agent/lib/index.js@522/525 but without error.stack delta."
+      "v209": "not re-landed (status kept skip-optional-diagnostic): official 0.1.5 already warns on disposed-listener failures at @deepseek-ai/dsh-agent/lib/index.js@522/525 but without error.stack delta.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P16",
@@ -266,7 +281,8 @@
       "status": "ported",
       "note": "2026-08-25 extracted pure fork diff (rc.8 fork vs rc.8 official, 12 hunks/208 lines). Verified clean apply on official rc.2. A0 2026-09-10: sourcePath was prose ('... (rc.8 fork, production tree)') -> normalized to pure path + sourceBroken (no pristine snapshot file; source was the live production-tree fork), A1 reverse-builds official-vs-current diff.",
       "v209": "@deepseek-ai/dsh-subagent/lib/index.js — 15-hunk fork delta vs pristine @542-557/1077-1084/1330-1333/1400-1401/1411-1412/1430-1431/1644-1658/1702-1705/1738-1745/1753-1755/1832-1839/1961-1964/1971-1976/3298; markers externalContinuations @1648-1657 + coldResume call @1838",
-      "portNote": "Partly upstream: 0.2.0 already ships subagent descriptor v3 (and agentReasoningEffort). Ported what remains: the preset field, composition.preset mount, async setup, external continuation registry. Mirrored into lib/types/ because ./internal reaches those copies."
+      "portNote": "Partly upstream: 0.2.0 already ships subagent descriptor v3 (and agentReasoningEffort). Ported what remains: the preset field, composition.preset mount, async setup, external continuation registry. Mirrored into lib/types/ because ./internal reaches those copies.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P16b",
@@ -278,7 +294,8 @@
       "purpose": "fork marker dshRoutedSubagentPatch v3.1-preset-mount (routed-subagent startup assertion)",
       "status": "ported",
       "note": "2026-08-25: official rc.2 pkg has no marker; upgrade wipes it. Verified clean apply on rc.2.",
-      "v209": "@deepseek-ai/dsh-subagent/package.json@138 (\"dshRoutedSubagentPatch\": \"v3.1-preset-mount\")"
+      "v209": "@deepseek-ai/dsh-subagent/package.json@138 (\"dshRoutedSubagentPatch\": \"v3.1-preset-mount\")",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P17",
@@ -291,7 +308,8 @@
       "purpose": "video modality: MODALITIES + userContent video case (video_url wire part)",
       "status": "ported",
       "note": "2026-08-31 video modal dev: local vLLM GLM-5.3 accepts video_url",
-      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js@279 (MODALITIES video entry)/1227 (case \"video\")/1234-1235 (video_url wire part)"
+      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js@279 (MODALITIES video entry)/1227 (case \"video\")/1234-1235 (video_url wire part)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P17b",
@@ -305,7 +323,8 @@
       "status": "skip-upstream",
       "note": "2026-08-31 video modal dev",
       "v209": "upstream owns the video wire part. The capability is exercised through dsh-llm-pi-ai (video_url appears 4x there, plus the P25 offload guard); the @deepseek-ai/dsh-llm-deepseek package is not on that path in 0.2.0. The end-to-end video path was verified working, so this is a move, not a loss.",
-      "portNote": "NOT-APPLICABLE: the 0.2.0 DeepSeek Messages serializer rejects any non-image block and no DeepSeek-family model declares video input; video on such a route goes through the P20 frame fallback."
+      "portNote": "NOT-APPLICABLE: the 0.2.0 DeepSeek Messages serializer rejects any non-image block and no DeepSeek-family model declares video input; video on such a route goes through the P20 frame fallback.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P17c",
@@ -318,7 +337,8 @@
       "purpose": "pi-ai openai-completions serializes video_url content part",
       "status": "ported",
       "note": "2026-08-31 video modal dev; target is in app.asar.unpacked. A0 2026-09-10: original patch header used temp file names (pi-ai-original-reconstructed.js / pi-ai-current.js); standard a/ b/ header rewrite at {{USERPROFILE}}/.dsh/tmp/rc2-vs-patches/017c-pi-ai-openai-completions-video-v2.patch — passes git apply -p1 -R --check against the installed tree. Original patchFile kept untouched.",
-      "v209": "@earendil-works/pi-ai/dist/api/openai-completions.js@940-944 (video_url serialization branch)"
+      "v209": "@earendil-works/pi-ai/dist/api/openai-completions.js@940-944 (video_url serialization branch)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P18",
@@ -349,7 +369,8 @@
         "@deepseek-ai/dsh-subagent/lib/typert.host.js",
         "@deepseek-ai/dsh-subagent/lib/typert.remote-client.js"
       ],
-      "portNote": "Relocated + extended: durablePromptContent became AttachmentStore.admitPromptContent; video parts must pass through verbatim or they are corrupted into image attachments."
+      "portNote": "Relocated + extended: durablePromptContent became AttachmentStore.admitPromptContent; video parts must pass through verbatim or they are corrupted into image attachments.",
+      "kernelLine": "n/a"
     },
     {
       "id": "P18b",
@@ -362,7 +383,8 @@
       "purpose": "conversation composer: video files -> {type:video,url} blocks (mediaType accepts video MIME)",
       "status": "ported",
       "note": "2026-08-31 video modal dev",
-      "v209": "@deepseek-ai/dsh-client-ui-conversation/lib/client.js@2767 (kind video draft)/2867 (revokePreview video)/2916-2917/2929-2930 (video blocks)/3130-3131/3153/3222 (send path); bytesToBase64 helper @2283/2396"
+      "v209": "@deepseek-ai/dsh-client-ui-conversation/lib/client.js@2767 (kind video draft)/2867 (revokePreview video)/2916-2917/2929-2930 (video blocks)/3130-3131/3153/3222 (send path); bytesToBase64 helper @2283/2396",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P18c",
@@ -375,7 +397,8 @@
       "purpose": "attachment rail renders <video> preview for video attachments",
       "status": "ported",
       "note": "2026-08-31 video modal dev",
-      "v209": "@deepseek-ai/dsh-client-ui-attachment/lib/client.js@710 (playsInline <video> preview)"
+      "v209": "@deepseek-ai/dsh-client-ui-attachment/lib/client.js@710 (playsInline <video> preview)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P19",
@@ -388,7 +411,8 @@
       "purpose": "contentHasVideo recursive walk + export (video modality gating)",
       "status": "ported",
       "note": "2026-08-31 video modal dev",
-      "v209": "@deepseek-ai/dsh-llm/lib/index.js@580-581 (contentHasVideo recursive walk)/2329 (export list)"
+      "v209": "@deepseek-ai/dsh-llm/lib/index.js@580-581 (contentHasVideo recursive walk)/2329 (export list)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P19b",
@@ -401,7 +425,8 @@
       "purpose": "containsVideo gating + route video messages through userContent serialization (not textOnlyContext)",
       "status": "ported",
       "note": "2026-08-31 video modal dev; pure P19 delta vs P17",
-      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js@1957-1960 (containsVideo + videoToFrames gate)/1972-1973 (userContent call)"
+      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js@1957-1960 (containsVideo + videoToFrames gate)/1972-1973 (userContent call)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P20",
@@ -418,7 +443,8 @@
       "status": "ported",
       "note": "A0 2026-09-10 registered (v205 plan §1.1): markers BEGIN/END + MAX_FRAMES etc (7 sites per plan). Applied in-tree 2026-09-09 via scripts above; no .bak, no diff file yet — A1 reverse-builds standard diff.",
       "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js@1138-1201 (P20-BEGIN/END ffmpeg frame-extraction block, P20_MAX_FRAMES @1139, sampling @1185/1187)/1227-1235 (video case fallback call)",
-      "patchFileFixedA": "was dangling host/020-llm-pi-ai-video-frame-extraction.patch"
+      "patchFileFixedA": "was dangling host/020-llm-pi-ai-video-frame-extraction.patch",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P21",
@@ -439,7 +465,8 @@
       "note": "A0 2026-09-10 registered (v205 plan §1.1, sites @1004/1072/1082). Applied in-tree 2026-09-10 via scripts above; no .bak, no diff file yet — A1 reverse-builds standard diff.",
       "v209": "@deepseek-ai/dsh-tool-fs/lib/index.js@865-870 (video mime map)/975-977 (video route gate)/1038-1047 (value.video -> type:\"video\" block passthrough, marker @1039)/1085 (schema video field)/1105/1108-1109 (dispatch declared.startsWith(\"video/\"))",
       "patchFilePendingB": "dangling host/021-tool-fs-video-block.patch; no single-file diff yet (combined only)",
-      "patchFileFixedA": "was dangling host/02x.patch; repointed 2026-09-11 ledger repair"
+      "patchFileFixedA": "was dangling host/02x.patch; repointed 2026-09-11 ledger repair",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P22",
@@ -457,7 +484,8 @@
       "note": "A0 2026-09-10 registered (v205 plan §1.1). Applied in-tree 2026-09-10 via scripts above; no .bak, no diff file yet — A1 reverse-builds standard diff.",
       "v209": "@earendil-works/pi-ai/dist/api/openai-responses-shared.js@36 (videos filter)/53-54 (video_url emit)/123-127 (input_item video_url pass-through, \"P22\" marker @124)",
       "patchFilePendingB": "dangling host/022-pi-ai-openai-responses-video.patch; no single-file diff yet (combined only)",
-      "patchFileFixedA": "was dangling host/02x.patch; repointed 2026-09-11 ledger repair"
+      "patchFileFixedA": "was dangling host/02x.patch; repointed 2026-09-11 ledger repair",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P23",
@@ -474,7 +502,8 @@
       "status": "ported",
       "note": "A0 2026-09-10 registered (v205 plan §1.1). Shares target file with P3/P17c — replay order per A2 anchor table. Applied in-tree 2026-09-10 via scripts above; no .bak, no diff file yet — A1 reverse-builds standard diff.",
       "v209": "@earendil-works/pi-ai/dist/api/openai-completions.js@1083 (hasVideos)/1102 (follow-up gate)/1112-1117 (collector video_url branch, \"P23\" marker @1113)",
-      "patchFileFixedA": "was dangling host/023-pi-ai-openai-completions-video-collector.patch"
+      "patchFileFixedA": "was dangling host/023-pi-ai-openai-completions-video-collector.patch",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P24",
@@ -488,7 +517,8 @@
       "note": "A0 2026-09-10 registered (v205 plan §1.1, item 30). No script: hand-edited by a concurrent session 2026-09-10 17:14 (file mtime verified 2026-09-10 17:14; markers VIDEO_BLOCK_TOKENS=4096 + case \"video\" pricing branch; file LF endings). No .bak, no diff file yet — A1 reverse-builds official-vs-current diff. v205 token-meter has 0 video hits -> must replay. | 表述修正(审查B): 4096 为定值估算常量，非 base64 长度换算；计价合理性以 usage 事件流单独核。",
       "v209": "@deepseek-ai/dsh-token-meter/lib/index.js@17 (VIDEO_BLOCK_TOKENS=4096)/48-53 (case \"video\" fixed pricing)",
       "patchFilePendingB": "dangling host/024-token-meter-video-pricing.patch; no single-file diff yet (combined only)",
-      "patchFileFixedA": "was dangling host/02x.patch; repointed 2026-09-11 ledger repair"
+      "patchFileFixedA": "was dangling host/02x.patch; repointed 2026-09-11 ledger repair",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P25",
@@ -501,7 +531,8 @@
       "purpose": "video gateway size guard: __p25OffloadOldVideos offloads stale video blocks before request sizing",
       "status": "ported",
       "note": "Discovered by A1 orphan scan 2026-09-10 (hand-patched by concurrent session, file mtime 17:42, script p25_patch.js 17:37; 2 x \"// P25\" markers in dsh-llm-pi-ai). p26_manifest.js (18:06) is a registration helper, not a code patch — no P26 marker in any code file. Registered as item 31 of the kernel patch set (v5.2). Shares target file with P17/P19b/P20; A2 found llm-pi-ai image pipeline refactored in 0.1.2 (toPiContext(options, images, onReplayDegrade)) -> P17/P19b/P20/P25 all go to the re-export queue together, replay via combined diff after re-derivation. A2 anchor scan: same file, P20 anchors 2/10 -> P25 presumed same-family drift; verify in Phase 2.",
-      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js — the guard function is `offloadOldVideos` (2 occurrences; the __p25 prefix was dropped in the 0.2.0 port). It runs before request sizing so stale video blocks are offloaded rather than inflating the payload."
+      "v209": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js — the guard function is `offloadOldVideos` (2 occurrences; the __p25 prefix was dropped in the 0.2.0 port). It runs before request sizing so stale video blocks are offloaded rather than inflating the payload.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P26",
@@ -513,7 +544,8 @@
       "purpose": "restore Session.get events() accessor removed in 0.1.2 (v205 has snapshotEvents()/ownEvents() but NOT the public .events getter); profile plugins (@bpc-oss/dsh-verification, better-sidebar, super-injector, vision-toolkit exposure, openpencil hydration, chrome-faithful runtime) iterate session.events and crash new-session create with \"session.events is not iterable\"",
       "status": "ported",
       "note": "Found live during G3 gate 2026-09-11 02:25 (CLI host 3080): session/create returned gateway/internal \"session.events is not iterable\". v205 removed rc.2 public getter; snapshotEvents(fromSeq,toSeq) exists but plugin sites call bare .events. Shim inserts `get events(){ this.eventsSnapshot ??= Object.freeze([...this.log]); return this.eventsSnapshot; }` above snapshotEvents(), reusing the same cache field append invalidates. After shim: create+send+fork all 200, glm-5.3-flash video E2E passed. Backup .bak-agentos-preplay. This is a v205 API-drift compat shim, not a fork feature.",
-      "v209": "@deepseek-ai/dsh-session/lib/index.js@1100-1108 (compat block; \"P26 v205 compat shim\" comment @1102, get events() accessor @1106; inserted above snapshotEvents)"
+      "v209": "@deepseek-ai/dsh-session/lib/index.js@1100-1108 (compat block; \"P26 v205 compat shim\" comment @1102, get events() accessor @1106; inserted above snapshotEvents)",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P27",
@@ -528,7 +560,8 @@
       "v209": {
         "file": "@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js",
         "anchor": "CONTENT_KINDS@132, video@136"
-      }
+      },
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P28",
@@ -543,7 +576,8 @@
       "v209": {
         "file": "@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js",
         "anchor": "SOURCE_KINDS@123, fallback/instruction-hint appended"
-      }
+      },
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P29",
@@ -558,7 +592,8 @@
       "v209": {
         "file": "@deepseek-ai/dsh-client-ui-commands/lib/client.js",
         "anchor": "backoffDelayMs + Entry.failures/nextAttemptAt/retryTimer, refresh(sessionId, force=false)"
-      }
+      },
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P30",
@@ -573,7 +608,8 @@
       "v209": {
         "file": "lib/updates.js",
         "anchor": "enabled default(false) + P30 comment"
-      }
+      },
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P31",
@@ -590,7 +626,8 @@
         "anchor": "P31 return null in ExpandButton"
       },
       "retiredOn": "2026-09-30",
-      "retiredReason": "better-sidebar 0.24.1 (installed 2026-09-30) re-architects onto the OFFICIAL right sidebar: its bundle injects @deepseek-ai/dsh-client-ui-sidebar-right and registers panes via the sidebar.right.pane.tab / .tab.title slots, with the entry point in conversation.session.header.utilities. The official ExpandButton is therefore no longer a duplicate entry - it is the only way to reach the plugin pane. The 2026-09-12 decision (hide it) was made against better-sidebar 0.12.2, which shipped its own floating toggles in document.body and did not use the host right sidebar at all. Reverting P31 restores the button and re-enables the pane path; verified in the running renderer."
+      "retiredReason": "better-sidebar 0.24.1 (installed 2026-09-30) re-architects onto the OFFICIAL right sidebar: its bundle injects @deepseek-ai/dsh-client-ui-sidebar-right and registers panes via the sidebar.right.pane.tab / .tab.title slots, with the entry point in conversation.session.header.utilities. The official ExpandButton is therefore no longer a duplicate entry - it is the only way to reach the plugin pane. The 2026-09-12 decision (hide it) was made against better-sidebar 0.12.2, which shipped its own floating toggles in document.body and did not use the host right sidebar at all. Reverting P31 restores the button and re-enables the pane path; verified in the running renderer.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P37",
@@ -602,7 +639,8 @@
       "status": "ported",
       "purpose": "inline VIDEO preview body for the right-sidebar document preview (user request 2026-09-12): registers a builtin mp4/m4v/mov/webm/ogv documentPreviews entry reusing the ImageBody bytes pipeline (bytes -> Blob -> ObjectURL -> <video controls playsInline>, revoke on unmount). Electron ships proprietary codecs, so H.264 mp4 plays.",
       "note": "2026-09-12: applied to runtime tree + staged repack of installed asar (header diff = this file only, unpacked 294/294 hash-identical). E2E verified on CLI 3087: chat file reference -> [data-video-preview] video readyState 4, boot 0 errors. Validation gate = vm.SourceTextModule (ESM), NOT node --check (CJS blind spot, see P35 async-loss incident in docs/handoff.md). DEPLOYED 2026-09-12 17:38 (hash f47d0aa2..) on a LIVE-base rebuild: concurrent P38 (video gate in dsh-tool-fs) preserved untouched, documentpreview pre-state verified byte-identical to baseline; backup app.asar.pre-p37-20260912-173854",
-      "v209": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js — `applyP37Video` (2 occurrences) plus the playsInline video body. The 0.1.5 anchor expected a literal VIDEO_BODY_ID$P37 marker that the port did not carry."
+      "v209": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js — `applyP37Video` (2 occurrences) plus the playsInline video body. The 0.1.5 anchor expected a literal VIDEO_BODY_ID$P37 marker that the port did not carry.",
+      "kernelLine": "0.1.5-rc.1"
     },
     {
       "id": "P38",
@@ -613,7 +651,8 @@
       "status": "ported",
       "purpose": "resolve @deepseek-ai/* for a module that lives OUTSIDE every registered profile tree (a preset entry .mjs, a plugin dev repo, a fork). Node walks node_modules up from the MODULE directory and never reaches the app tree, so such a module died with ERR_MODULE_NOT_FOUND on its first @deepseek-ai import. This is a LOAD-BEARING patch: without it presets, local plugin repos and forks stop resolving entirely.",
       "note": "Registered 2026-09-30 during the full registry audit. The patch had been live in the tree since 2026-09-29 (backup left as lib/module-resolution-CTTB3FAS.js.bak-extfallback) but was never in the manifest, so an upgrade or a fresh machine would have dropped it silently. Self-contained: DESKTOP_REQUIRE and pathToFileURL already exist in the file. Backwards compatible - only the previously-throwing case changes; every other specifier defers unchanged.",
-      "discovered_by": "scripts/drift-scan.ps1 -Installed (UNKNOWN modification on the live tree)"
+      "discovered_by": "scripts/drift-scan.ps1 -Installed (UNKNOWN modification on the live tree)",
+      "kernelLine": "0.2.0-rc.1"
     },
     {
       "id": "P39",
@@ -624,7 +663,8 @@
       "status": "ported",
       "purpose": "a model that declares video input must not be rejected as video-incapable. The frame-extraction path (videoToFrames) exists for models that CANNOT take a clip; the old guard keyed only on that and threw UNSUPPORTED_CONTENT for a model declaring both video and image, even though the provider would have accepted the video.",
       "note": "Registered 2026-09-30, found by diffing the leftover index.js.bak-probe2 against the live file during .bak cleanup. The fix had been in the tree since the video-modality port but appeared in no patch file and no manifest entry. P19b stayed green throughout because its needle (`videoToFrames`) is present in both revisions — a keyword-presence gate cannot see a change in the logic around the keyword. Applies on top of P19b; the .bak it was generated from already carries P25.",
-      "discovered_by": "diff of dsh-llm-pi-ai/lib/index.js.bak-probe2 against the live file"
+      "discovered_by": "diff of dsh-llm-pi-ai/lib/index.js.bak-probe2 against the live file",
+      "kernelLine": "0.2.0-rc.1"
     }
   ],
   "vendorPatches": [
@@ -740,5 +780,10 @@
       "verified": "yaml parse 13/13; user live session resume (session-68cdbcc8) after fix: no error",
       "note": "config-tree migration (not a file patch). v209 drift wave member #4 (P27 content-kind, P28 source-kinds, voice owner-fiber route, persona prefix). Preset rows schema pre-scan (agent-69) may add M2+. | PRE-SCAN CLEAN (agent-69): remaining 28 preset plugin Configs byte-safe on 0.1.5; schemastery non-strict by default."
     }
-  ]
+  ],
+  "kernelLines": {
+    "current": "0.2.0-rc.1",
+    "historical": "0.1.5-rc.1",
+    "note": "kernelLine says which kernel tree a patch file was authored against. Only the current line is applied by patches/host/apply.ps1; the other line is a historical record, verified instead by marker through scripts/verify-patch-port.mjs."
+  }
 }

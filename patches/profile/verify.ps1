@@ -61,7 +61,7 @@ foreach ($p in $Manifest.patches) {
   $rc2 = Join-Path $Rc2Dir "P05-super-injector-gateway.diff"
   $rc2Ok = $false
   if (Test-Path $rc2) {
-    $rc2Ok = [bool]((Get-Content $rc2) | Where-Object { $_ -like '--- a/*' } | Select-Object -First 1)
+    $rc2Ok = [bool]((Get-Content $rc2 -Encoding UTF8) | Where-Object { $_ -like '--- a/*' } | Select-Object -First 1)
   }
 
   $klass = $null; $detail = $null

@@ -61,7 +61,7 @@ foreach ($c in $Checks) {
     $fail++
     continue
   }
-  $src = Get-Content $f -Raw
+  $src = Get-Content $f -Raw -Encoding UTF8
   if ($src -match $c.Pattern) {
     Write-Host ("  PASS     {0}" -f $c.Id) -ForegroundColor Green
   } else {

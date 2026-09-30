@@ -52,7 +52,7 @@ $files = Get-ChildItem -Path $RepoDir -Recurse -File |
   }
 
 foreach ($f in $files) {
-  $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
+  $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue -Encoding UTF8
   if (-not $content) { continue }
   foreach ($pat in $patterns) {
     if ($content -cmatch $pat) {
