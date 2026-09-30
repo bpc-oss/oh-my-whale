@@ -1,0 +1,60 @@
+--- a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
++++ b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+@@ -1369,6 +1369,49 @@
+ 		...tools !== void 0 && tools.length > 0 ? { tools } : {}
+ 	};
+ }
++/* P43: normalise the tool_call ids DSH itself mints before they leave the process.
++   Some OpenAI-compatible relays refuse a replayed assistant turn whose parallel
++   tool_calls carry hyphenated ids, and report it as HTTP 200 with an in-band
++   `data: {...,"error":{...}}` chunk instead of a status the client can read —
++   which surfaces as the opaque `PI_AI_ERROR: JSON error injected into SSE
++   stream` and is NOT retryable, so the turn dies on the first attempt.
++
++   Scope is deliberately narrow: only ids matching DSH's own minting format
++   (/^chatcmpl-/) are rewritten. Measured with every other field held constant
++   (same name, same arguments, same content, same three-message shape), seven
++   neutral 32-char id shapes were accepted 4/4 each while the real
++   `chatcmpl-tool-*` ids were refused 0/4; id length (8..40), character class,
++   underscores and word+digit mixes were all irrelevant, so the rewrite targets
++   the one form this process actually produces. Ids the model returns arrive
++   already rewritten and pass through untouched, so the rewrite is one-shot per
++   history rather than repeated on every turn.
++
++   The mapping is built once per request and applied to BOTH sides of every
++   call/result pair, because the relay matches a tool result to its call by
++   id: renaming only the assistant side would orphan all 100+ results. */
++const P43_ID_PATTERN = /^chatcmpl-/;
++const P43_ID_PREFIX = "dshcall";
++function rewriteRelayHostileToolCallIds(context) {
++	const messages = context?.messages;
++	if (!Array.isArray(messages) || messages.length === 0) return;
++	const mapping = /* @__PURE__ */ new Map();
++	const rewrite = (id) => {
++		if (typeof id !== "string" || !P43_ID_PATTERN.test(id)) return id;
++		let next = mapping.get(id);
++		if (next === void 0) {
++			next = `${P43_ID_PREFIX}${String(mapping.size).padStart(24, "0")}`;
++			mapping.set(id, next);
++		}
++		return next;
++	};
++	for (const message of messages) {
++		const content = message?.content;
++		if (Array.isArray(content)) for (const block of content) {
++			if (block?.type === "toolCall" && block.id !== void 0) block.id = rewrite(block.id);
++		}
++		if (message?.toolCallId !== void 0) message.toolCallId = rewrite(message.toolCallId);
++	}
++}
+ function appendAssistant(message, messages, toolNames, onReplayDegrade) {
+ 	const assistant = toPiAssistant(message, onReplayDegrade);
+ 	for (const block of assistant.content) if (block.type === "toolCall") toolNames.set(brandString(block.id), block.name);
+@@ -2016,6 +2059,7 @@
+ 						maxBytes: profile.requestImageMaxBytes
+ 					}
+ 				}, onReplayDegrade, videoToFrames);
++				rewriteRelayHostileToolCallIds(context);
+ 				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {
+ 					...profileOptions(profile, reasoning, apiKey),
+ 					...options.temperature === void 0 ? {} : { temperature: options.temperature },

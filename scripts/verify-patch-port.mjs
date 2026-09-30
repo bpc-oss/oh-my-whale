@@ -165,6 +165,9 @@ const CHECKS = [
   { id: 'P42', why: 'agent disposal no longer throws TypeError on fiber.dispose() (cordis 4 dispose is synchronous), which cut the agent/disposed listener chain short and swallowed the disposal diagnostic',
     files: ['@deepseek-ai/dsh-tool-subagent/lib/index.js'],
     needles: ['Promise.resolve(fiber.dispose()).catch'] },
+  { id: 'P43', why: 'tool_call ids this process mints are normalised before egress, so a relay that refuses hyphenated ids on a replayed parallel-tool-call turn stops killing the turn (needles are the added symbols, which upstream does not have)',
+    files: ['@deepseek-ai/dsh-llm-pi-ai/lib/index.js'],
+    needles: ['rewriteRelayHostileToolCallIds', 'P43_ID_PREFIX'] },
 ];
 
 const rows = [];

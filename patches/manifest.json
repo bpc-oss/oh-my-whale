@@ -689,6 +689,18 @@
       "note": "Registered 2026-09-30. The host log carries this TypeError 10 times on 2026-09-30 across five distinct sessions, each immediately preceded by `session-projection-cache ... turn/end write ... failed (cache stays stale): SessionHandleClosedError: flush on a closed handle`, i.e. a session closed while its turn was still ending. Verified with scripts/test-p42-dispose.mjs, which pins the real cordis-4 shape (dispose() -> undefined) and fails if the old call site stops throwing.",
       "discovered_by": "host log dsh-2026-09-30 agent-registry listener-throw + cordis 4 dispose contract read from cordis/lib/index.js:1123",
       "kernelLine": "0.2.0-rc.1"
+    },
+    {
+      "id": "P43",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js",
+      "patchFile": "host/043-llm-pi-ai-relay-hostile-tool-call-id-rewrite.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "Normalise the tool_call ids this process mints before the request leaves for the provider. Some OpenAI-compatible relays refuse a replayed assistant turn whose parallel tool_calls carry hyphenated ids and report it as HTTP 200 with an in-band `data: {...,\"error\":{...}}` chunk rather than a readable status, so the client sees the opaque `PI_AI_ERROR: JSON error injected into SSE stream` on the first attempt and the turn dies. With the ids rewritten the same request is accepted.",
+      "note": "Registered 2026-09-30 for session-1363ee2e-2a8c-4a05-a566-a964477a5cc2, which failed turns 4, 5 and 6 back to back at 0/0/0 usage. Scope measured, not guessed: with name, arguments, content and message shape held constant, seven neutral 32-char id shapes were accepted 4/4 each on api.commandcode.ai while the real `chatcmpl-tool-*` ids were refused 0/4; id length (8..40), character class, underscores and word+digit mixes were all irrelevant, which is why the rewrite is anchored to this process's own minting format rather than to a character class. IMPORTANT: the underlying reason the relay rejects them is still unknown - this makes the request acceptable, it does not explain the relay. Scoped to /^chatcmpl-/ so ids the model returns pass through untouched and the rewrite is one-shot per history rather than repeating every turn. The mapping is built once per request and applied to BOTH the assistant toolCall id and the toolResult toolCallId, because the relay pairs a result with its call by id; renaming one side only would orphan every result. Verified by scripts/test-p43-id-rewrite.mjs: 17/17 including pairing, idempotence, foreign-id passthrough and degenerate inputs.",
+      "discovered_by": "controlled replay of the exact payload DSH builds, cross-checked across commandcode/z-ai/glm-5.3-flash, yzs/u2-flash and bai/glm-5.3-flash (all 3/3-6/6 accept it), which ruled out the payload, the conversation data and the relay itself",
+      "kernelLine": "0.2.0-rc.1"
     }
   ],
   "vendorPatches": [
