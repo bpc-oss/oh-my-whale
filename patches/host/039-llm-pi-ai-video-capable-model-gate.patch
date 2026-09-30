@@ -1,0 +1,19 @@
+diff --git a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+index fb4eaa7..56b6363 100644
+--- a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
++++ b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+@@ -1975,9 +1975,12 @@ var PiAiAdapter = class extends LlmAdapter {
+ 				const containsVideo = options.messages.some((message) => contentHasVideo(message.content));
+ 				// P20: an image-only upstream degrades video to extracted stills instead
+ 				// of failing the turn; only a model that takes neither is a hard error.
+-				const videoToFrames = containsVideo && !model.input.includes("video") && model.input.includes("image");
++				const modelTakesVideo = model.input.includes("video");
++				const videoToFrames = containsVideo && !modelTakesVideo && model.input.includes("image");
+ 				if (containsImage && !model.input.includes("image")) throw new LlmError(`pi-ai model "${model.id}" does not support image input`, "UNSUPPORTED_CONTENT");
+-				if (containsVideo && !videoToFrames) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
++				// Hard error only when the model can take neither the video itself nor
++				// extracted frames. A video-capable route must NOT land here.
++				if (containsVideo && !modelTakesVideo && !videoToFrames) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
+ 				const attachments = containsImage ? this.config.resolveAttachments?.() : void 0;
+ 				if (containsImage && attachments === void 0) throw new LlmError("pi-ai image input requires the durable attachment service", "UNSUPPORTED_CONTENT");
+ 				const onReplayDegrade = (reason) => {

@@ -136,6 +136,8 @@ const CHECKS = [
   // P38 landed in the tree before it was in the manifest (registered 2026-09-30). It is
   // load-bearing: without it, any module outside the profile trees — preset entries, local
   // plugin repos, forks — cannot resolve @deepseek-ai/* and dies with ERR_MODULE_NOT_FOUND.
+  { id: 'P39', why: 'a video-capable model is not rejected by the frame-extraction guard (needle is the ADDED symbol, not the pre-existing one)',
+    files: ['@deepseek-ai/dsh-llm-pi-ai/lib/index.js'], needles: ['modelTakesVideo'] },
   { id: 'P38', why: 'outside-profile @deepseek-ai resolution fallback (load-bearing for presets/forks)',
     files: ['app:/lib/module-resolution-CTTB3FAS.js'],
     needles: ['// DSH patch: a module loaded by file:// URL that lives OUTSIDE every'] },

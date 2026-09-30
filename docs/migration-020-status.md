@@ -101,9 +101,25 @@ added now  : ["dsh-local-presets"]      <- 新增：preset 层包
 代验是等价的：用户点的也是文件，而 `files` 这个 kind 已被 0.24.1 用
 `registerFilesKind` 以 `priority: "extension"` 接管，走的就是同一个 pane。
 
-**一个查询陷阱**：点开文件后内容不在 `[data-dockkit-host]` 里了（那个节点会变空），
+### 五之三、其余核心功能的实机复验（2026-09-30）
+
+| 功能 | 证据 |
+|---|---|
+| 自定义模型 | 模型选择器显示 `Local GLM-5.3 Flash EXL3 (DFlash2)`；另一处显示 `Space Bunny Alpha / 推理等级 Max` |
+| 自定义 preset | 新会话页 hero 区显示 `Enforce + RSI Standard` |
+| 历史会话 | 左栏 15 个会话行，跨度 12 小时 ~ 1 个月；当前会话 83 个 `conversation.chat.node` 完整渲染，含早期轮次与子代理工作记录 |
+| 加载错误 | 整个复验过程 host 日志零 `history unavailable` / `resume failed` / schema 报错 |
+| 内核树残留 | `.bak` / `.orig` 清零（清之前先确认对应内容已在正式文件 + 账本里，备份到 `~/.dsh/backups/kernel-bak-20260930/`） |
+
+**没验成的一条**：用 CDP 切换到**另一个**历史会话。`element.click()` 落到了"新会话"欢迎页，
+换成真实鼠标事件（`Input.dispatchMouseEvent`）后坐标又因 `scrollIntoView` 失效。
+这是 CDP 驱动 UI 的可靠性边界，不是功能证据 —— 用户报过的两类历史错误
+（`Cannot read properties of undefined (reading 'parse')`、
+`Too small: expected number to be >=0`）在本次复验中一次都没出现。
+
+**本轮又踩了一次查询陷阱**：点开文件后内容不在 `[data-dockkit-host]` 里（那个节点会变空），
 真实渲染在 panel 的 `tabHostBody`。我一度因为查错选择器而以为预览是空白的 ——
-与之前"DOM 里有按钮就算能用"是同一类错误，只是方向相反。
+与之前"DOM 里有按钮就算能用"是同一类错误，只是方向相反。**先确认节点在哪，再判断有没有内容。**
 
 ## 四之二、better-sidebar：你装的是 0.12.2，上游已经到 0.24.1
 

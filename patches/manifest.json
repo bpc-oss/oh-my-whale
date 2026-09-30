@@ -614,6 +614,17 @@
       "purpose": "resolve @deepseek-ai/* for a module that lives OUTSIDE every registered profile tree (a preset entry .mjs, a plugin dev repo, a fork). Node walks node_modules up from the MODULE directory and never reaches the app tree, so such a module died with ERR_MODULE_NOT_FOUND on its first @deepseek-ai import. This is a LOAD-BEARING patch: without it presets, local plugin repos and forks stop resolving entirely.",
       "note": "Registered 2026-09-30 during the full registry audit. The patch had been live in the tree since 2026-09-29 (backup left as lib/module-resolution-CTTB3FAS.js.bak-extfallback) but was never in the manifest, so an upgrade or a fresh machine would have dropped it silently. Self-contained: DESKTOP_REQUIRE and pathToFileURL already exist in the file. Backwards compatible - only the previously-throwing case changes; every other specifier defers unchanged.",
       "discovered_by": "scripts/drift-scan.ps1 -Installed (UNKNOWN modification on the live tree)"
+    },
+    {
+      "id": "P39",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js",
+      "patchFile": "host/039-llm-pi-ai-video-capable-model-gate.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "a model that declares video input must not be rejected as video-incapable. The frame-extraction path (videoToFrames) exists for models that CANNOT take a clip; the old guard keyed only on that and threw UNSUPPORTED_CONTENT for a model declaring both video and image, even though the provider would have accepted the video.",
+      "note": "Registered 2026-09-30, found by diffing the leftover index.js.bak-probe2 against the live file during .bak cleanup. The fix had been in the tree since the video-modality port but appeared in no patch file and no manifest entry. P19b stayed green throughout because its needle (`videoToFrames`) is present in both revisions — a keyword-presence gate cannot see a change in the logic around the keyword. Applies on top of P19b; the .bak it was generated from already carries P25.",
+      "discovered_by": "diff of dsh-llm-pi-ai/lib/index.js.bak-probe2 against the live file"
     }
   ],
   "vendorPatches": [
