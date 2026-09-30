@@ -1,0 +1,34 @@
+diff --git a/@deepseek-ai/dsh-api-session-controller/lib/index.js b/@deepseek-ai/dsh-api-session-controller/lib/index.js
+index 68c9cc6..8d65b1e 100644
+--- a/@deepseek-ai/dsh-api-session-controller/lib/index.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/index.js
+@@ -287,6 +287,18 @@ var ApiSessionAgentController = class {
+ 		const defaultModel = this.ctx.agentDefaultModel;
+ 		const selection = {
+ 			get current() {
++				/* P40 (2026-09-30): re-read the modelSelection projection instead of trusting `picked`,
++				 * which the constructor evaluated once. A resumed conversation installs its selection
++				 * BEFORE the user picks a model, and the only later writer of `picked`
++				 * (selectForNextRequest) has no caller in the shell — so the projection update was
++				 * invisible and every request fell through to session.requestHeader(), i.e. the model
++				 * the conversation was created with, while the composer showed the new one. */
++				let liveSelection;
++				try {
++					const live = selectionCtx.sessionProjections.stateOf(agent.session, "modelSelection");
++					if (live != null && live.pending != null) liveSelection = agentModelSelection(live.pending);
++				} catch {}
++				if (liveSelection !== void 0) return liveSelection;
+ 				if (picked !== void 0) return picked;
+ 				const loggedHeader = agent.session.requestHeader();
+ 				if (loggedHeader === void 0) return defaultModel.currentSelection();
+@@ -3009,6 +3021,10 @@ let SessionController = (() => {
+ 			if (await hasProviderApiKey(this.ctx)) return;
+ 			const model = (await buildModelCatalog(this.ctx)).groups.find((group) => group.id === provider)?.models[0];
+ 			if (model === void 0) throw new RemoteError("session/provider-models-unavailable", `provider "${provider}" has no available models`, { provider });
++			/* P40 (2026-09-30): the context for the live projection read below. The getter cannot
++			 * use `this.ctx` — `this` inside an object-literal getter is the object literal, not the
++			 * service, so `this.ctx` is undefined and the lookup would fail silently. */
++			const selectionCtx = this.ctx;
+ 			const selection = {
+ 				provider,
+ 				model: model.id,

@@ -665,6 +665,18 @@
       "note": "Registered 2026-09-30, found by diffing the leftover index.js.bak-probe2 against the live file during .bak cleanup. The fix had been in the tree since the video-modality port but appeared in no patch file and no manifest entry. P19b stayed green throughout because its needle (`videoToFrames`) is present in both revisions — a keyword-presence gate cannot see a change in the logic around the keyword. Applies on top of P19b; the .bak it was generated from already carries P25.",
       "discovered_by": "diff of dsh-llm-pi-ai/lib/index.js.bak-probe2 against the live file",
       "kernelLine": "0.2.0-rc.1"
+    },
+    {
+      "id": "P40",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/index.js",
+      "patchFile": "host/040-api-session-live-model-selection.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "the model a RESUMED conversation sends to must follow the user's later choice. selectionFor() captured projectionState.pending into `picked` ONCE at construction, and the only later writer of `picked` (selectForNextRequest) has no caller anywhere in the shell — so every request on a resumed conversation fell through to agent.session.requestHeader(), i.e. the model the conversation was CREATED with, while the composer displayed the newly chosen one.",
+      "note": "Re-reads the modelSelection projection on every selection.current access; `picked` stays as the explicit-override channel. Applied by scripts/apply-p40-live-model-selection.mjs (idempotent, refuses if the anchor moved). A first attempt used `this.ctx` inside the getter and was a SILENT NO-OP: `this` in an object-literal getter is the object literal, not the service, so the lookup threw and the surrounding try/catch swallowed it. The context is captured in a closure instead. NEEDS END-TO-END CONFIRMATION: switching a model in a resumed conversation and checking which model actually served the request.",
+      "appliedBy": "scripts/apply-p40-live-model-selection.mjs (idempotent; the .patch is the replayable record)",
+      "kernelLine": "0.2.0-rc.1"
     }
   ],
   "vendorPatches": [
