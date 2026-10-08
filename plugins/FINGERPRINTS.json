@@ -1,6 +1,6 @@
 {
     "profileDir":  "{{USER_HOME}}\\.dsh\\profiles\\web",
-    "generatedAt":  "2026-09-30T15:28:47.0166849+08:00",
+    "generatedAt":  "2026-10-09T00:12:29.3210535+08:00",
     "version":  "1",
     "entries":  [
                     {
@@ -41,7 +41,7 @@
                     {
                         "source":  "{{PLUGIN_SOURCES_DIR}}\\dsh-routed-subagent",
                         "id":  "dsh-routed-subagent",
-                        "gitHead":  "1838fcae68c9ae3e1adcb7e917e64fbd0f5e229d",
+                        "gitHead":  "7ade57240e1049751b70bf04bba112ca5dcc820d",
                         "version":  "0.3.0",
                         "dirtyFiles":  [
 

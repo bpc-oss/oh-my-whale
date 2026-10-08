@@ -256,6 +256,7 @@ export function apply(ctx, config = {}) {
     // (default 3) so recursive delegation is bounded. outputSchema is false:
     // no structured-output contract is implemented.
     capabilities: {
+      agentOptions: true,
       toolFilter: true,
       persona: false,
       depthLimit: true,
@@ -503,7 +504,7 @@ export function apply(ctx, config = {}) {
         const jobId = jobs.start({
           kind: 'subagent',
           label: args.description,
-          owner: parent,
+          owner: parent.id,
           run: () => {
             const controller = new AbortController()
             let child = null // live child agent, captured once the run starts
