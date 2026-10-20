@@ -863,6 +863,15 @@
       "backup": "agent.cordis.yml.bak-v209-persona",
       "verified": "yaml parse 13/13; user live session resume (session-68cdbcc8) after fix: no error",
       "note": "config-tree migration (not a file patch). v209 drift wave member #4 (P27 content-kind, P28 source-kinds, voice owner-fiber route, persona prefix). Preset rows schema pre-scan (agent-69) may add M2+. | PRE-SCAN CLEAN (agent-69): remaining 28 preset plugin Configs byte-safe on 0.1.5; schemastery non-strict by default."
+    },
+    {
+      "id": "M2",
+      "name": "agent-team-roster-capacity",
+      "targets": "~/.dsh/profiles/web/cordis.patch.yml (profile layer, applied after bundles)",
+      "change": "- id: agent-team / config.maxMembers 8 -> 9007199254740991 (JS safe-integer ceiling). The bundle default (dsh-experimental-agent-team-profile) is 8; roster rows are immutable journal entries that are never reclaimed, so 8 capped team-mode dispatches per Lead conversation. NOTE: a profile-layer entry REPLACES the whole config, so maxTasks/maxMessageBytes/disposalTimeoutMs are restated with their bundle values.",
+      "date": "2026-10-20",
+      "verified": "YAML block appended to the profile patch layer; effective after an app restart (bundle config is read at mount).",
+      "note": "config-tree change, not a file patch. The profile patch layer is drift-allowlisted as config-runtime, which is why this does not appear as kernel drift."
     }
   ],
   "kernelLines": {

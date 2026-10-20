@@ -48,10 +48,11 @@ cannot be messaged and is discarded, which made every delegated conversation dea
 `tool_filter: { deny: [write, edit, pwsh, shell, terminal] }` reported NO `write`/`edit` and NO
 `pwsh`/`shell`/`terminal` in its tool schema, and DOES have `send_message`.
 
-**Known limits:** roster slots are immutable and include failures (bundle config `maxMembers: 8`), so
+**Known limits:** roster slots are immutable and include failures. The bundle default `maxMembers: 8` was raised to the safe-integer ceiling by profile-layer override M2 (restating the sibling config fields, because a profile entry replaces the whole config), so
 `team: true` is capped per Lead conversation; deleting a child conversation does not free a slot.
-The calling session's tool schema is fixed at conversation start, so a newly registered
-`send_message` only appears in a NEW conversation.
+A conversation's tool schema is fixed when it starts, so the newly registered control tool is
+invisible to older conversations; `subagent_routed` therefore gained a continue mode
+(`target_agent_id` + `message`) that reaches an existing durable child from ANY conversation.
 
 
 ## [0.3.5] - 20260930 — P41/P42：中继伪装成 SSE 的 502 曾直接杀死对话；agent 释放必抛 TypeError
