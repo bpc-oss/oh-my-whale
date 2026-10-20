@@ -713,8 +713,7 @@
       "note": "Found 2026-10-19 while rebuilding the ledger: the live file (Oct 2) differs from its .bak-pre-continuable-fix-20261002, but the change was never registered and no gate needle existed. The per-target diff for dsh-subagent carries P16 + P44 together; dedupe by FILE, never apply both artifacts to the same target. presetTarget count by line: patch 4 / live 4; by substring: patch 5 / live 5; the .bak is 0 under both measures. Coverage: the earlier claim that this was the only unregistered live delta was WRONG - P1 later found 13 more (type-surface mirrors + 3 entry bundles); see patches/per-target/LEDGER.json.",
       "discovered_by": "diff of dsh-subagent/lib/index.js.bak-pre-continuable-fix-20261002 against the live file during P1",
       "kernelLine": "0.2.0-rc.1"
-    }
-,
+    },
     {
       "id": "P45",
       "file": "host",
@@ -738,7 +737,8 @@
       "note": "One-line passthrough (plus comment) inside the request literal. Without it the hybrid model degrades to \"teammate mounts the parent composition\", which defeats the routed plugin core capability. Verified: node --check clean; patch applies to pristine (@dsh-experimental-agent-team 0.2.1-rc.2). Caller-side: dsh-routed-subagent team:true passes agentPreset.",
       "discovered_by": "reading dsh-subagent startLocal(): L1484 childSessionMeta(..., agentPresetOf(request)) + L1490 composition:{agentPreset:agentPresetOf(request)} against the team service request literal",
       "kernelLine": "0.2.1-rc.2"
-    }  ],
+    }
+  ],
   "vendorPatches": [
     {
       "id": "V1",
@@ -854,7 +854,7 @@
     }
   ],
   "kernelLines": {
-    "current": "0.2.0-rc.1",
+    "current": "0.2.1-rc.2",
     "historical": "0.1.5-rc.1",
     "note": "kernelLine says which kernel tree a patch file was authored against. Only the current line is applied by patches/host/apply.ps1; the other line is a historical record, verified instead by marker through scripts/verify-patch-port.mjs."
   }

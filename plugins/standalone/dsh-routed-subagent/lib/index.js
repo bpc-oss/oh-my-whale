@@ -34,6 +34,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { foldConsumedWork } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -238,15 +239,30 @@ function validateToolFilter(filter, toolName) {
 }
 
 /**
+ * Build a Team-roster-safe teammate name: lower-kebab-case, unique per Team.
+ * A caller-supplied name is sanitized but kept recognisable; a derived one gets
+ * a short random suffix because roster names are immutable and never reclaimed.
+ */
+function memberSafeName(raw, explicit) {
+  const base = String(raw ?? 'teammate')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32) || 'teammate'
+  return explicit ? base : `${base}-${randomUUID().slice(0, 4)}`
+}
+
+/**
  * Assert that the patched @deepseek-ai/dsh-subagent is the loaded instance.
  * The marker lives in the fork package.json; every profile's resolution must
  * land on the install-level junction (module identity must not split).
  */
 function assertSubagentPatchApplied(ctx) {
   try {
-    const pkg = JSON.parse(readFileSync(new URL('node_modules/@deepseek-ai/dsh-subagent/package.json', import.meta.url), 'utf8'))
+    const pkgPath = createRequire(import.meta.url).resolve('@deepseek-ai/dsh-subagent/package.json')
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
     if (pkg.dshRoutedSubagentPatch !== 'v3.1-preset-mount') {
-      throw new Error(`@deepseek-ai/dsh-subagent at ${new URL('node_modules/@deepseek-ai/dsh-subagent/package.json', import.meta.url).href} is NOT the dsh-routed-subagent patched fork (marker missing)`)
+      throw new Error(`@deepseek-ai/dsh-subagent at ${pkgPath} is NOT the dsh-routed-subagent patched fork (marker missing)`)
     }
   } catch (error) {
     ctx.logger?.warn?.(`${name}: platform patch assertion failed — continuable+preset mode will not work: ${String(error?.message ?? error)}`)
@@ -336,7 +352,10 @@ export function apply(ctx, config = {}) {
           // and the 4th carries the independently selected preset — the header must
           // say so or a cold read rebuilds the child under the parent's composition.
           meta: childSessionMeta(parent, childDepth, boundary > 0, targetPreset),
-          ...(boundary > 0 ? { seed } : {}),
+          ...(boundary > 0 ? { seed, inheritedEventCount: boundary } : {}),
+          // Seeded sessions require BOTH the seed and its boundary count:
+          // dsh-session throws "seeded session requires an inherited event count"
+          // when header.isSeeded is true and inheritedEventCount is absent.
           // Ownership: the official driver passes the delegating agent so the child
           // is registered under it (agents.enter(agent, parentAgent)).
           parentAgent: parent,
@@ -396,15 +415,18 @@ export function apply(ctx, config = {}) {
       run_in_background: { type: 'boolean', description: 'Default true: return a job id immediately and run the child independently (parallel dispatch; survives conversation abort). Set false to wait for the child\'s final output inline.' },
       fork: { type: 'boolean', description: 'Default false: fresh child with no inherited conversation. Set true to FORK this conversation — the child is seeded with all COMPLETED turns of this session (the current tool-call turn excluded) so it inherits the conversation context, then mounts the requested preset on top (stronger than the stock subagent_fork, which cannot change the preset). PREFER fork=true when the task needs this conversation\'s history.' },
       continuable: { type: 'boolean', description: 'Default false: one-shot child. Set true to return a durable subagent id — continue it with send_message(subagentId, ...) (multi-turn). The child mounts the requested preset and keeps it across resumes. Use for a long-running child you\'ll send follow-ups to.' },
+      team: { type: 'boolean', description: 'OPT-IN Team mode (hybrid). Default false = disposable one-shot child (unlimited fan-out). true = create a REAL Agent Team roster member via the team service, addressable with send_message and visible to list_agents. Requires a Team Lead caller and a free roster slot (maxMembers, failures included, never reclaimed). The teammate mounts THIS call\'s preset.' },
+      name: { type: 'string', description: 'Team mode only: the teammate name (lower-kebab-case, unique per Team). Omit to derive one from description with a short random suffix.' },
     },
     output: {
       schema: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          kind: { type: 'string', required: true, enum: ['background', 'foreground', 'continuable'] },
+          kind: { type: 'string', required: true, enum: ['background', 'foreground', 'continuable', 'teammate'] },
           jobId: { type: 'string' },
           subagentId: { type: 'string' },
+          name: { type: 'string' },
           runId: { type: 'string' },
           preset: { type: 'string', required: true },
           provider: { type: 'string' },
@@ -413,7 +435,9 @@ export function apply(ctx, config = {}) {
           output: { type: 'array', items: { type: 'json' } },
         },
       },
-      render: (_args, value) => value.kind === 'background'
+      render: (_args, value) => value.kind === 'teammate'
+        ? [{ type: 'text', text: `spawned Team teammate "${value.name}" on preset "${value.preset}" — durable roster member; address it with send_message({ target: "${value.name}" }) and see it in list_agents` }]
+        : value.kind === 'background'
         ? [{ type: 'text', text: `started background subagent job ${value.jobId} on preset "${value.preset}"${value.model ? ' @ ' + value.provider + '/' + value.model : ''} — the conversation is free to continue; collect with job_output / stop with job_kill` }]
         : value.kind === 'continuable'
           ? [{ type: 'text', text: `started continuable subagent ${value.subagentId} on preset "${value.preset}"${value.model ? ' @ ' + value.provider + '/' + value.model : ''} — continue it with send_message(${value.subagentId}, ...)` }]
@@ -475,6 +499,39 @@ export function apply(ctx, config = {}) {
               { cause },
             )
           }
+        }
+      }
+
+      // ── Team mode (hybrid, opt-in): create a REAL roster teammate ──────────
+      // Consumes one immutable roster slot (maxMembers, failures included) for
+      // the lifetime of this Lead session; default mode stays disposable.
+      if (args.team === true) {
+        const agentTeams = ctx.get('agentTeams')
+        if (agentTeams === undefined || typeof agentTeams.spawnTeammate !== 'function') {
+          throw new Error(`${toolName}: team mode requires the Agent Team service (@deepseek-ai/dsh-experimental-agent-team)`)
+        }
+        const membership = agentTeams.tryMembership(parent)
+        if (membership === undefined) {
+          throw new Error(`${toolName}: team mode needs a Team identity — this caller is a plain subagent, not a Team Lead; use the default (disposable) mode instead`)
+        }
+        if (membership.role !== 'lead') {
+          throw new Error(`${toolName}: only the Team Lead can create teammates (caller is teammate "${membership.name}")`)
+        }
+        const teammateName = memberSafeName(args.name ?? args.description, args.name !== undefined)
+        const spawned = await agentTeams.spawnTeammate(parent, {
+          name: teammateName,
+          description: args.description,
+          prompt: [{ type: 'text', text: args.prompt }],
+          context: args.fork ? 'fork' : 'fresh',
+          provider: args.fork ? forkProviderName : providerName,
+          agentPreset: args.preset,
+          signal: exec.signal,
+        })
+        return {
+          kind: 'teammate',
+          subagentId: spawned?.member?.id,
+          name: spawned?.member?.target ?? teammateName,
+          preset: args.preset,
         }
       }
 
