@@ -12,12 +12,3 @@
  				},
  				signal
  			});
-@@ -1416,7 +1419,7 @@ var TeamTaskBoard = class {
- };
- //#endregion
- //#region lib/types/index.js
--/** Agent Teams service façade over roster, messaging, task, and runtime lifecycle owners. */
-+/** Agent Teams service fa莽ade over roster, messaging, task, and runtime lifecycle owners. */
- const DEFAULT_MAX_MEMBERS = 16;
- const DEFAULT_MAX_TASKS = 256;
- const DEFAULT_MAX_MESSAGE_BYTES = 65536;
