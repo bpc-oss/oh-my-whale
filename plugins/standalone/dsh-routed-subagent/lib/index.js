@@ -49,6 +49,24 @@ import {
 } from '@deepseek-ai/dsh-subagent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
+// 0.2.1-rc.2 removed `subagents.start(provider, spec)`. The kernel now ships a
+// compatibility bridge with the 0.2.0 semantics again (it calls the provider's
+// own start() when present), so prefer it: startActivation would bypass the
+// provider's seed/setup logic and misroute external engines as local children.
+// Keep the activation shape as a last-resort fallback for older/newer kernels,
+// forwarding `label` because startActivation reads spec.label, not request.label.
+function startDispatch(subagents, provider, request, signal) {
+  if (typeof subagents.start === 'function') {
+    return subagents.start(provider, { ...request, signal })
+  }
+  return subagents.startActivation({
+    provider,
+    request,
+    signal,
+    ...(request.label === undefined ? {} : { label: request.label }),
+  })
+}
+
 export const name = 'dsh-routed-subagent'
 export const inject = ['subagents', 'agentPresets', 'tools']
 
@@ -245,26 +263,35 @@ export function apply(ctx, config = {}) {
   // `routed-mount` starts a FRESH child; `routed-fork` SEEDS the child with the
   // parent's completed-turn prefix (inherits the parent conversation) and then
   // mounts the requested preset on top. Both share one run factory.
-  const makeProvider = (pname, inheritsParentContext) => ({
+  // `seedsFromParent` is INTERNAL (fork seeding + continuable seed prefix).
+  // It must NOT be published as the host-visible `inheritsParentContext` flag:
+  // host >= 0.2.0-rc.1 rejects any provider that both advertises `agentPreset`
+  // and reports `inheritsParentContext: true`
+  //   `!provider.capabilities.agentPreset || provider.inheritsParentContext`
+  //   -> "does not support independent agent preset selection"
+  // Fork still inherits the conversation because THIS plugin seeds the child
+  // itself (completedTurnPrefix + activationBoundary), not the host.
+  const makeProvider = (pname, seedsFromParent) => ({
     name: pname,
-    // Declare ONLY what start() actually implements. toolFilter is true: the
-    // tool may pass a deny-only mask applied on top of the mounted preset's
-    // tool surface (same restrict mechanism as the stock subagent tool).
-    // persona is deliberately false: the child's persona comes from the mounted
-    // preset — a per-request persona override is not supported (write the role
-    // into the prompt instead). depthLimit is true: the tool passes maxDepth
-    // (default 3) so recursive delegation is bounded. outputSchema is false:
-    // no structured-output contract is implemented.
+    // Declare ONLY what start() actually implements. agentPreset is true: the
+    // provider mounts an independently selected preset (host >= 0.2 requires
+    // this flag for any request carrying a preset). toolFilter/persona are the
+    // pre-0.2 capability keys: toolFilter is true (deny-only mask on top of the
+    // mounted preset's surface); persona is deliberately false — the child's
+    // persona comes from the mounted preset (write the role into the prompt
+    // instead). depthLimit is true: the tool passes maxDepth (default 3) so
+    // recursive delegation is bounded. outputSchema is false: no
+    // structured-output contract is implemented.
     capabilities: {
       agentOptions: true,
+      agentPreset: true,
       toolFilter: true,
       persona: false,
       depthLimit: true,
       outputSchema: false,
     },
-    // fresh mount: no inherited conversation; fork: the child sees the parent's
-    // completed turns (the tool wording branches on this flag).
-    inheritsParentContext,
+    // Always false on purpose — see the seeding note above.
+    inheritsParentContext: false,
     async start(request) {
       assertSubagentMaxDepth(request.maxDepth)
       if (request.signal.aborted) throw new Error('subagent request was aborted before child publication')
@@ -279,7 +306,7 @@ export function apply(ctx, config = {}) {
       // fork seed: the parent's completed-turn prefix (current tool-call turn
       // excluded) — value-copied events, so the parent's cancellation never
       // corrupts the child's log.
-      const seed = inheritsParentContext ? completedTurnPrefix(parent) : []
+      const seed = seedsFromParent ? completedTurnPrefix(parent) : []
       const boundary = seed.length
 
       const setup = async (childCtx) => {
@@ -326,7 +353,7 @@ export function apply(ctx, config = {}) {
     // target preset from composition.preset; the provider only supplies the
     // seed prefix (fresh = none; fork = parent's completed turns).
     prepareContinuable(request) {
-      return Promise.resolve(inheritsParentContext ? { seed: completedTurnPrefix(request.parent) } : {})
+      return Promise.resolve(seedsFromParent ? { seed: completedTurnPrefix(request.parent) } : {})
     },
   })
   const provider = makeProvider(providerName, false)
@@ -509,7 +536,7 @@ export function apply(ctx, config = {}) {
             const controller = new AbortController()
             let child = null // live child agent, captured once the run starts
             const started = Date.now()
-            const startPromise = ctx.subagents.start(dispatchProvider, { ...request, signal: controller.signal })
+            const startPromise = startDispatch(ctx.subagents, dispatchProvider, request, controller.signal)
             startPromise.then((run) => {
               child = run.localAgent ?? null
             }).catch(() => { /* surfaced through done */ })
@@ -528,7 +555,7 @@ export function apply(ctx, config = {}) {
         }
       }
 
-      const run = await ctx.subagents.start(dispatchProvider, { ...request, signal: exec.signal })
+      const run = await startDispatch(ctx.subagents, dispatchProvider, request, exec.signal)
       // Ownership contract: the caller MUST dispose the run. Ordering matters:
       // settle the RESULT first, THEN dispose — dispose() sets the run's
       // cancelled flag synchronously, so racing it against result (parallel
