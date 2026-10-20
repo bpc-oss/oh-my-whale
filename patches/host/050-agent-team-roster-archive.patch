@@ -1,6 +1,19 @@
 --- a/@deepseek-ai/dsh-experimental-agent-team/lib/index.js
 +++ b/@deepseek-ai/dsh-experimental-agent-team/lib/index.js
-@@ -450,7 +450,8 @@ const teamMemberSnapshotSchema = z$1.object({
+@@ -364,7 +364,11 @@ function taskReady(state, task) {
+ * @returns a detached task view.
+ */
+ function projectTaskView(state, task) {
+-	const ownerName = task.ownerId === void 0 ? void 0 : task.ownerId === brandString(state.id) ? "lead" : state.members.find((member) => member.id === task.ownerId)?.name;
++	const ownerMember = task.ownerId === void 0 ? void 0 : state.members.find((member) => member.id === task.ownerId);
++	// P48: a task can still be owned by an archived member (completed ones are not
++	// blocked at archive time); label it rather than showing a name that
++	// list_agents no longer returns.
++	const ownerName = task.ownerId === void 0 ? void 0 : task.ownerId === brandString(state.id) ? "lead" : ownerMember === void 0 ? void 0 : ownerMember.phase === "archived" ? `${ownerMember.name} (archived)` : ownerMember.name;
+ 	const warnings = /* @__PURE__ */ new Set();
+ 	for (const other of state.tasks) {
+ 		if (other.id === task.id || other.status !== "in_progress") continue;
+@@ -450,7 +454,8 @@ const teamMemberSnapshotSchema = z$1.object({
  	phase: z$1.enum([
  		"provisioning",
  		"active",
@@ -10,7 +23,7 @@
  	]),
  	error: z$1.string().optional()
  }).strict();
-@@ -592,13 +593,17 @@ function applyCurrentTeamEvent(state, event) {
+@@ -592,13 +597,17 @@ function applyCurrentTeamEvent(state, event) {
  			const member = event.data.member;
  			const index = state.members.findIndex((candidate) => candidate.id === member.id);
  			const prior = state.members[index];
@@ -30,7 +43,7 @@
  			}
  			return {
  				...state,
-@@ -653,7 +658,8 @@ const teamMemberProjectionSchema = z$1.object({
+@@ -653,7 +662,8 @@ const teamMemberProjectionSchema = z$1.object({
  	phase: z$1.enum([
  		"provisioning",
  		"active",
@@ -40,7 +53,7 @@
  	]),
  	error: z$1.string().optional()
  }).strict();
-@@ -688,7 +694,7 @@ function buildTeamProjection(state) {
+@@ -688,7 +698,7 @@ function buildTeamProjection(state) {
  		role: "lead",
  		phase: "active"
  	}];
@@ -49,7 +62,7 @@
  		id: member.id,
  		name: member.name,
  		role: "teammate",
-@@ -827,7 +833,8 @@ function resolveActiveMember(root, state, rawName) {
+@@ -827,7 +837,8 @@ function resolveActiveMember(root, state, rawName) {
  		id: root.id,
  		name
  	};
@@ -59,7 +72,7 @@
  	if (member === void 0 || member.phase !== "active") throw new TeamError(`active teammate "${name}" not found`, "TEAM_MEMBER_NOT_FOUND");
  	return {
  		id: member.id,
-@@ -917,7 +924,7 @@ var TeamRoster = class {
+@@ -917,7 +928,7 @@ var TeamRoster = class {
  			...root.options.model === void 0 ? {} : { model: root.options.model },
  			diagnostics: []
  		}];
@@ -68,7 +81,7 @@
  			const live = this.ctx.agents.get(member.id);
  			const model = live?.options.model ?? root.options.model;
  			result.push({
-@@ -960,6 +967,47 @@ var TeamRoster = class {
+@@ -960,6 +971,47 @@ var TeamRoster = class {
  	* @param targetName - durable teammate name.
  	* @returns the target status sampled before cancellation.
  	*/
@@ -116,7 +129,7 @@
  	interrupt(caller, targetName) {
  		const membership = this.membership(caller);
  		if (membership.role !== "lead") throw new TeamError("only the Team Lead can interrupt teammates", "TEAM_LEAD_REQUIRED");
-@@ -1020,8 +1068,8 @@ var TeamRoster = class {
+@@ -1020,8 +1072,8 @@ var TeamRoster = class {
  		};
  		await this.journal.transact(root.id, async () => {
  			const state = this.journal.state(root);
@@ -127,7 +140,7 @@
  			await this.journal.appendAndFlush(root, "team/member", {
  				version: 2,
  				teamId: TeamId(root.id),
-@@ -1162,7 +1210,7 @@ var TeamRoster = class {
+@@ -1162,7 +1214,7 @@ var TeamRoster = class {
  			diagnostics: []
  		};
  	}
@@ -136,7 +149,21 @@
  	memberName(value) {
  		if (!MEMBER_NAME.test(value) || value.length > 64 || value === "lead") throw new TeamError("teammate name must be lower-kebab-case, at most 64 characters, and not \"lead\"", "TEAM_INVALID_MEMBER_NAME");
  		return value;
-@@ -1511,6 +1559,30 @@ var TeamService = class extends Service {
+@@ -1173,7 +1225,12 @@ var TeamRoster = class {
+ 			const current = this.journal.state(root).members.find((member) => member.id === terminal.id);
+ 			/* v8 ignore next 3 -- the append-only provisioning event is committed by this operation before settlement. */
+ 			if (current === void 0) throw new TeamError(`provisioned teammate "${terminal.id}" disappeared`, "TEAM_PROVISIONING_CONFLICT");
+-			if (current.phase !== "provisioning") return current.phase;
++			if (current.phase !== "provisioning") {
++				// P48: archive refuses provisioning rows, but a settlement that still races
++				// one must fail loudly instead of returning "archived" as a success receipt.
++				if (current.phase === "archived") throw new TeamError(`teammate "${current.name}" was archived while provisioning`, "TEAM_PROVISIONING_CONFLICT");
++				return current.phase;
++			}
+ 			await this.journal.appendAndFlush(root, "team/member", {
+ 				version: 2,
+ 				teamId: TeamId(root.id),
+@@ -1511,6 +1568,30 @@ var TeamService = class extends Service {
  		return await this.roster.spawn(caller, request);
  	}
  	/**

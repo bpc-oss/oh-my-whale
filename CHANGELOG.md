@@ -52,6 +52,8 @@ cannot be messaged and is discarded, which made every delegated conversation dea
 `tool_filter: { deny: [write, edit, pwsh, shell, terminal] }` reported NO `write`/`edit` and NO
 `pwsh`/`shell`/`terminal` in its tool schema, and DOES have `send_message`.
 
+**Independent review review-guide-p48-20261020 (NEEDS_FIXES) - all findings closed:** the guide gained MODE 6 (external engine) plus engine/cwd/timeout_ms/help/continuable, branch precedence and the MODE 3 return shape; the stale "slots are immutable" tip and the "never reclaimed" schema claim are gone; archive now refuses provisioning rows and members owning unfinished tasks, drains unconditionally, exposes isArchived so an archived id cannot be revived, and labels archived task owners; the smoke suite exercises the archive path with a real AbortSignal instead of pinning stub strings.
+
 **Known limits:** roster slots are immutable and include failures. The bundle default `maxMembers: 8` was raised to the safe-integer ceiling by profile-layer override M2 (restating the sibling config fields, because a profile entry replaces the whole config), so
 `team: true` is capped per Lead conversation; deleting a child conversation does not free a slot.
 A conversation's tool schema is fixed when it starts, so the newly registered control tool is
