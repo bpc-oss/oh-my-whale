@@ -68,7 +68,7 @@
  			const live = this.ctx.agents.get(member.id);
  			const model = live?.options.model ?? root.options.model;
  			result.push({
-@@ -960,6 +967,33 @@ var TeamRoster = class {
+@@ -960,6 +967,47 @@ var TeamRoster = class {
  	* @param targetName - durable teammate name.
  	* @returns the target status sampled before cancellation.
  	*/
@@ -82,7 +82,15 @@
 +		const state = this.journal.state(membership.root);
 +		const member = state.members.find((candidate) => candidate.name === targetName && candidate.phase !== "archived");
 +		if (member === void 0) throw new TeamError(`teammate "${targetName}" not found in this Team`, "TEAM_MEMBER_NOT_FOUND");
-+		if (this.ctx.agents.get(member.id) !== void 0) await this.stopTeammates(membership.root, [member.id]);
++		// P48: a provisioning row is mid-creation; archiving it would race the spawn
++		// receipt (settleProvisioning would still report the member active).
++		if (member.phase === "provisioning") throw new TeamError(`teammate "${targetName}" is still provisioning`, "TEAM_PROVISIONING_CONFLICT");
++		// P48: do not silently strand in-progress work on the task board.
++		const owned = state.tasks.filter((task) => task.ownerId === member.id && task.status !== "completed" && task.status !== "deleted");
++		if (owned.length > 0) throw new TeamError(`teammate "${targetName}" still owns ${owned.length} unfinished task(s): ${owned.map((task) => task.id).join(", ")}`, "TEAM_TASK_UNAUTHORIZED");
++		// P48: drain unconditionally - the ctx.agents guard and the resident registry
++		// can disagree, and a surviving child would be an invisible zombie.
++		await this.stopTeammates(membership.root, [member.id]);
 +		await this.journal.transact(membership.root.id, async () => {
 +			await this.journal.appendAndFlush(membership.root, "team/member", {
 +				version: 2,
@@ -99,10 +107,16 @@
 +			archived: true
 +		};
 +	}
++	/**
++	* Interrupt one live teammate turn without clearing its pending inbox.
++	* @param caller - exact live Lead Agent.
++	* @param targetName - durable teammate name.
++	* @returns the target status sampled before cancellation.
++	*/
  	interrupt(caller, targetName) {
  		const membership = this.membership(caller);
  		if (membership.role !== "lead") throw new TeamError("only the Team Lead can interrupt teammates", "TEAM_LEAD_REQUIRED");
-@@ -1020,8 +1054,8 @@ var TeamRoster = class {
+@@ -1020,8 +1068,8 @@ var TeamRoster = class {
  		};
  		await this.journal.transact(root.id, async () => {
  			const state = this.journal.state(root);
@@ -113,7 +127,16 @@
  			await this.journal.appendAndFlush(root, "team/member", {
  				version: 2,
  				teamId: TeamId(root.id),
-@@ -1511,6 +1545,15 @@ var TeamService = class extends Service {
+@@ -1162,7 +1210,7 @@ var TeamRoster = class {
+ 			diagnostics: []
+ 		};
+ 	}
+-	/** Validate a never-reused model-facing teammate name. */
++	/** Validate a model-facing teammate name: unique among NON-ARCHIVED members. */
+ 	memberName(value) {
+ 		if (!MEMBER_NAME.test(value) || value.length > 64 || value === "lead") throw new TeamError("teammate name must be lower-kebab-case, at most 64 characters, and not \"lead\"", "TEAM_INVALID_MEMBER_NAME");
+ 		return value;
+@@ -1511,6 +1559,30 @@ var TeamService = class extends Service {
  		return await this.roster.spawn(caller, request);
  	}
  	/**
@@ -122,6 +145,21 @@
 +	* @param name - durable teammate name.
 +	* @returns the archived member identity.
 +	*/
++	/**
++	* Whether an agent id is an ARCHIVED member of the caller's Team.
++	* @param caller - exact live Team member.
++	* @param agentId - candidate child identity.
++	* @returns true when the row exists and its phase is archived.
++	*/
++	isArchived(caller, agentId) {
++		try {
++			const membership = this.roster.membership(caller);
++			return this.journal.state(membership.root).members.some((candidate) => candidate.id === agentId && candidate.phase === "archived");
++		} catch {
++			return false;
++		}
++	}
++
 +	async archiveTeammate(caller, name) {
 +		return await this.roster.archive(caller, name);
 +	}
