@@ -44,11 +44,15 @@ import {
   captureDelegatedPolicyOverrides,
   childSessionMeta,
   finalAssistantOutput,
+  registerExternalContinuation,
   resolveChildAgentOptions,
   resolveChildDepth,
   settleRun,
 } from '@deepseek-ai/dsh-subagent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { ClaudeEngineProvider } from './engines/claude.js'
+import { CodexEngineProvider } from './engines/codex.js'
+import { CodebuddyEngineProvider } from './engines/codebuddy.js'
 
 // 0.2.1-rc.2 removed `subagents.start(provider, spec)`. The kernel now ships a
 // compatibility bridge with the 0.2.0 semantics again (it calls the provider's
@@ -69,6 +73,11 @@ function startDispatch(subagents, provider, request, signal) {
 }
 
 export const name = 'dsh-routed-subagent'
+// 'agents' is NOT injectable here for childCtx: the agent-loop calls our
+// `setup(childCtx, child)` with childCtx = the CHILD agent's ctx, whose scope
+// exposes systemPrompt/tools services but NOT the `agent` accessor (same as
+// stock dsh-subagent, which reads `child.session` from the second argument —
+// see dsh-subagent/lib/index.js:1077/542). Use the `child` Agent handle.
 export const inject = ['subagents', 'agentPresets', 'tools']
 
 /** Map a session turn outcome to the subagent seam's terminal vocabulary. */
@@ -216,14 +225,14 @@ function liveProgress(child, startedMs) {
 }
 
 /**
- * Validate the tool_filter parameter shape: DENY-ONLY { deny?: string[] }.
+ * Validate the tool_filter parameter shape: DENY-ONLY { deny: string[] }.
  * `allow` is rejected: the tool surface is defined by the mounted preset —
  * a mask can only remove tools, never add or narrow to an allow-list.
  * Deny must be a non-empty array of non-empty tool names.
  */
 function validateToolFilter(filter, toolName) {
   if (typeof filter !== 'object' || filter === null || Array.isArray(filter)) {
-    throw new Error(`${toolName}: tool_filter must be an object { deny?: string[] }`)
+    throw new Error(`${toolName}: tool_filter must be an object { deny: string[] }`)
   }
   if (filter.allow !== undefined) {
     throw new Error(`${toolName}: tool_filter.allow is not supported — the tool surface comes from the mounted preset; use deny to remove tools`)
@@ -256,6 +265,10 @@ function memberSafeName(raw, explicit) {
  * Assert that the patched @deepseek-ai/dsh-subagent is the loaded instance.
  * The marker lives in the fork package.json; every profile's resolution must
  * land on the install-level junction (module identity must not split).
+ * Resolution goes through the package specifier (not a hardcoded
+ * `lib/node_modules/...` path) so it follows whatever junction the profile
+ * installs — the old relative path pointed at a junction that kernel upgrades
+ * legitimately remove, which produced a false ENOENT warning on every boot.
  */
 function assertSubagentPatchApplied(ctx) {
   try {
@@ -272,6 +285,9 @@ function assertSubagentPatchApplied(ctx) {
 export function apply(ctx, config = {}) {
   const providerName = config.providerName ?? 'routed-mount'
   const forkProviderName = config.forkProviderName ?? 'routed-fork'
+  const claudeProviderName = config.claudeProviderName ?? 'routed-claude'
+  const codexProviderName = config.codexProviderName ?? 'routed-codex'
+  const codebuddyProviderName = config.codebuddyProviderName ?? 'routed-codebuddy'
   const toolName = config.toolName ?? 'subagent_routed'
   const agentPresets = ctx.agentPresets
 
@@ -280,9 +296,9 @@ export function apply(ctx, config = {}) {
   // parent's completed-turn prefix (inherits the parent conversation) and then
   // mounts the requested preset on top. Both share one run factory.
   // `seedsFromParent` is INTERNAL (fork seeding + continuable seed prefix).
-  // It must NOT be published as the host-visible `inheritsParentContext` flag:
-  // host >= 0.2.0-rc.1 rejects any provider that both advertises `agentPreset`
-  // and reports `inheritsParentContext: true`
+  // It must NOT be published as the host-visible `inheritsParentContext`
+  // flag: host >= 0.2.0-rc.1 rejects any provider that both advertises
+  // `agentPreset` and reports `inheritsParentContext: true`
   //   `!provider.capabilities.agentPreset || provider.inheritsParentContext`
   //   -> "does not support independent agent preset selection"
   // Fork still inherits the conversation because THIS plugin seeds the child
@@ -325,8 +341,11 @@ export function apply(ctx, config = {}) {
       const seed = seedsFromParent ? completedTurnPrefix(parent) : []
       const boundary = seed.length
 
-      const setup = async (childCtx) => {
-        appendDelegatedPolicyOverrides(childCtx.agent.session, inherited)
+      const setup = async (childCtx, child) => {
+        // child = the published Agent handle (second setup argument, same as
+        // stock dsh-subagent:1077). The `agent` accessor is NOT visible on the
+        // child ctx scope (see inject note) — use the handle directly.
+        appendDelegatedPolicyOverrides(child.session, inherited)
         // THE load-bearing line: mount the requested preset (async setup is
         // awaited by the agent factory), replacing parent composition.
         await agentPresets.mount(childCtx, targetPreset)
@@ -348,9 +367,11 @@ export function apply(ctx, config = {}) {
         await parent.ctx.agents.create({
           sessionId: childId,
           // Host >= 0.2.0-rc.1: `childSessionMeta(parent, childDepth, isSeeded, selectedPreset)`.
-          // The 3rd argument is a BOOLEAN (it was the numeric seed boundary before)
+          // The 3rd argument is a BOOLEAN (was the numeric seed boundary before),
           // and the 4th carries the independently selected preset — the header must
           // say so or a cold read rebuilds the child under the parent's composition.
+          // isSeeded = boundary > 0 mirrors what actually reaches create(): the seed
+          // is only passed when the parent prefix is non-empty.
           meta: childSessionMeta(parent, childDepth, boundary > 0, targetPreset),
           ...(boundary > 0 ? { seed, inheritedEventCount: boundary } : {}),
           // Seeded sessions require BOTH the seed and its boundary count:
@@ -396,6 +417,32 @@ export function apply(ctx, config = {}) {
   } else {
     ctx.logger?.info?.(`${name}: provider "${forkProviderName}" already registered on the host plane; skipping duplicate`)
   }
+  // ── 1b) claude engine provider (imports @anthropic-ai/claude-agent-sdk) ──
+  const claudeProvider = new ClaudeEngineProvider(claudeProviderName, ctx, config)
+  if (ctx.subagents.getProvider(claudeProviderName) === undefined) {
+    ctx.subagents.registerProvider(claudeProvider)
+  } else {
+    ctx.logger?.info?.(`${name}: provider "${claudeProviderName}" already registered on the host plane; skipping duplicate`)
+  }
+
+  // ── 1c) codex engine provider (drives the codex CLI app-server over stdio) ──
+  const codexProvider = new CodexEngineProvider(codexProviderName, ctx, config)
+  if (ctx.subagents.getProvider(codexProviderName) === undefined) {
+    ctx.subagents.registerProvider(codexProvider)
+  } else {
+    ctx.logger?.info?.(`${name}: provider "${codexProviderName}" already registered on the host plane; skipping duplicate`)
+  }
+  // The codex wire owns a LONG-LIVED app-server child process. Kill it on
+  // plugin teardown so reloads/uninstalls never leave orphan `codex` processes.
+  ctx.effect(() => () => { codexProvider.dispose?.().catch?.(() => {}) }, 'dsh-routed-subagent codex teardown')
+
+  // ── 1d) codebuddy engine provider (drives the CodeBuddy Code CLI --print) ──
+  const codebuddyProvider = new CodebuddyEngineProvider(codebuddyProviderName, ctx, config)
+  if (ctx.subagents.getProvider(codebuddyProviderName) === undefined) {
+    ctx.subagents.registerProvider(codebuddyProvider)
+  } else {
+    ctx.logger?.info?.(`${name}: provider "${codebuddyProviderName}" already registered on the host plane; skipping duplicate`)
+  }
 
   // ── 2) tool: subagent_routed ───────────────────────────────────────────
   const defaultMaxDepth = config.maxDepth ?? 3
@@ -405,18 +452,21 @@ export function apply(ctx, config = {}) {
     description: 'Run a subagent fully mounted on a SPECIFIED agent preset, from any session — the child adopts that preset\'s complete composition (persona, prompt sections, skill catalog, tools), unlike the stock subagent tools which inherit this session\'s own preset. Dispatch ONE background delegable job and keep working (see modes; a child that needs THIS conversation\'s context should set fork=true). BACKGROUND by default: the call RETURNS A JOB ID IMMEDIATELY — the child runs independently, aborting this conversation does NOT cancel it, and you can dispatch several in parallel. UNLESS the task explicitly requires the result before you can continue, DO NOT wait: return the job id, continue your other work, and collect results later with job_output (live progress) or stop with job_kill. Set run_in_background: false ONLY when the very next step depends on the child\'s output. PREFER fork=true when the child should see this conversation\'s history; prefer continuable=true for a long-running child you\'ll send follow-ups to (send_message); otherwise leave both unset for a plain one-shot. One tool, all modes — do NOT fall back to the (disabled) stock subagent.',
     parameters: {
       prompt: { type: 'string', required: true, description: 'The complete, self-contained task for the subagent. It does not share this conversation\'s context, so include everything it needs.' },
-      preset: { type: 'string', required: true, description: 'The agent preset id the child should mount (e.g. "dev", "standard", "router-standard"). Must exist in the roster.' },
+      preset: { type: 'string', description: 'The exact agent preset roster ID the child should mount (e.g. "dev", "standard", "router-standard"); role/display names such as "reviewer" are not IDs. Must exist in the roster. Required for the default dsh engine; IGNORED for external engines (codex / claude / codebuddy — they are driven by their own CLI, not by a DSH preset).' },
       description: { type: 'string', required: true, description: 'A short (3-5 word) description of the delegated task, for display.' },
       max_depth: { type: 'number', description: 'Recursion budget for the child\'s own delegations (default ' + defaultMaxDepth + '; must be a positive integer >= 1).' },
       model: { type: 'string', description: 'The model id the CHILD should use (overrides this session\'s model for this call only). Must be valid under the chosen provider; if invalid, the child fails with the LLM routing error. Omit to inherit this session\'s model.' },
       provider: { type: 'string', description: 'The provider name for the child\'s model (defaults to this session\'s provider when model is set without provider).' },
       max_tokens: { type: 'number', description: 'Optional output/token cap for the child\'s LLM calls (agentOptions.maxTokens). Must be a positive integer.' },
-      tool_filter: { type: 'object', additionalProperties: false, properties: { deny: { type: 'array', items: { type: 'string' } } }, description: 'Optional DENY-only tool mask applied on top of the mounted preset\'s tool surface: { deny?: string[] } naming global tool names to REMOVE (e.g. deny shell tools for a read-only audit). Same restrict mechanism as the stock subagent toolFilter.' },
-      run_in_background: { type: 'boolean', description: 'Default true: return a job id immediately and run the child independently (parallel dispatch; survives conversation abort). Set false to wait for the child\'s final output inline.' },
-      fork: { type: 'boolean', description: 'Default false: fresh child with no inherited conversation. Set true to FORK this conversation — the child is seeded with all COMPLETED turns of this session (the current tool-call turn excluded) so it inherits the conversation context, then mounts the requested preset on top (stronger than the stock subagent_fork, which cannot change the preset). PREFER fork=true when the task needs this conversation\'s history.' },
-      continuable: { type: 'boolean', description: 'Default false: one-shot child. Set true to return a durable subagent id — continue it with send_message(subagentId, ...) (multi-turn). The child mounts the requested preset and keeps it across resumes. Use for a long-running child you\'ll send follow-ups to.' },
-      team: { type: 'boolean', description: 'OPT-IN Team mode (hybrid). Default false = disposable one-shot child (unlimited fan-out). true = create a REAL Agent Team roster member via the team service, addressable with send_message and visible to list_agents. Requires a Team Lead caller and a free roster slot (maxMembers, failures included, never reclaimed). The teammate mounts THIS call\'s preset.' },
+      engine: { type: 'string', description: 'Dispatch engine: "dsh" (default, preset mounting), "claude" (external Claude Code CLI via @anthropic-ai/claude-agent-sdk), "codex" (external Codex CLI via its app-server stdio protocol), or "codebuddy" (external CodeBuddy CLI).' },
+      cwd: { type: 'string', description: 'Working directory for EXTERNAL engines (codex / claude / codebuddy) — the repository the external CLI should operate in. Defaults to the parent session cwd (the DSH conversation dir, usually NOT the target repo); pass the repo path explicitly for code review tasks. Ignored by the dsh engine.' },
+      tool_filter: { type: 'object', additionalProperties: false, properties: { deny: { type: 'array', required: true, items: { type: 'string' } } }, description: 'NOT SUPPORTED on the durable path: the harness applies child tool restrictions only from the composition startActivation builds, which does not carry toolFilter. Passing it now raises an explicit error instead of being silently dropped. Choose a preset whose tool surface already excludes what you need.' },
+      run_in_background: { type: 'boolean', description: 'DISABLED: always true rejects the call. One-shot background jobs are gone by policy — every dispatch produces a durable subagent.' },
+      timeout_ms: { type: 'number', description: 'External-engine turn timeout in milliseconds (default 1800000 = 30 min). A turn that runs longer fails with a timeout error. Ignored by the dsh engine.' },
+      team: { type: 'boolean', description: 'OPT-IN Team mode (hybrid). Default false = disposable one-shot child (unlimited fan-out). true = create a REAL Agent Team roster member via the team service, so it is addressable with send_message and visible to list_agents. Requires a Team Lead caller and a free roster slot (maxMembers, failures included, never reclaimed). The teammate mounts THIS call\'s preset.' },
       name: { type: 'string', description: 'Team mode only: the teammate name (lower-kebab-case, unique per Team). Omit to derive one from description with a short random suffix.' },
+      fork: { type: 'boolean', description: 'Default false: fresh child with no inherited conversation. Set true to FORK this conversation — the child is seeded with all COMPLETED turns of this session (the current tool-call turn excluded) so it inherits the conversation context, then mounts the requested preset on top (stronger than the stock subagent_fork, which cannot change the preset). PREFER fork=true when the task needs this conversation\'s history.' },
+      continuable: { type: 'boolean', description: 'Always on: every dispatch is durable. Kept only for call-site compatibility; the value is ignored because one-shot children no longer exist.' },
     },
     output: {
       schema: {
@@ -428,34 +478,52 @@ export function apply(ctx, config = {}) {
           subagentId: { type: 'string' },
           name: { type: 'string' },
           runId: { type: 'string' },
-          preset: { type: 'string', required: true },
+          preset: { type: 'string' },
+          engine: { type: 'string' },
           provider: { type: 'string' },
           model: { type: 'string' },
           stopReason: { type: 'string' },
           output: { type: 'array', items: { type: 'json' } },
         },
       },
-      render: (_args, value) => value.kind === 'teammate'
-        ? [{ type: 'text', text: `spawned Team teammate "${value.name}" on preset "${value.preset}" — durable roster member; address it with send_message({ target: "${value.name}" }) and see it in list_agents` }]
-        : value.kind === 'background'
-        ? [{ type: 'text', text: `started background subagent job ${value.jobId} on preset "${value.preset}"${value.model ? ' @ ' + value.provider + '/' + value.model : ''} — the conversation is free to continue; collect with job_output / stop with job_kill` }]
-        : value.kind === 'continuable'
-          ? [{ type: 'text', text: `started continuable subagent ${value.subagentId} on preset "${value.preset}"${value.model ? ' @ ' + value.provider + '/' + value.model : ''} — continue it with send_message(${value.subagentId}, ...)` }]
-          : [{ type: 'text', text: `[subagent_routed ${value.preset}${value.model ? ' @ ' + value.provider + '/' + value.model : ''} | ${value.stopReason}]\n${(value.output ?? []).filter((b) => b && b.type === 'text').map((b) => b.text).join('')}` }],
+      render: (_args, value) => {
+        const modelTag = value.model ? ' @ ' + (value.provider ? value.provider + '/' : '') + value.model : ''
+        const target = value.preset ?? value.engine ?? 'dsh'
+        if (value.kind === 'teammate') {
+          return [{ type: 'text', text: `spawned Team teammate "${value.name}"${value.preset ? ` on preset "${value.preset}"` : ''} — durable roster member; address it with send_message({ target: "${value.name}" }) and see it in list_agents` }]
+        }
+        return value.kind === 'background'
+          ? [{ type: 'text', text: `started background subagent job ${value.jobId} on ${value.engine ? `engine "${value.engine}"` : `preset "${target}"`}${modelTag} — the conversation is free to continue; collect with job_output / stop with job_kill` }]
+          : value.kind === 'continuable'
+            ? [{ type: 'text', text: `started continuable subagent ${value.subagentId} on ${value.engine ? `engine "${value.engine}"` : `preset "${target}"`}${modelTag} — continue it with send_message(${value.subagentId}, ...)` }]
+            : [{ type: 'text', text: `[subagent_routed ${value.engine ? `engine=${value.engine}` : target}${modelTag} | ${value.stopReason}]\n${(value.output ?? []).filter((b) => b && b.type === 'text').map((b) => b.text).join('')}` }]
+      },
     },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const parent = exec.agent
       if (!parent) throw new Error(`${toolName} requires a calling agent (exec.agent was undefined)`)
 
-      // validate the target preset up front. `agentPresets.resolve` already
-      // throws with the available preset ids; surface its message verbatim so
-      // internal errors are not mislabeled as "unknown preset".
-      try {
-        await agentPresets.resolve(args.preset)
-      } catch (error) {
-        const reason = error instanceof Error && error.message ? error.message : String(error)
-        throw new Error(`cannot resolve agent preset "${args.preset}": ${reason}`)
+      // Engine routing first: external engines (codex / claude / codebuddy)
+      // are driven by their own CLI — they have NO preset concept, so preset
+      // is optional and IGNORED for them. Only the dsh engine (preset mounting)
+      // requires and resolves a target preset.
+      const engine = args.engine ?? 'dsh'
+      const externalEngine = engine === 'claude' || engine === 'codex' || engine === 'codebuddy'
+
+      if (!externalEngine) {
+        if (typeof args.preset !== 'string' || args.preset.length === 0) {
+          throw new Error(`${toolName}: preset is required for the dsh engine (the preset id the child should mount)`)
+        }
+        // validate the target preset up front. `agentPresets.resolve` already
+        // throws with the available preset ids; surface its message verbatim so
+        // internal errors are not mislabeled as "unknown preset".
+        try {
+          await agentPresets.resolve(args.preset)
+        } catch (error) {
+          const reason = error instanceof Error && error.message ? error.message : String(error)
+          throw new Error(`cannot resolve agent preset "${args.preset}": ${reason}`)
+        }
       }
 
       // per-call model override: request.agentOptions wins over the parent's
@@ -477,8 +545,10 @@ export function apply(ctx, config = {}) {
       // outage is distinguishable from a genuinely unknown model. Runs whenever
       // a model OR provider override was given (a provider-only override
       // resolves against the parent's model, which is almost always invalid —
-      // catch it here). Skipped when the harness exposes no llm service.
-      if (agentOptions.model !== undefined || agentOptions.provider !== undefined) {
+      // catch it here). Skipped when the harness exposes no llm service, and
+      // ALWAYS skipped for external engines (codex/claude — their model is
+      // handled by the CLI engine itself, not DSH's LLM routing).
+      if ((engine !== 'claude' && engine !== 'codex' && engine !== 'codebuddy') && (agentOptions.model !== undefined || agentOptions.provider !== undefined)) {
         const llm = ctx.get('llm')
         const provider = agentOptions.provider ?? parent.options?.provider
         const model = agentOptions.model ?? parent.options?.model
@@ -502,22 +572,34 @@ export function apply(ctx, config = {}) {
         }
       }
 
-      // ── Team mode (hybrid, opt-in): create a REAL roster teammate ──────────
-      // Consumes one immutable roster slot (maxMembers, failures included) for
-      // the lifetime of this Lead session; default mode stays disposable.
+      // ── Team mode (opt-in): create a REAL roster teammate ─────────────────
+      // Addressable via send_message, visible to list_agents; consumes one
+      // immutable roster slot (maxMembers, failures included).
       if (args.team === true) {
+        // Validate the request shape FIRST: a bad parameter must be reported even
+        // when the Team service is absent, otherwise the error misleads.
+        const unsupported = ['engine', 'model', 'provider', 'max_tokens', 'max_depth', 'tool_filter', 'timeout_ms', 'cwd', 'run_in_background', 'continuable']
+          .filter((key) => args[key] !== undefined)
+        if (unsupported.length > 0) {
+          throw new Error(`${toolName}: team mode does not support ${unsupported.join(', ')} — a teammate inherits the Lead's route and preset composition; remove those parameters or drop team:true`)
+        }
+        if (typeof args.preset !== 'string' || args.preset.length === 0) {
+          throw new Error(`${toolName}: team mode requires preset (the preset the teammate mounts)`)
+        }
         const agentTeams = ctx.get('agentTeams')
         if (agentTeams === undefined || typeof agentTeams.spawnTeammate !== 'function') {
           throw new Error(`${toolName}: team mode requires the Agent Team service (@deepseek-ai/dsh-experimental-agent-team)`)
         }
         const membership = agentTeams.tryMembership(parent)
         if (membership === undefined) {
-          throw new Error(`${toolName}: team mode needs a Team identity — this caller is a plain subagent, not a Team Lead; use the default (disposable) mode instead`)
+          throw new Error(`${toolName}: team mode needs a Team identity — this caller is a plain subagent, not a Team Lead`)
         }
         if (membership.role !== 'lead') {
           throw new Error(`${toolName}: only the Team Lead can create teammates (caller is teammate "${membership.name}")`)
         }
         const teammateName = memberSafeName(args.name ?? args.description, args.name !== undefined)
+        // spawnTeammate builds the child through startActivation, which mounts
+        // composition.agentPreset — carried by the patched team service.
         const spawned = await agentTeams.spawnTeammate(parent, {
           name: teammateName,
           description: args.description,
@@ -530,28 +612,72 @@ export function apply(ctx, config = {}) {
         return {
           kind: 'teammate',
           subagentId: spawned?.member?.id,
-          name: spawned?.member?.target ?? teammateName,
+          name: spawned?.member?.name ?? teammateName,
           preset: args.preset,
         }
       }
 
-      const background = args.run_in_background !== undefined ? args.run_in_background : defaultBackground
-      const dispatchProvider = args.fork ? forkProviderName : providerName
+      // ── Durability policy: NO one-shot children ────────────────────────────
+      // Every dispatch must produce a durable, continuable subagent: a one-shot
+      // child is a throwaway record that cannot be messaged and is discarded.
+      if (args.run_in_background === true) {
+        throw new Error(`${toolName}: one-shot background dispatch is disabled — every subagent is continuable now and survives independently without a job wrapper. Drop run_in_background, or use team:true for a roster teammate.`)
+      }
+
+      // Engine routing: dsh/fork use the preset-mount providers; claude/codex/codebuddy
+      // use the external CLI-engine providers (Claude Code SDK / Codex app-server / CodeBuddy).
+      const dispatchProvider = engine === 'claude'
+        ? claudeProviderName
+        : engine === 'codex'
+          ? codexProviderName
+          : engine === 'codebuddy'
+            ? codebuddyProviderName
+            : (args.fork ? forkProviderName : providerName)
       const request = {
         label: args.description,
         prompt: [{ type: 'text', text: args.prompt }],
         parent,
-        preset: args.preset,
-        ...(Object.keys(agentOptions).length > 0 ? { agentOptions } : {}),
-        maxDepth: resolveMaxDepth(args.max_depth, defaultMaxDepth, toolName),
-        ...(args.tool_filter !== undefined ? { toolFilter: validateToolFilter(args.tool_filter, toolName) } : {}),
+        // preset only travels to the dsh engine (which requires it). External
+        // engines (codex/claude/codebuddy) have no preset concept and must not
+        // receive one — it would be misleading dead weight in their request.
+        ...(!externalEngine ? { preset: args.preset } : {}),
+        // External-engine providers do not declare the agentOptions capability,
+        // so the host gate rejects any request carrying it. Their model is passed
+        // through the engine-specific `model` field below instead.
+        ...(!externalEngine && Object.keys(agentOptions).length > 0 ? { agentOptions } : {}),
+        // External engines manage their own recursion budget (no depthLimit
+        // capability), so skip the maxDepth constraint for them.
+        ...(externalEngine ? {} : { maxDepth: resolveMaxDepth(args.max_depth, defaultMaxDepth, toolName) }),
+        // external-engine specific passthroughs
+        ...(externalEngine && args.model !== undefined ? { model: args.model } : {}),
+        ...(externalEngine ? { cwd: args.cwd ?? parent.session?.header?.cwd ?? config.cwd } : {}),
+        ...(externalEngine && args.timeout_ms !== undefined ? { timeoutMs: args.timeout_ms } : {}),
       }
 
-      if (args.continuable) {
-        // CONTINUABLE: return a durable subagent id immediately — the parent
-        // later sends follow-up messages with send_message(subagentId, ...).
-        // Requires the patched @deepseek-ai/dsh-subagent so the child mounts
-        // the target preset on creation AND on cold resume (descriptor.preset).
+      // Durability policy: this branch is the ONLY dispatch path (see above).
+      {
+        if (externalEngine) {
+          // claude/codex/codebuddy continuable: prepare an external session,
+          // register its resume callback in the (patched) external-continuation
+          // registry so send_message routes here.
+          const provider = engine === 'claude' ? claudeProvider : engine === 'codex' ? codexProvider : codebuddyProvider
+          const prepared = await provider.prepareContinuable(request)
+          if (typeof registerExternalContinuation === 'function') {
+            registerExternalContinuation(prepared.sessionId, prepared.resume)
+          }
+          return {
+            kind: 'continuable',
+            subagentId: prepared.sessionId,
+            engine,
+            ...(agentOptions.provider !== undefined ? { provider: agentOptions.provider } : {}),
+...(agentOptions.model !== undefined ? { model: agentOptions.model } : {}),
+          }
+        }
+        // dsh continuable (preset mounting) — requires the patched dsh-subagent
+        if (args.tool_filter !== undefined) {
+          throw new Error(`${toolName}: tool_filter is unavailable on the durable path — the harness applies child tool restrictions only from the composition startActivation builds, which does not carry toolFilter; choose a preset whose tool surface already excludes what you need`)
+        }
+
         const subagents = ctx.subagents
         if (typeof subagents.startContinuable !== 'function') {
           throw new Error(`${toolName}: continuable mode unavailable — the harness lacks startContinuable`)
@@ -565,93 +691,16 @@ export function apply(ctx, config = {}) {
         return {
           kind: 'continuable',
           subagentId: continuable.childId,
-          preset: args.preset,
-          ...(Object.keys(agentOptions).length > 0 ? { provider: agentOptions.provider, model: agentOptions.model } : {}),
+          ...(!externalEngine ? { preset: args.preset } : {}),
+          ...(agentOptions.provider !== undefined ? { provider: agentOptions.provider } : {}),
+...(agentOptions.model !== undefined ? { model: agentOptions.model } : {}),
         }
       }
 
-      if (background) {
-        // BACKGROUND: dispatch through the jobs service with an INDEPENDENT
-        // AbortController. The call returns a job id immediately — the
-        // conversation is free to do other work or dispatch more children in
-        // parallel, and aborting this conversation does NOT cancel the child
-        // (stop it explicitly with job_kill). Same semantics as the official
-        // background subagent tool.
-        //
-        // Observability: the run exposes a `readOutput` hook — `jobs.read`
-        // calls it whenever the parent reads the job (job_output), so the
-        // conversation can see the child's LIVE progress (step/tool activity,
-        // recent text, idle time) and decide whether it is stuck or on track.
-        const jobs = ctx.get('jobs')
-        if (jobs === undefined || typeof jobs.start !== 'function') {
-          throw new Error(`${toolName}: background jobs unavailable — load @deepseek-ai/dsh-jobs (or set run_in_background: false)`)
-        }
-        const jobId = jobs.start({
-          kind: 'subagent',
-          label: args.description,
-          owner: parent.id,
-          run: () => {
-            const controller = new AbortController()
-            let child = null // live child agent, captured once the run starts
-            const started = Date.now()
-            const startPromise = startDispatch(ctx.subagents, dispatchProvider, request, controller.signal)
-            startPromise.then((run) => {
-              child = run.localAgent ?? null
-            }).catch(() => { /* surfaced through done */ })
-            return {
-              cancel: (reason) => controller.abort(reason ?? 'background subagent task killed'),
-              readOutput: () => liveProgress(child, started),
-              done: (async () => settleRun(await startPromise))(),
-            }
-          },
-        })
-        return {
-          kind: 'background',
-          jobId,
-          preset: args.preset,
-          ...(Object.keys(agentOptions).length > 0 ? { provider: agentOptions.provider, model: agentOptions.model } : {}),
-        }
-      }
-
-      const run = await startDispatch(ctx.subagents, dispatchProvider, request, exec.signal)
-      // Ownership contract: the caller MUST dispose the run. Ordering matters:
-      // settle the RESULT first, THEN dispose — dispose() sets the run's
-      // cancelled flag synchronously, so racing it against result (parallel
-      // Promise.allSettled) would skip the child's turn and return "aborted"
-      // with zero output. Two sequential fault-tolerant phases, like the
-      // official settleForegroundRun.
-      const [execution] = await Promise.allSettled([
-        run.result.then((result) => ({ result })),
-      ])
-      const [disposal] = await Promise.allSettled([
-        Promise.resolve().then(() => run.dispose()),
-      ])
-      if (execution.status === 'rejected') {
-        if (disposal.status === 'rejected') throw new AggregateError([execution.reason, disposal.reason], `${toolName}: run failed and dispose also failed`)
-        throw execution.reason
-      }
-      if (disposal.status === 'rejected') {
-        ctx.logger?.warn?.(`${toolName}: run.dispose() failed for ${run.id}: ${String(disposal.reason)}`)
-      }
-      const result = execution.value.result
-      // Failure semantics aligned with the official foreground subagent tool:
-      // only `completed` and caller-initiated `aborted` are returned as values;
-      // genuine child failures (error / refusal / max-tokens) throw with any
-      // partial output attached, so the parent model sees a real failure.
-      if (result.stopReason !== 'completed' && result.stopReason !== 'aborted') {
-        const text = (result.output ?? []).filter((b) => b && b.type === 'text').map((b) => b.text).join('')
-        throw new Error(
-          `${toolName}: subagent run ended with ${result.stopReason}${text.length > 0 ? `\nPartial output before the run ended:\n${text}` : ''}`,
-        )
-      }
-      return {
-        kind: 'foreground',
-        runId: run.id,
-        preset: args.preset,
-        ...(Object.keys(agentOptions).length > 0 ? { provider: agentOptions.provider, model: agentOptions.model } : {}),
-        stopReason: result.stopReason,
-        output: result.output ?? [],
-      }
+      // Unreachable by construction: every dispatch above returns a durable
+      // (continuable) subagent. Kept as a guard so a future edit that falls
+      // through cannot silently create a disposable one-shot child.
+      throw new Error(`${toolName}: internal error — no durable dispatch path produced a subagent`)
     },
   })), 'dsh-routed-subagent tool')
 
