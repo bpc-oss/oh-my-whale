@@ -737,6 +737,18 @@
       "note": "One-line passthrough (plus comment) inside the request literal. Without it the hybrid model degrades to \"teammate mounts the parent composition\", which defeats the routed plugin core capability. Verified: node --check clean; patch applies to pristine (@dsh-experimental-agent-team 0.2.1-rc.2). Caller-side: dsh-routed-subagent team:true passes agentPreset.",
       "discovered_by": "reading dsh-subagent startLocal(): L1484 childSessionMeta(..., agentPresetOf(request)) + L1490 composition:{agentPreset:agentPresetOf(request)} against the team service request literal",
       "kernelLine": "0.2.1-rc.2"
+    },
+    {
+      "id": "P47",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-subagent/lib/index.js",
+      "patchFile": "host/049-dsh-subagent-durable-toolfilter.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "A subagent started through startActivation (the continuable / team path) never runs the provider's start(), and startLocal built the composition from agentPreset alone. A deny-only toolFilter on the request therefore had NO reader: the child ran with the full preset tool surface even though the caller asked for a read-only audit. Forward request.toolFilter into both the descriptor (so a cold resume rebuilds the same restriction) and composition.toolFilter (the only place applyChildComposition applies it).",
+      "note": "Additive and inert when toolFilter is absent: both spreads are guarded by !== void 0, so standard callers keep a byte-identical request. Same file as P16 (routed fork) and P44 (continuable admission) — apply those first; this patch was generated against the live tree that already carries them. Verified: node --check clean; toolFilter reaches applyChildComposition (dsh-subagent:418 reader).",
+      "discovered_by": "independent review finding F2: review-routed-team-20261020b traced startContinuable -> startActivation -> startLocal -> composition, showing capabilities.toolFilter:true was only honoured on the one-shot path",
+      "kernelLine": "0.2.1-rc.2"
     }
   ],
   "vendorPatches": [

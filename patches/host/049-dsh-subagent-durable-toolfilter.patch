@@ -1,0 +1,25 @@
+--- a/@deepseek-ai/dsh-subagent/lib/index.js
++++ b/@deepseek-ai/dsh-subagent/lib/index.js
+@@ -1446,7 +1446,10 @@ var SubagentManager = class {
+ 			label: spec.label,
+ 			...agentProvider !== void 0 ? { agentProvider } : {},
+ 			...agentModel !== void 0 ? { agentModel } : {},
+-			...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {}
++			...agentReasoningEffort !== void 0 ? { agentReasoningEffort } : {},
++				// P47: carry the caller's deny-only tool mask into the descriptor so a cold
++				// resume rebuilds the child under the same restriction.
++				...(request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {})
+ 		});
+ 		const delegatedPolicies = captureDelegatedPolicyOverrides(parent);
+ 		const releaseHold = this.holdOwnership(parent, childId);
+@@ -1488,7 +1491,9 @@ var SubagentManager = class {
+ 						descriptor
+ 					},
+ 					agentOptions,
+-					composition: { agentPreset: agentPresetOf(request) },
++					// P47: startActivation never calls the provider's start(), so a tool mask on the
++				// request had no reader. applyChildComposition applies composition.toolFilter.
++				composition: { agentPreset: agentPresetOf(request), ...(request.toolFilter !== void 0 ? { toolFilter: request.toolFilter } : {}) },
+ 					signal: spec.signal,
+ 					delivery: spec.delivery,
+ 					outputSchema: spec.request.outputSchema
