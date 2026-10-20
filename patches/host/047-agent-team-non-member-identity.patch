@@ -1,0 +1,17 @@
+--- a/@deepseek-ai/dsh-experimental-tool-agent-team/lib/index.js
++++ b/@deepseek-ai/dsh-experimental-tool-agent-team/lib/index.js
+@@ -241,7 +241,13 @@ function install(agent, ctx, config) {
+ 			order: scoped.systemPrompt.getContextOrder("TEAM_IDENTITY"),
+ 			required: true,
+ 			text: () => {
+-				const { role, name } = ctx.agentTeams.membership(agent);
++				// PATCH (dsh-routed-subagent/B): a subagent/descriptor child published by a
++				// routed provider has NO team identity (tryMembership -> undefined), yet this
++				// required context is evaluated on EVERY step, where membership() throws
++				// TEAM_NOT_MEMBER and kills the child's first turn.
++				const membership = ctx.agentTeams.tryMembership(agent);
++				if (membership === void 0) return 'You are a delegated subagent. Agent Team features (spawn_teammate, send_message, list_agents) are unavailable in this session; do the assigned work and return the result to the delegating agent.';
++				const { role, name } = membership;
+ 				return `${role === "lead" ? "You are the Team Lead named \"lead\"." : `You are teammate "${name}".\nYour Team Lead is named "lead".\nTo message your Team Lead, use send_message({ target: "lead", message: "..." }).`}
+ Use list_agents({}) to find your teammates and their names.
+ To message another teammate, use send_message({ target: "<teammate name>", message: "..." }).`;

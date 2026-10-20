@@ -1,0 +1,23 @@
+--- a/@deepseek-ai/dsh-experimental-agent-team/lib/index.js
++++ b/@deepseek-ai/dsh-experimental-agent-team/lib/index.js
+@@ -1036,7 +1036,10 @@ var TeamRoster = class {
+ 				label: description,
+ 				request: {
+ 					prompt: request.prompt,
+-					parent: root
++						parent: root,
++						// PATCH (dsh-routed-subagent/B): forward the caller's preset so the teammate
++						// mounts THAT preset; startLocal() mounts composition.agentPreset.
++						...(request.agentPreset !== void 0 ? { agentPreset: request.agentPreset } : {})
+ 				},
+ 				signal
+ 			});
+@@ -1416,7 +1419,7 @@ var TeamTaskBoard = class {
+ };
+ //#endregion
+ //#region lib/types/index.js
+-/** Agent Teams service façade over roster, messaging, task, and runtime lifecycle owners. */
++/** Agent Teams service fa莽ade over roster, messaging, task, and runtime lifecycle owners. */
+ const DEFAULT_MAX_MEMBERS = 16;
+ const DEFAULT_MAX_TASKS = 256;
+ const DEFAULT_MAX_MESSAGE_BYTES = 65536;

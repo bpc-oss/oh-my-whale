@@ -103,7 +103,7 @@
       "diffTarget": "current",
       "purpose": "dev_install_package + plugin-gateway spawnSync gate",
       "status": "ported",
-      "note": "Preferred fix: rebuild vendor tgz with gateway baked in. P5 patch is archive/audit only.",
+      "note": "Preferred fix: rebuild vendor tgz with gateway baked in. P5 patch is archive/audit only. | P1 (2026-10-19): the live profile copy is CRLF while the vendored tgz is LF, so the whole-file diff is not surgically applicable. A semantic diff (14 changed lines, --strip-trailing-cr) is at patches/per-target-extra/dsh-external_dsh-super-injector__lib_index.js.semantic.patch. Apply root is profiles/web/node_modules.",
       "v209": "n/a — file=profile scope; profile trees live outside app.asar, untouched by the v209 kernel-inside-asar migration. Status kept.",
       "portNote": "PROFILE-SCOPE: super-injector dev_install + plugin-gateway gate live in the profile layer, not the kernel tree.",
       "kernelLine": "profile"
@@ -264,7 +264,7 @@
       "diffTarget": "current",
       "purpose": "emitDisposed catch logs error.stack — diagnostic for agent/disposed listener failures (P14 discovery tooling)",
       "status": "skip-optional-diagnostic",
-      "note": "2026-08-24 added during P14 root-cause hunt. Keep permanently: future dispose listener failures get a full stack trace in logs. verifyfix 2026-09-10: pending-adjudication (skip-diagnostic-optional) — P14 fix is upstreamed in v205, this log-only diagnostic may be dropped; verify reports PENDING, not FAIL.",
+      "note": "2026-08-24 added during P14 root-cause hunt. Keep permanently: future dispose listener failures get a full stack trace in logs. verifyfix 2026-09-10: pending-adjudication (skip-diagnostic-optional) — P14 fix is upstreamed in v205, this log-only diagnostic may be dropped; verify reports PENDING, not FAIL. | P1 (2026-10-19): status kept skip-optional-diagnostic, but the live tree carries a real delta (1 hunk, disposed-listener warning now includes error.stack). Replayable copy: patches/per-target-extra/deepseek-ai_dsh-agent__lib_index.js.patch. P5 must port it.",
       "v209": "not re-landed (status kept skip-optional-diagnostic): official 0.1.5 already warns on disposed-listener failures at @deepseek-ai/dsh-agent/lib/index.js@522/525 but without error.stack delta.",
       "kernelLine": "n/a"
     },
@@ -358,7 +358,7 @@
       "diffTarget": "current",
       "purpose": "session.prompt accepts video content parts (schema + durablePromptContent passthrough)",
       "status": "skip-upstream",
-      "note": "2026-08-31 video modal dev; frontend upload entry. A0 2026-09-10: standard a/ b/ header rewrite at {{USERPROFILE}}/.dsh/tmp/rc2-vs-patches/018-host-apiproxy-video-v2.patch — passes git apply -p1 -R --check against the installed tree. Original patchFile kept untouched. See apiproxySequence (shares file with P7/P9/P13). verifyfix 2026-09-10: v205 semantics fan out over 7 files (api-session-controller index+typert x2, api-remotes client, subagent index+typert x2) — target is now an array, verify checks every entry; rc.2 single path kept in rc2Target. Anchors: 'PATCH P18' in index files, literal(\"video\") in typert/remote-client/api-remotes. | v209 2026-09-11 retarget: api-session-controller/lib/index.js and dsh-subagent/lib/index.js have 0 video hits in 0.1.5 (prompt schema flows through typert files) — dropped from target, prior 7-file v205 array preserved under v205Target. New 6th target @deepseek-ai/dsh-attachment/lib/index.js carries the prompt-part pass-through (fast-path + part map) with marker 'P18 v205'; verify symbol set extended with 'P18 v205'.",
+      "note": "2026-08-31 video modal dev; frontend upload entry. A0 2026-09-10: standard a/ b/ header rewrite at {{USERPROFILE}}/.dsh/tmp/rc2-vs-patches/018-host-apiproxy-video-v2.patch — passes git apply -p1 -R --check against the installed tree. Original patchFile kept untouched. See apiproxySequence (shares file with P7/P9/P13). verifyfix 2026-09-10: v205 semantics fan out over 7 files (api-session-controller index+typert x2, api-remotes client, subagent index+typert x2) — target is now an array, verify checks every entry; rc.2 single path kept in rc2Target. Anchors: 'PATCH P18' in index files, literal(\"video\") in typert/remote-client/api-remotes. | v209 2026-09-11 retarget: api-session-controller/lib/index.js and dsh-subagent/lib/index.js have 0 video hits in 0.1.5 (prompt schema flows through typert files) — dropped from target, prior 7-file v205 array preserved under v205Target. New 6th target @deepseek-ai/dsh-attachment/lib/index.js carries the prompt-part pass-through (fast-path + part map) with marker 'P18 v205'; verify symbol set extended with 'P18 v205'. | P1 (2026-10-19): 2 of the 6 target paths are pristine==live (dsh-subagent/typert.*), but 4 carry real deltas (api-session-controller/typert.host.js, typert.remote-client.js, api-remotes/client.js, attachment/index.js). Status kept skip-upstream; replayable copies live in patches/per-target-extra/. P5 must port those 4.",
       "v209": "upstream ships it natively and more completely than the patch did: the session.prompt content schema carries z.object({ type: literal(\"video\"), mediaType, url, name }) in dsh-api-session-controller/lib/typert.host.js and dsh-api-remotes/lib/client.js, and dsh-attachment admitPromptContent() maps part.type === \"video\" through. The 0.1.5 patch only widened the schema.",
       "v205Target": [
         "@deepseek-ai/dsh-api-session-controller/lib/index.js",
@@ -645,12 +645,12 @@
     {
       "id": "P38",
       "file": "host",
-      "target": "lib/module-resolution-CTTB3FAS.js",
-      "patchFile": "host/038-module-resolution-outside-profile-fallback.patch",
+      "target": "lib/module-resolution-CcoXnXDo.js",
+      "patchFile": "host/046-module-resolution-CcoXnXDo-fallback.patch",
       "source": "manual",
       "status": "ported",
       "purpose": "resolve @deepseek-ai/* for a module that lives OUTSIDE every registered profile tree (a preset entry .mjs, a plugin dev repo, a fork). Node walks node_modules up from the MODULE directory and never reaches the app tree, so such a module died with ERR_MODULE_NOT_FOUND on its first @deepseek-ai import. This is a LOAD-BEARING patch: without it presets, local plugin repos and forks stop resolving entirely.",
-      "note": "Registered 2026-09-30 during the full registry audit. The patch had been live in the tree since 2026-09-29 (backup left as lib/module-resolution-CTTB3FAS.js.bak-extfallback) but was never in the manifest, so an upgrade or a fresh machine would have dropped it silently. Self-contained: DESKTOP_REQUIRE and pathToFileURL already exist in the file. Backwards compatible - only the previously-throwing case changes; every other specifier defers unchanged.",
+      "note": "Registered 2026-09-30 during the full registry audit. The patch had been live in the tree since 2026-09-29 (backup left as lib/module-resolution-CTTB3FAS.js.bak-extfallback) but was never in the manifest, so an upgrade or a fresh machine would have dropped it silently. Self-contained: DESKTOP_REQUIRE and pathToFileURL already exist in the file. Backwards compatible - only the previously-throwing case changes; every other specifier defers unchanged. | 2026-10-19 P8: 0.2.18 renamed the content-hashed chunk from module-resolution-CTTB3FAS.js to module-resolution-CcoXnXDo.js; the fallback block was re-applied there (patch 046). The old 038 patch is the 2.0.16 record.",
       "discovered_by": "scripts/drift-scan.ps1 -Installed (UNKNOWN modification on the live tree)",
       "kernelLine": "0.2.0-rc.1"
     },
@@ -701,8 +701,44 @@
       "note": "Registered 2026-09-30 for session-1363ee2e-2a8c-4a05-a566-a964477a5cc2, which failed turns 4, 5 and 6 back to back at 0/0/0 usage. Scope measured, not guessed: with name, arguments, content and message shape held constant, seven neutral 32-char id shapes were accepted 4/4 each on api.commandcode.ai while the real `chatcmpl-tool-*` ids were refused 0/4; id length (8..40), character class, underscores and word+digit mixes were all irrelevant, which is why the rewrite is anchored to this process's own minting format rather than to a character class. IMPORTANT: the underlying reason the relay rejects them is still unknown - this makes the request acceptable, it does not explain the relay. Scoped to /^chatcmpl-/ so ids the model returns pass through untouched and the rewrite is one-shot per history rather than repeating every turn. The mapping is built once per request and applied to BOTH the assistant toolCall id and the toolResult toolCallId, because the relay pairs a result with its call by id; renaming one side only would orphan every result. Verified by scripts/test-p43-id-rewrite.mjs: 17/17 including pairing, idempotence, foreign-id passthrough and degenerate inputs.",
       "discovered_by": "controlled replay of the exact payload DSH builds, cross-checked across commandcode/z-ai/glm-5.3-flash, yzs/u2-flash and bai/glm-5.3-flash (all 3/3-6/6 accept it), which ruled out the payload, the conversation data and the relay itself",
       "kernelLine": "0.2.0-rc.1"
+    },
+    {
+      "id": "P44",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-subagent/lib/index.js",
+      "patchFile": "per-target/deepseek-ai_dsh-subagent__lib_index.js.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "continuable admission runs before the child agent is published, and the scoped child-creation ctx does not always register the `agent` service; a plain property read throws through Cordis reflectors (\"cannot get property agent without inject\"). Resolve it defensively; an absent target only skips the cold-rebuild preset hint.",
+      "note": "Found 2026-10-19 while rebuilding the ledger: the live file (Oct 2) differs from its .bak-pre-continuable-fix-20261002, but the change was never registered and no gate needle existed. The per-target diff for dsh-subagent carries P16 + P44 together; dedupe by FILE, never apply both artifacts to the same target. presetTarget count by line: patch 4 / live 4; by substring: patch 5 / live 5; the .bak is 0 under both measures. Coverage: the earlier claim that this was the only unregistered live delta was WRONG - P1 later found 13 more (type-surface mirrors + 3 entry bundles); see patches/per-target/LEDGER.json.",
+      "discovered_by": "diff of dsh-subagent/lib/index.js.bak-pre-continuable-fix-20261002 against the live file during P1",
+      "kernelLine": "0.2.0-rc.1"
     }
-  ],
+,
+    {
+      "id": "P45",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-experimental-tool-agent-team/lib/index.js",
+      "patchFile": "host/047-agent-team-non-member-identity.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "The Agent Team tool installer registers a REQUIRED systemPrompt context (team:identity) whose text() calls ctx.agentTeams.membership(agent). maybeInstall() guards on tryMembership at agent/created time, but a subagent/descriptor child has no descriptor yet at that moment, so the tools get installed; by the first step the descriptor exists, tryMembership returns undefined and membership() throws TEAM_NOT_MEMBER - killing every child turn of ANY subagent provider (routed, spawn, fork).",
+      "note": "Fix makes the identity text resolve non-throwing: tryMembership() and a neutral \"delegated subagent, Team features unavailable\" string when there is no membership. Behaviour for Leads and roster teammates is byte-identical. Verified: routed child turn no longer throws; node --check clean; patch applies to pristine (@dsh-experimental-tool-agent-team 0.2.1-rc.2).",
+      "discovered_by": "host log dsh-2026-10-20 TeamError stack: dsh-experimental-tool-agent-team:244 text() -> ctx.agentTeams.membership(agent) -> TeamRoster.membership:862",
+      "kernelLine": "0.2.1-rc.2"
+    },
+    {
+      "id": "P46",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-experimental-agent-team/lib/index.js",
+      "patchFile": "host/048-agent-team-preset-passthrough.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "spawnAdmitted() builds the child activation request as { prompt, parent } and drops every routing field, so a teammate started on a preset-mounting provider (routed-mount / routed-fork) cannot mount a preset: startLocal() reads agentPresetOf(request) for both childSessionMeta and composition.agentPreset. Forward request.agentPreset so team members honour the preset the caller asked for.",
+      "note": "One-line passthrough (plus comment) inside the request literal. Without it the hybrid model degrades to \"teammate mounts the parent composition\", which defeats the routed plugin core capability. Verified: node --check clean; patch applies to pristine (@dsh-experimental-agent-team 0.2.1-rc.2). Caller-side: dsh-routed-subagent team:true passes agentPreset.",
+      "discovered_by": "reading dsh-subagent startLocal(): L1484 childSessionMeta(..., agentPresetOf(request)) + L1490 composition:{agentPreset:agentPresetOf(request)} against the team service request literal",
+      "kernelLine": "0.2.1-rc.2"
+    }  ],
   "vendorPatches": [
     {
       "id": "V1",

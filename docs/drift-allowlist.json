@@ -42,6 +42,18 @@
       "path": "dep spec differs: dsh-continuous-worker",
       "reason": "v209 时代 cw 走 ~/.dsh/releases/continuous-worker-v2/<hash> 发布 junction（带内容哈希，逐机不同）；模板保留 PLUGIN_SOURCES_DIR 源路径写法",
       "acknowledgedAt": "2026-09-11"
+    },
+    {
+      "type": "unknownModified",
+      "path": "@deepseek-ai/dsh-experimental-tool-agent-team/lib/index.js",
+      "reason": "P45 registered host patch (Agent Team identity context made non-throwing for descriptor-bearing subagents). Allowlisted so an upgrade-time context mismatch reports as a patch failure, not as anonymous drift.",
+      "acknowledgedAt": "2026-10-20"
+    },
+    {
+      "type": "unknownModified",
+      "path": "@deepseek-ai/dsh-experimental-agent-team/lib/index.js",
+      "reason": "P46 registered host patch (spawnAdmitted forwards agentPreset so teammates mount the requested preset). Allowlisted for the same reason as P45.",
+      "acknowledgedAt": "2026-10-20"
     }
   ]
 }
