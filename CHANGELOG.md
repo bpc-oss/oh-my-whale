@@ -31,6 +31,8 @@ cannot be messaged and is discarded, which made every delegated conversation dea
 
 **Plugin features added:**
 
+- help: true returns the full usage guide from inside the tool, so a conversation whose visible tool list predates newer parameters can still discover them.
+
 - `team: true` creates a REAL Agent Team roster teammate (provider `routed-mount`/`routed-fork` +
   `agentPreset`), instead of a disposable child. Parameters the teammate path cannot honour are
   refused instead of dropped; `preset` is required.
