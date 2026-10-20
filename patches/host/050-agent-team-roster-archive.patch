@@ -10,7 +10,15 @@
  	]),
  	error: z$1.string().optional()
  }).strict();
-@@ -598,7 +599,10 @@ function applyCurrentTeamEvent(state, event) {
+@@ -592,13 +593,17 @@ function applyCurrentTeamEvent(state, event) {
+ 			const member = event.data.member;
+ 			const index = state.members.findIndex((candidate) => candidate.id === member.id);
+ 			const prior = state.members[index];
+-			const named = state.members.find((candidate) => candidate.name === member.name);
++			// P48: archived rows keep their name in the journal but must not block reuse.
++			const named = state.members.find((candidate) => candidate.name === member.name && candidate.phase !== "archived");
+ 			if (named !== void 0 && named.id !== member.id) throw new Error(`teammate name "${member.name}" is reused by another member`);
+ 			if (prior === void 0) {
  				if (member.phase !== "provisioning") throw new Error(`teammate "${member.name}" must begin provisioning`);
  			} else {
  				if (prior.name !== member.name || prior.provider !== member.provider || prior.context !== member.context) throw new Error(`teammate "${member.id}" changed immutable identity fields`);
@@ -22,7 +30,7 @@
  			}
  			return {
  				...state,
-@@ -653,7 +657,8 @@ const teamMemberProjectionSchema = z$1.object({
+@@ -653,7 +658,8 @@ const teamMemberProjectionSchema = z$1.object({
  	phase: z$1.enum([
  		"provisioning",
  		"active",
@@ -32,7 +40,7 @@
  	]),
  	error: z$1.string().optional()
  }).strict();
-@@ -688,7 +693,7 @@ function buildTeamProjection(state) {
+@@ -688,7 +694,7 @@ function buildTeamProjection(state) {
  		role: "lead",
  		phase: "active"
  	}];
@@ -41,7 +49,17 @@
  		id: member.id,
  		name: member.name,
  		role: "teammate",
-@@ -917,7 +922,7 @@ var TeamRoster = class {
+@@ -827,7 +833,8 @@ function resolveActiveMember(root, state, rawName) {
+ 		id: root.id,
+ 		name
+ 	};
+-	const member = state.members.find((candidate) => candidate.name === name);
++	// P48: skip archived rows so an archived name cannot shadow its live successor.
++	const member = state.members.find((candidate) => candidate.name === name && candidate.phase !== "archived");
+ 	if (member === void 0 || member.phase !== "active") throw new TeamError(`active teammate "${name}" not found`, "TEAM_MEMBER_NOT_FOUND");
+ 	return {
+ 		id: member.id,
+@@ -917,7 +924,7 @@ var TeamRoster = class {
  			...root.options.model === void 0 ? {} : { model: root.options.model },
  			diagnostics: []
  		}];
@@ -50,7 +68,7 @@
  			const live = this.ctx.agents.get(member.id);
  			const model = live?.options.model ?? root.options.model;
  			result.push({
-@@ -960,6 +965,33 @@ var TeamRoster = class {
+@@ -960,6 +967,33 @@ var TeamRoster = class {
  	* @param targetName - durable teammate name.
  	* @returns the target status sampled before cancellation.
  	*/
@@ -84,7 +102,7 @@
  	interrupt(caller, targetName) {
  		const membership = this.membership(caller);
  		if (membership.role !== "lead") throw new TeamError("only the Team Lead can interrupt teammates", "TEAM_LEAD_REQUIRED");
-@@ -1020,8 +1052,8 @@ var TeamRoster = class {
+@@ -1020,8 +1054,8 @@ var TeamRoster = class {
  		};
  		await this.journal.transact(root.id, async () => {
  			const state = this.journal.state(root);
@@ -95,7 +113,7 @@
  			await this.journal.appendAndFlush(root, "team/member", {
  				version: 2,
  				teamId: TeamId(root.id),
-@@ -1511,6 +1543,15 @@ var TeamService = class extends Service {
+@@ -1511,6 +1545,15 @@ var TeamService = class extends Service {
  		return await this.roster.spawn(caller, request);
  	}
  	/**
