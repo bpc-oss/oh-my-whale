@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.3.7] - 20261020 - durable-only subagent policy + Agent Team integration
+
+**Behaviour change (policy): `subagent_routed` never creates a one-shot child again.**
+The foreground and background-job dispatch paths were deleted outright (not merely defaulted off);
+a guard throws if a future edit falls through, and `run_in_background: true` is refused with an
+explanatory error. Every dispatch returns a durable subagent id that stays addressable with
+`send_message` for the rest of the session. Reason: a one-shot child is a throwaway record that
+cannot be messaged and is discarded, which made every delegated conversation dead on arrival.
+
+**Host patches registered this round (all kernelLine 0.2.1-rc.2):**
+
+- **P45** `host/047-agent-team-non-member-identity.patch` - the Agent Team tool installer registers a
+  REQUIRED `team:identity` systemPrompt context whose `text()` calls `ctx.agentTeams.membership(agent)`.
+  `maybeInstall()` guards on `tryMembership` at `agent/created` time, but a descriptor-bearing subagent
+  has no descriptor yet at that moment, so the tools get installed; by the first step the descriptor
+  exists, `tryMembership` returns undefined and `membership()` throws `TEAM_NOT_MEMBER` - killing the
+  first turn of EVERY subagent provider. The identity text now resolves via `tryMembership()` and
+  returns a neutral line for non-members. Lead/teammate behaviour is byte-identical.
+- **P46** `host/048-agent-team-preset-passthrough.patch` - `spawnAdmitted()` dropped routing fields, so a
+  teammate on a preset-mounting provider could never mount its preset (`startLocal` reads
+  `agentPresetOf(request)` for both `childSessionMeta` and `composition.agentPreset`). One guarded
+  passthrough; inert for standard callers. Regenerated minimal - the earlier file carried an unrelated
+  mojibake hunk.
+- **P47** `host/049-dsh-subagent-durable-toolfilter.patch` - `startActivation` never calls the provider
+  `start()`, and `startLocal` built the composition from `agentPreset` alone, so a deny-only
+  `toolFilter` on the request had NO reader: a "read-only audit" child silently ran with the full tool
+  surface. The mask is now carried into both the descriptor (cold resume restores it) and
+  `composition.toolFilter` (the only place `applyChildComposition` applies it).
+
+**Plugin features added:**
+
+- `team: true` creates a REAL Agent Team roster teammate (provider `routed-mount`/`routed-fork` +
+  `agentPreset`), instead of a disposable child. Parameters the teammate path cannot honour are
+  refused instead of dropped; `preset` is required.
+- A control tool for continuing durable children (`send_message` when the name is free, otherwise
+  `continue_subagent`) - the Agent Team profile layer disables `dsh-tool-subagent-control`, so no
+  global `send_message` existed even though every dispatch is durable.
+- `inheritsParentContext` is always published `false` (the host rejects `agentPreset` + inheritance);
+  fork keeps seeding through the plugin's own `completedTurnPrefix`.
+- `childSessionMeta(parent, childDepth, isSeeded, preset)`, `parentAgent`, and
+  `seed` + `inheritedEventCount` now match the 0.2.1 contracts; the patch assertion resolves through
+  `createRequire` instead of a hardcoded `lib/node_modules` path.
+
+**Verified end-to-end after restart:** durable dispatch returns an id and the child answers;
+`run_in_background: true` is refused; a child dispatched with
+`tool_filter: { deny: [write, edit, pwsh, shell, terminal] }` reported NO `write`/`edit` and NO
+`pwsh`/`shell`/`terminal` in its tool schema, and DOES have `send_message`.
+
+**Known limits:** roster slots are immutable and include failures (bundle config `maxMembers: 8`), so
+`team: true` is capped per Lead conversation; deleting a child conversation does not free a slot.
+The calling session's tool schema is fixed at conversation start, so a newly registered
+`send_message` only appears in a NEW conversation.
+
 
 ## [0.3.5] - 20260930 — P41/P42：中继伪装成 SSE 的 502 曾直接杀死对话；agent 释放必抛 TypeError
 
