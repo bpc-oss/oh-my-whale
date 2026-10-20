@@ -749,6 +749,18 @@
       "note": "Additive and inert when toolFilter is absent: both spreads are guarded by !== void 0, so standard callers keep a byte-identical request. Same file as P16 (routed fork) and P44 (continuable admission) — apply those first; this patch was generated against the live tree that already carries them. Verified: node --check clean; toolFilter reaches applyChildComposition (dsh-subagent:418 reader).",
       "discovered_by": "independent review finding F2: review-routed-team-20261020b traced startContinuable -> startActivation -> startLocal -> composition, showing capabilities.toolFilter:true was only honoured on the one-shot path",
       "kernelLine": "0.2.1-rc.2"
+    },
+    {
+      "id": "P48",
+      "file": "host",
+      "target": "@deepseek-ai/dsh-experimental-agent-team/lib/index.js",
+      "patchFile": "host/050-agent-team-roster-archive.patch",
+      "source": "manual",
+      "status": "ported",
+      "purpose": "Roster rows are immutable journal entries that are never reclaimed, so every team-mode dispatch consumed one of maxMembers forever (deleting the child conversation does not free it). Add an \"archived\" terminal phase: archived members are excluded from the slot count, hidden from list_agents and the client projection, and their name becomes reusable. New Lead-only archiveTeammate() stops the live child and appends the phase.",
+      "note": "Five touch points: both phase enums (snapshot + projection), the projection and list loops filtered by phase, the name-uniqueness check and the slot count both ignoring archived rows, plus TeamRoster.archive()/TeamService.archiveTeammate(). The append-only journal still grows - archiving frees ROLL SLOTS and names, it does not reclaim disk; that needs session compaction. Verified: node --check clean.",
+      "discovered_by": "user requirement: roster must be archivable so it stops consuming capacity",
+      "kernelLine": "0.2.1-rc.2"
     }
   ],
   "vendorPatches": [

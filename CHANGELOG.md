@@ -31,6 +31,8 @@ cannot be messaged and is discarded, which made every delegated conversation dea
 
 **Plugin features added:**
 
+- rchive_teammate (host patch P48) retires a teammate: the roster row keeps its journal history but stops consuming a slot, disappears from list_agents, and frees its name. Archiving does NOT reclaim disk - the Lead session log is append-only.
+
 - help: true returns the full usage guide from inside the tool, so a conversation whose visible tool list predates newer parameters can still discover them.
 
 - `team: true` creates a REAL Agent Team roster teammate (provider `routed-mount`/`routed-fork` +

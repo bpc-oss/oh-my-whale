@@ -1,0 +1,101 @@
+--- a/@deepseek-ai/dsh-experimental-agent-team/lib/index.js
++++ b/@deepseek-ai/dsh-experimental-agent-team/lib/index.js
+@@ -450,7 +450,8 @@ const teamMemberSnapshotSchema = z$1.object({
+ 	phase: z$1.enum([
+ 		"provisioning",
+ 		"active",
+-		"failed"
++		"failed",
++		"archived"
+ 	]),
+ 	error: z$1.string().optional()
+ }).strict();
+@@ -653,7 +654,8 @@ const teamMemberProjectionSchema = z$1.object({
+ 	phase: z$1.enum([
+ 		"provisioning",
+ 		"active",
+-		"failed"
++		"failed",
++		"archived"
+ 	]),
+ 	error: z$1.string().optional()
+ }).strict();
+@@ -688,7 +690,7 @@ function buildTeamProjection(state) {
+ 		role: "lead",
+ 		phase: "active"
+ 	}];
+-	for (const member of state.members) members.push({
++	for (const member of state.members.filter((candidate) => candidate.phase !== "archived")) members.push({
+ 		id: member.id,
+ 		name: member.name,
+ 		role: "teammate",
+@@ -917,7 +919,7 @@ var TeamRoster = class {
+ 			...root.options.model === void 0 ? {} : { model: root.options.model },
+ 			diagnostics: []
+ 		}];
+-		for (const member of state.members) {
++		for (const member of state.members.filter((candidate) => candidate.phase !== "archived")) {
+ 			const live = this.ctx.agents.get(member.id);
+ 			const model = live?.options.model ?? root.options.model;
+ 			result.push({
+@@ -960,6 +962,33 @@ var TeamRoster = class {
+ 	* @param targetName - durable teammate name.
+ 	* @returns the target status sampled before cancellation.
+ 	*/
++	/**
++	* Archive one teammate: the roster row keeps the journal history but stops
++	* consuming a slot, stops appearing in list_agents, and frees its name.
++	*/
++	async archive(caller, targetName) {
++		const membership = this.membership(caller);
++		if (membership.role !== "lead") throw new TeamError("only the Team Lead can archive teammates", "TEAM_LEAD_REQUIRED");
++		const state = this.journal.state(membership.root);
++		const member = state.members.find((candidate) => candidate.name === targetName && candidate.phase !== "archived");
++		if (member === void 0) throw new TeamError(`teammate "${targetName}" not found in this Team`, "TEAM_MEMBER_NOT_FOUND");
++		if (this.ctx.agents.get(member.id) !== void 0) await this.stopTeammates(membership.root, [member.id]);
++		await this.journal.transact(membership.root.id, async () => {
++			await this.journal.appendAndFlush(membership.root, "team/member", {
++				version: 2,
++				teamId: TeamId(membership.root.id),
++				member: {
++					...member,
++					phase: "archived"
++				}
++			});
++		});
++		return {
++			name: member.name,
++			id: member.id,
++			archived: true
++		};
++	}
+ 	interrupt(caller, targetName) {
+ 		const membership = this.membership(caller);
+ 		if (membership.role !== "lead") throw new TeamError("only the Team Lead can interrupt teammates", "TEAM_LEAD_REQUIRED");
+@@ -1020,8 +1049,8 @@ var TeamRoster = class {
+ 		};
+ 		await this.journal.transact(root.id, async () => {
+ 			const state = this.journal.state(root);
+-			if (state.members.some((member) => member.name === name)) throw new TeamError(`teammate name "${name}" was already used in this Team`, "TEAM_MEMBER_NAME_TAKEN");
+-			if (state.members.length >= this.maxMembers) throw new TeamError(`Team member limit ${this.maxMembers} reached`, "TEAM_MEMBER_LIMIT");
++			if (state.members.some((member) => member.name === name && member.phase !== "archived")) throw new TeamError(`teammate name "${name}" was already used in this Team`, "TEAM_MEMBER_NAME_TAKEN");
++			if (state.members.filter((member) => member.phase !== "archived").length >= this.maxMembers) throw new TeamError(`Team member limit ${this.maxMembers} reached`, "TEAM_MEMBER_LIMIT");
+ 			await this.journal.appendAndFlush(root, "team/member", {
+ 				version: 2,
+ 				teamId: TeamId(root.id),
+@@ -1511,6 +1540,15 @@ var TeamService = class extends Service {
+ 		return await this.roster.spawn(caller, request);
+ 	}
+ 	/**
++	* Archive one teammate so it stops consuming a roster slot.
++	* @param caller - exact live Team Lead.
++	* @param name - durable teammate name.
++	* @returns the archived member identity.
++	*/
++	async archiveTeammate(caller, name) {
++		return await this.roster.archive(caller, name);
++	}
++	/**
+ 	* Steer one peer message into the target inbox or reject the attempt.
+ 	* @param caller - exact live sending Team member.
+ 	* @param request - target name, content, and cancellation before acceptance.
