@@ -10,7 +10,19 @@
  	]),
  	error: z$1.string().optional()
  }).strict();
-@@ -653,7 +654,8 @@ const teamMemberProjectionSchema = z$1.object({
+@@ -598,7 +599,10 @@ function applyCurrentTeamEvent(state, event) {
+ 				if (member.phase !== "provisioning") throw new Error(`teammate "${member.name}" must begin provisioning`);
+ 			} else {
+ 				if (prior.name !== member.name || prior.provider !== member.provider || prior.context !== member.context) throw new Error(`teammate "${member.id}" changed immutable identity fields`);
+-				if (prior.phase !== "provisioning" || member.phase === "provisioning") throw new Error(`teammate "${member.name}" has an invalid ${prior.phase} -> ${member.phase} transition`);
++				// P48: archiving is the one transition allowed FROM a settled phase
++				// (active/failed); everything else still has to leave provisioning.
++				const archiving = member.phase === "archived" && prior.phase !== "archived";
++				if (!archiving && (prior.phase !== "provisioning" || member.phase === "provisioning")) throw new Error(`teammate "${member.name}" has an invalid ${prior.phase} -> ${member.phase} transition`);
+ 			}
+ 			return {
+ 				...state,
+@@ -653,7 +657,8 @@ const teamMemberProjectionSchema = z$1.object({
  	phase: z$1.enum([
  		"provisioning",
  		"active",
@@ -20,7 +32,7 @@
  	]),
  	error: z$1.string().optional()
  }).strict();
-@@ -688,7 +690,7 @@ function buildTeamProjection(state) {
+@@ -688,7 +693,7 @@ function buildTeamProjection(state) {
  		role: "lead",
  		phase: "active"
  	}];
@@ -29,7 +41,7 @@
  		id: member.id,
  		name: member.name,
  		role: "teammate",
-@@ -917,7 +919,7 @@ var TeamRoster = class {
+@@ -917,7 +922,7 @@ var TeamRoster = class {
  			...root.options.model === void 0 ? {} : { model: root.options.model },
  			diagnostics: []
  		}];
@@ -38,7 +50,7 @@
  			const live = this.ctx.agents.get(member.id);
  			const model = live?.options.model ?? root.options.model;
  			result.push({
-@@ -960,6 +962,33 @@ var TeamRoster = class {
+@@ -960,6 +965,33 @@ var TeamRoster = class {
  	* @param targetName - durable teammate name.
  	* @returns the target status sampled before cancellation.
  	*/
@@ -72,7 +84,7 @@
  	interrupt(caller, targetName) {
  		const membership = this.membership(caller);
  		if (membership.role !== "lead") throw new TeamError("only the Team Lead can interrupt teammates", "TEAM_LEAD_REQUIRED");
-@@ -1020,8 +1049,8 @@ var TeamRoster = class {
+@@ -1020,8 +1052,8 @@ var TeamRoster = class {
  		};
  		await this.journal.transact(root.id, async () => {
  			const state = this.journal.state(root);
@@ -83,7 +95,7 @@
  			await this.journal.appendAndFlush(root, "team/member", {
  				version: 2,
  				teamId: TeamId(root.id),
-@@ -1511,6 +1540,15 @@ var TeamService = class extends Service {
+@@ -1511,6 +1543,15 @@ var TeamService = class extends Service {
  		return await this.roster.spawn(caller, request);
  	}
  	/**
