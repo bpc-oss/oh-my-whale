@@ -1,304 +1,394 @@
 {
-  "version": "1",
-  "notes": "plugin sources inventory. install_type maps to package.json specifier: vendor-archive->file:vendor-archives/<tgz>; link->link:<path>; file-dir->file:<path>; github->github:<org>/<repo>#<ref>; npm->semver; local-tgz->file:<abs>",
-  "plugins": [
-    {
-      "id": "@agentos/dsh-lco",
-      "type": "local",
-      "source": "{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
-      "package_spec": "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
-      "install_type": "file-dir",
-      "description": "Agent OS LCO adapter. REMOVED 2026-09-30 on the user instruction — no longer merely disabled. Do not reinstall: the block is gone from profile/cordis.patch.yml AND from the replay template. Removing it also puts the governance native-admission path (admission / policy guard / capability router / budget) out of scope, because its pointer+snapshot material lived under AgentOS/dsh/native-admission — part of the same LCO evidence tree.",
-      "status": "removed",
-      "removed_by": "user decision 2026-09-30 (\"lco 不要了\")",
-      "removed_from_profile": true
-    },
-    {
-      "id": "@bpc-oss/dsh-client-ui-verification",
-      "type": "vendor",
-      "source": "profile/vendor/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
-      "package_spec": "file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
-      "install_type": "vendor-archive",
-      "description": "Verification client UI"
-    },
-    {
-      "id": "@bpc-oss/dsh-evidence",
-      "type": "vendor",
-      "source": "profile/vendor/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
-      "package_spec": "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
-      "install_type": "vendor-archive",
-      "description": "Evidence package (schema lives here!)"
-    },
-    {
-      "id": "@bpc-oss/dsh-plugin-chrome-faithful",
-      "type": "local",
-      "source": "{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
-      "package_spec": "file:{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
-      "install_type": "file-dir",
-      "description": "Chrome automation (clone from github bpc-oss/chrome-faithful)"
-    },
-    {
-      "id": "@bpc-oss/dsh-verification",
-      "type": "vendor",
-      "source": "profile/vendor/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
-      "package_spec": "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
-      "install_type": "vendor-archive",
-      "description": "Verification engine (enforce/advisory)"
-    },
-    {
-      "id": "@bpshil/litkit-dsh",
-      "type": "github",
-      "repo": "bpc-oss/litkit-search",
-      "ref": "main",
-      "package_spec": "github:bpc-oss/litkit-search",
-      "install_type": "github",
-      "description": "LitKit search"
-    },
-    {
-      "id": "@dsh-external/dsh-super-injector",
-      "type": "vendor",
-      "source": "profile/vendor/dsh-external-dsh-super-injector-0.3.3.tgz",
-      "package_spec": "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
-      "install_type": "vendor-archive",
-      "description": "Runtime plugin injector (REBUILT tgz includes P5 gateway gate)"
-    },
-    {
-      "id": "@dsh-external/dsh-vision-toolkit",
-      "type": "github",
-      "repo": "Anionex/dsh-vision-toolkit",
-      "ref": "main",
-      "package_spec": "github:Anionex/dsh-vision-toolkit#main",
-      "install_type": "github",
-      "description": "Vision toolkit — REMOVED from the profile on 2026-09-29: the native read_image path replaced the external vision service (see CHANGELOG 0.3.2). Kept in the registry so a fresh machine does not reinstall it; the profile keeps a deliberate `- id: vision-toolkit / disabled: true` row because super-injector keys that block on the PACKAGE name (dsh-vision-toolkit), not the bundle id. — NOT MOUNTED: Uninstalled 2026-09-29 when native read_image replaced the external vision service. The profile keeps a deliberate disabled row.",
-      "removed_from_profile": true,
-      "removed_reason": "Legacy external vision service; superseded by the native read_image tool on multimodal routes. Uninstalled from the web profile (bundle + dependency + disabled row).",
-      "replacement": "read_image (native DSH tool) — see config/.agent-presets/<preset>/tool-bootstrap.mjs",
-      "removed_on": "20260929",
-      "status": "not-mounted"
-    },
-    {
-      "id": "@liustack/modlens",
-      "type": "npm",
-      "version": "^3.11.0",
-      "package_spec": "^3.11.0",
-      "install_type": "npm",
-      "description": "Code lens (currently disabled in plugin-management state) — NOT MOUNTED: Turned off by the user on purpose; kept out of the profile on purpose so a replay does not re-enable it.",
-      "status": "not-mounted"
-    },
-    {
-      "id": "@liustack/modsearch",
-      "type": "npm",
-      "version": "^5.3.0",
-      "package_spec": "^5.3.0",
-      "install_type": "npm",
-      "description": "Search (currently disabled in plugin-management state) — NOT MOUNTED: Turned off by the user on purpose; kept out of the profile on purpose so a replay does not re-enable it.",
-      "status": "not-mounted"
-    },
-    {
-      "id": "@omdsh-dev/dsh-genui",
-      "type": "github",
-      "repo": "omdsh-dev/dsh-genui",
-      "ref": "main",
-      "package_spec": "github:omdsh-dev/dsh-genui",
-      "install_type": "github",
-      "description": "Generate UI"
-    },
-    {
-      "id": "dsh-bash-terminal",
-      "type": "npm",
-      "version": "^0.3.11",
-      "package_spec": "^0.3.11",
-      "install_type": "npm",
-      "description": "Bash terminal"
-    },
-    {
-      "id": "dsh-better-sidebar",
-      "type": "npm",
-      "source": "profile/vendor/dsh-better-sidebar-0.12.2-fix108.tgz",
-      "package_spec": "^0.24.1",
-      "install_type": "npm",
-      "description": "Upstream sidebar. 0.24.1 re-architected onto the OFFICIAL right sidebar: it injects @deepseek-ai/dsh-client-ui-sidebar-right and registers panes through sidebar.right.pane.tab / .tab.title, with its entry point in conversation.session.header.utilities. It REQUIRES schemastery with field.volatile(), which the profile top level (3.18.1) does not have — pnpm installs 3.18.4 nested under this package for that reason. Do not hand-edit the top-level copy; the next pnpm install restores it from the lockfile.",
-      "version": "^0.24.1"
-    },
-    {
-      "id": "dsh-continuous-worker",
-      "type": "standalone",
-      "path": "plugins/standalone/dsh-continuous-worker",
-      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
-      "install_type": "link",
-      "description": "Background continuous worker (local git, no remote)"
-    },
-    {
-      "id": "dsh-plugin-manager",
-      "type": "npm",
-      "version": "^0.1.0",
-      "package_spec": "^0.1.0",
-      "install_type": "npm",
-      "description": "Plugin manager"
-    },
-    {
-      "id": "dsh-routed-subagent",
-      "type": "standalone",
-      "path": "plugins/standalone/dsh-routed-subagent",
-      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
-      "install_type": "link",
-      "description": "Routed subagent (bpc-oss github, local clone)"
-    },
-    {
-      "id": "dsh-token-meter-hermes",
-      "type": "local",
-      "source": "{{USER_HOME}}/dsh-token-meter-hermes",
-      "package_spec": "file:{{USER_HOME}}/dsh-token-meter-hermes",
-      "install_type": "file-dir",
-      "description": "Token meter Hermes style (realpath {{USER_HOME}}/dsh-token-meter-hermes, installed via file: COPY not link). V2/V2.1 breakdown-projection clamp patch lives in the installed copy under profiles/web/node_modules - reinstall re-copies from source dir, re-apply V2 after reinstall.",
-      "vendored_backup": "{{REPO}}/vendored/dsh-token-meter-hermes",
-      "vendored_backup_note": "Reference copy only. No script reads this field: bootstrap does not restore from it, and it must not — the live source for dsh-voice-input is 440M while this copy is 241K, so an automatic restore would install a broken package. The real source is the path in package_spec."
-    },
-    {
-      "id": "dsh-voice-input",
-      "type": "local",
-      "source": "{{USER_HOME}}/dsh-voice-input",
-      "package_spec": "link:{{USER_HOME}}/dsh-voice-input",
-      "install_type": "link",
-      "description": "Voice input (models dir separate). V8 host-route fix1->fix4 (405 guard / 4MiB cap / Buffer.concat utf8 / try-catch envelope) is applied directly in the symlink source {{USER_HOME}}/dsh-voice-input/lib/index.js - edits take effect live via the symlink, NO repack needed (unlike kernel patches); live-verified POST /voice/ping 200 + GET 405.",
-      "vendored_backup": "{{REPO}}/vendored/dsh-voice-input",
-      "vendored_backup_note": "Reference copy only. No script reads this field: bootstrap does not restore from it, and it must not — the live source for dsh-voice-input is 440M while this copy is 241K, so an automatic restore would install a broken package. The real source is the path in package_spec."
-    },
-    {
-      "id": "@deepseek-ai/dsh-subagent-codex",
-      "type": "npm",
-      "source": "^0.1.0-rc.8",
-      "package_spec": "^0.1.0-rc.8",
-      "install_type": "npm",
-      "description": "Official Codex external subagent (rc.8 bundle)"
-    },
-    {
-      "id": "@deepseek-ai/dsh-subagent-claude-code",
-      "type": "npm",
-      "source": "^0.1.0-rc.8",
-      "package_spec": "^0.1.0-rc.8",
-      "install_type": "npm",
-      "description": "Official Claude Code external subagent (rc.8 bundle)"
-    },
-    {
-      "id": "dsh-global-tool-discovery",
-      "type": "local",
-      "source": "{{USER_HOME}}/dev/dsh-global-tool-discovery",
-      "package_spec": "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
-      "install_type": "link",
-      "description": "Global tool discovery (local dev link)"
-    },
-    {
-      "id": "@deepseek-ai/dsh-client-ui-subagent",
-      "type": "npm",
-      "source": "^0.1.0-rc.8",
-      "package_spec": "^0.1.0-rc.8",
-      "install_type": "npm",
-      "description": "Subagent client UI (rc.8, dependency only, not a bundle)"
-    },
-    {
-      "id": "dsh-fork-to-preset",
-      "type": "local",
-      "source": "{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
-      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
-      "install_type": "link",
-      "description": "Fork any session into a chosen agent preset (header UI; host presets route; requires P9-P12 kernel patches)"
-    },
-    {
-      "id": "dsh-web-billing",
-      "type": "local",
-      "source": "{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
-      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
-      "install_type": "link",
-      "description": "Web billing UI + metering ledger (local dev repo under PLUGIN_SOURCES_DIR, symlinked in node_modules; was falsely exempted as kernel-internal)"
-    },
-    {
-      "id": "dsh-subagent-model",
-      "type": "local",
-      "source": "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-      "package_spec": "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-      "install_type": "link",
-      "description": "Subagent model selection (local dev repo; install interrupted 2026-08-22, recovered by clearing plugin-install-recovery state)"
-    },
-    {
-      "id": "@zseven-w/dsh-openpencil",
-      "type": "npm",
-      "version": "0.1.0-rc.2",
-      "package_spec": "0.1.0-rc.2",
-      "install_type": "npm",
-      "description": "OpenPencil drawing plugin (npm rc.2; part of the same interrupted manual install)"
-    },
-    {
-      "id": "@agent-os/dsh-governance",
-      "type": "local",
-      "source": "{{USER_HOME}}/dev/dsh-governance",
-      "package_spec": "file:{{USER_HOME}}/dev/dsh-governance",
-      "install_type": "file-dir",
-      "description": "AgentOS local DSH governance plugin (native admission reader / capability router / policy guard)"
-    },
-    {
-      "id": "dsh-promise-guard",
-      "kind": "local-preset-plugin",
-      "source": "plugins/standalone/dsh-promise-guard",
-      "description": "Promise guard: no-tool promise steps become a logged error plus a corrective turn — NOT MOUNTED: NOT a profile bundle and never was — it is a local-preset-plugin whose payload (promise-guard.mjs) is installed into ~/.dsh/.agent-presets/<preset>/ and mounted by each preset's agent.cordis.yml. Its absence from dsh.profile.bundles is correct.",
-      "installed_to": "~/.dsh/.agent-presets/<preset>/promise-guard.mjs",
-      "mounted_in": [
-        "ai-tube-daily",
-        "anchored-standard",
-        "autoprompt",
-        "enforce-rsi-standard",
-        "enforce-standard",
-        "j-space-standard",
-        "verifier-standard"
-      ],
-      "sha256": "57b1d84672f7f1562d9ff3608c2ba167daca9a89b26d57230ddd598738c3f34b",
-      "registered": "20260929",
-      "status": "not-mounted",
-      "payload": "promise-guard.mjs"
-    },
-    {
-      "id": "dsh-local-presets",
-      "type": "local",
-      "install_type": "file-dir",
-      "package_spec": "file:./local-presets",
-      "source": "profile/local-presets",
-      "description": "Local preset layer: every preset mount is declared here (13 layer files + 00-runtime.patch.yml). Declared through the profile dsh.profile.bundles list."
-    },
-    {
-      "id": "dsh-full-remote",
-      "type": "local",
-      "install_type": "link",
-      "package_spec": "link:{{USER_HOME}}/.dsh/vendor-pkgs/fr/package",
-      "source": "{{USER_HOME}}/.dsh/vendor-pkgs/fr/package",
-      "description": "Full remote control. Linked into the profile, not vendored."
-    },
-    {
-      "id": "@deepseek-ai/dsh-experimental-voice-input-bundle",
-      "type": "npm",
-      "install_type": "npm",
-      "package_spec": "*",
-      "description": "Official experimental voice-input bundle, brought in by the desktop 2.0.16 import. NOTE: it replaced dsh-voice-input, which the user removed on purpose — the package dsh-voice-input is still in node_modules but is NOT mounted and must not be re-declared."
-    },
-    {
-      "id": "@deepseek-ai/dsh-experimental-agent-team-profile",
-      "type": "npm",
-      "install_type": "npm",
-      "package_spec": "*",
-      "description": "Official experimental agent-team profile bundle (desktop 2.0.16 import)."
-    },
-    {
-      "id": "@deepseek-ai/dsh-experimental-schedule-bundle",
-      "type": "npm",
-      "install_type": "npm",
-      "package_spec": "*",
-      "description": "Official experimental schedule bundle (desktop 2.0.16 import)."
-    },
-    {
-      "id": "@deepseek-ai/dsh-experimental-auto-review",
-      "type": "npm",
-      "install_type": "npm",
-      "package_spec": "*",
-      "description": "Official experimental auto-review bundle (desktop 2.0.16 import)."
-    }
-  ]
+    "version":  "2",
+    "notes":  "authoritative plugin source registry. install_type maps to package.json specifier: vendor-archive -\u003e file:vendor-archives/\u003ctgz\u003e; link -\u003e link:\u003cpath\u003e; file-dir -\u003e file:\u003cpath\u003e; github -\u003e github:\u003corg\u003e/\u003crepo\u003e#\u003cref\u003e; npm -\u003e semver. Type \"standalone\" means a full source snapshot is committed under plugins/standalone/\u003cdir\u003e and bootstrap copies it to {{PLUGIN_SOURCES_DIR}}/\u003cdir\u003e before pnpm install. type \"super-injector-plugin\" is loaded from the super-injector registry, not package.json.",
+    "plugins":  [
+                    {
+                        "id":  "@agentos/dsh-lco",
+                        "type":  "local",
+                        "source":  "{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
+                        "package_spec":  "file:{{AGENT_OS_DIR}}/dsh/bundles/agentos-dsh-lco-0.1.0.tgz",
+                        "install_type":  "file-dir",
+                        "description":  "Agent OS LCO adapter. REMOVED 2026-09-30 on the user instruction — no longer merely disabled. Do not reinstall: the block is gone from profile/cordis.patch.yml AND from the replay template. Removing it also puts the governance native-admission path (admission / policy guard / capability router / budget) out of scope, because its pointer+snapshot material lived under AgentOS/dsh/native-admission — part of the same LCO evidence tree.",
+                        "status":  "removed",
+                        "removed_by":  "user decision 2026-09-30 (\"lco 不要了\")",
+                        "removed_from_profile":  true
+                    },
+                    {
+                        "id":  "@bpc-oss/dsh-client-ui-verification",
+                        "type":  "vendor",
+                        "source":  "profile/vendor/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
+                        "package_spec":  "file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
+                        "install_type":  "vendor-archive",
+                        "description":  "Verification client UI"
+                    },
+                    {
+                        "id":  "@bpc-oss/dsh-evidence",
+                        "type":  "vendor",
+                        "source":  "profile/vendor/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
+                        "package_spec":  "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
+                        "install_type":  "vendor-archive",
+                        "description":  "Evidence package (schema lives here!)"
+                    },
+                    {
+                        "id":  "@bpc-oss/dsh-plugin-chrome-faithful",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-plugin-chrome-faithful",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-plugin-chrome-faithful",
+                        "install_type":  "link",
+                        "description":  "Thin DSH bundle for Chrome Faithful. Snapshot is the packages/dsh-plugin-chrome-faithful subdirectory; npm resolves its chrome-faithful@0.4.0 dependency. No author-local CHROME_FAITHFUL_DIR path is needed for the DSH bundle itself.",
+                        "path":  "plugins/standalone/dsh-plugin-chrome-faithful",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/chrome-faithful.git",
+                                         "ref":  "7cefa8211b2eef694296dfd15ff1400a0f3df526",
+                                         "subdir":  "packages/dsh-plugin-chrome-faithful"
+                                     }
+                    },
+                    {
+                        "id":  "@bpc-oss/dsh-verification",
+                        "type":  "vendor",
+                        "source":  "profile/vendor/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
+                        "package_spec":  "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
+                        "install_type":  "vendor-archive",
+                        "description":  "Verification engine (enforce/advisory)"
+                    },
+                    {
+                        "id":  "@bpshil/litkit-dsh",
+                        "type":  "github",
+                        "repo":  "bpc-oss/litkit-search",
+                        "ref":  "main",
+                        "package_spec":  "github:bpc-oss/litkit-search",
+                        "install_type":  "github",
+                        "description":  "LitKit search"
+                    },
+                    {
+                        "id":  "@dsh-external/dsh-super-injector",
+                        "type":  "vendor",
+                        "source":  "profile/vendor/dsh-external-dsh-super-injector-0.3.3.tgz",
+                        "package_spec":  "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
+                        "install_type":  "vendor-archive",
+                        "description":  "Runtime plugin injector (REBUILT tgz includes P5 gateway gate)"
+                    },
+                    {
+                        "id":  "@dsh-external/dsh-vision-toolkit",
+                        "type":  "github",
+                        "repo":  "Anionex/dsh-vision-toolkit",
+                        "ref":  "main",
+                        "package_spec":  "github:Anionex/dsh-vision-toolkit#main",
+                        "install_type":  "github",
+                        "description":  "Vision toolkit — REMOVED from the profile on 2026-09-29: the native read_image path replaced the external vision service (see CHANGELOG 0.3.2). Kept in the registry so a fresh machine does not reinstall it; the profile keeps a deliberate `- id: vision-toolkit / disabled: true` row because super-injector keys that block on the PACKAGE name (dsh-vision-toolkit), not the bundle id. — NOT MOUNTED: Uninstalled 2026-09-29 when native read_image replaced the external vision service. The profile keeps a deliberate disabled row.",
+                        "removed_from_profile":  true,
+                        "removed_reason":  "Legacy external vision service; superseded by the native read_image tool on multimodal routes. Uninstalled from the web profile (bundle + dependency + disabled row).",
+                        "replacement":  "read_image (native DSH tool) — see config/.agent-presets/\u003cpreset\u003e/tool-bootstrap.mjs",
+                        "removed_on":  "20260929",
+                        "status":  "not-mounted"
+                    },
+                    {
+                        "id":  "@liustack/modlens",
+                        "type":  "npm",
+                        "version":  "^3.11.0",
+                        "package_spec":  "^3.11.0",
+                        "install_type":  "npm",
+                        "description":  "Code lens (currently disabled in plugin-management state) — NOT MOUNTED: Turned off by the user on purpose; kept out of the profile on purpose so a replay does not re-enable it.",
+                        "status":  "not-mounted"
+                    },
+                    {
+                        "id":  "@liustack/modsearch",
+                        "type":  "npm",
+                        "version":  "^5.3.0",
+                        "package_spec":  "^5.3.0",
+                        "install_type":  "npm",
+                        "description":  "Search (currently disabled in plugin-management state) — NOT MOUNTED: Turned off by the user on purpose; kept out of the profile on purpose so a replay does not re-enable it.",
+                        "status":  "not-mounted"
+                    },
+                    {
+                        "id":  "@omdsh-dev/dsh-genui",
+                        "type":  "github",
+                        "repo":  "omdsh-dev/dsh-genui",
+                        "ref":  "main",
+                        "package_spec":  "github:omdsh-dev/dsh-genui",
+                        "install_type":  "github",
+                        "description":  "Generate UI"
+                    },
+                    {
+                        "id":  "dsh-bash-terminal",
+                        "type":  "npm",
+                        "version":  "^0.3.11",
+                        "package_spec":  "^0.3.11",
+                        "install_type":  "npm",
+                        "description":  "Bash terminal"
+                    },
+                    {
+                        "id":  "dsh-better-sidebar",
+                        "type":  "npm",
+                        "source":  "profile/vendor/dsh-better-sidebar-0.12.2-fix108.tgz",
+                        "package_spec":  "^0.28.0",
+                        "install_type":  "npm",
+                        "description":  "Upstream sidebar. 0.28.0 mounts onto the official right sidebar and requires @huanlin/dsh-plugin-better-locale.",
+                        "version":  "^0.28.0"
+                    },
+                    {
+                        "id":  "dsh-continuous-worker",
+                        "type":  "standalone",
+                        "path":  "plugins/standalone/dsh-continuous-worker",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
+                        "install_type":  "link",
+                        "description":  "Background continuous worker. Full source snapshot is committed under plugins/standalone; no remote is required.",
+                        "source":  "plugins/standalone/dsh-continuous-worker"
+                    },
+                    {
+                        "id":  "dsh-plugin-manager",
+                        "type":  "npm",
+                        "version":  "^0.1.0",
+                        "package_spec":  "^0.1.0",
+                        "install_type":  "npm",
+                        "description":  "Plugin manager",
+                        "status":  "not-mounted",
+                        "removed_from_profile":  true,
+                        "removed_reason":  "Kernel 0.2.1 ships @deepseek-ai/dsh-plugin-manager@0.2.1-rc.2 built in. The profile copy (0.1.0) registered the same pluginManager service and crashed boot with a duplicate registration, so it was removed on 2026-10-19.",
+                        "removed_on":  "20261019"
+                    },
+                    {
+                        "id":  "dsh-routed-subagent",
+                        "type":  "standalone",
+                        "path":  "plugins/standalone/dsh-routed-subagent",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
+                        "install_type":  "link",
+                        "description":  "Routed subagent (0.4.0). Full source snapshot, including lib/engines/* and probe scripts, is committed; the older snapshot was missing 8 tracked files.",
+                        "source":  "plugins/standalone/dsh-routed-subagent",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/dsh-routed-subagent.git",
+                                         "ref":  "6085f65bbc1a4662b7c43901ba983a7f66b351d1"
+                                     }
+                    },
+                    {
+                        "id":  "dsh-token-meter-hermes",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-token-meter-hermes",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-token-meter-hermes",
+                        "install_type":  "link",
+                        "description":  "Hermes-style context breakdown projection. Snapshot is the author working tree (includes the V2/V2.1 clamp edits) and is therefore not just the upstream HEAD. No author-local C:/Users/... path is needed.",
+                        "vendored_backup":  "{{REPO}}/vendored/dsh-token-meter-hermes",
+                        "vendored_backup_note":  "Reference copy only. No script reads this field: bootstrap does not restore from it, and it must not — the live source for dsh-voice-input is 440M while this copy is 241K, so an automatic restore would install a broken package. The real source is the path in package_spec.",
+                        "path":  "plugins/standalone/dsh-token-meter-hermes",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/dsh-token-meter-hermes.git",
+                                         "ref":  "9d1cfe26a579cb572110aa71de848d0715119205"
+                                     }
+                    },
+                    {
+                        "id":  "dsh-voice-input",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-voice-input",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-voice-input",
+                        "install_type":  "link",
+                        "description":  "Legacy voice-input plugin. Kept as a source snapshot for rollback; not mounted by the fresh profile. Models are not committed (hundreds of MB): run npm run models in the source if this plugin is deliberately re-enabled.",
+                        "vendored_backup":  "{{REPO}}/vendored/dsh-voice-input",
+                        "vendored_backup_note":  "Reference copy only. No script reads this field: bootstrap does not restore from it, and it must not — the live source for dsh-voice-input is 440M while this copy is 241K, so an automatic restore would install a broken package. The real source is the path in package_spec.",
+                        "path":  "plugins/standalone/dsh-voice-input",
+                        "status":  "not-mounted",
+                        "removed_from_profile":  true,
+                        "removed_reason":  "Legacy local offline ASR plugin. The live profile now mounts the official @deepseek-ai/dsh-experimental-voice-input-bundle instead; the old dsh-voice-input dependency was not loaded. Source snapshot retained for rollback only.",
+                        "removed_on":  "20261020"
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-subagent-codex",
+                        "type":  "npm",
+                        "source":  "^0.2.1-rc.2",
+                        "package_spec":  "^0.2.1-rc.2",
+                        "install_type":  "npm",
+                        "description":  "Official Codex external subagent (0.2.1-rc.2 line)."
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-subagent-claude-code",
+                        "type":  "npm",
+                        "source":  "^0.2.1-rc.2",
+                        "package_spec":  "^0.2.1-rc.2",
+                        "install_type":  "npm",
+                        "description":  "Official Claude Code external subagent (0.2.1-rc.2 line)."
+                    },
+                    {
+                        "id":  "dsh-global-tool-discovery",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-global-tool-discovery",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-global-tool-discovery",
+                        "install_type":  "link",
+                        "description":  "RSI core bundle. Contains the actual implementations of research_orchestrator (lib/research.mjs, legacy alias lib/research-orchestrator.mjs), knowledge_ingest (lib/knowledge.mjs, legacy alias lib/knowledge-ingest.mjs), the source-adapter registry (lib/registry.mjs), and the RSS/Hacker News adapters (adapters/rss.mjs, adapters/hackernews.mjs). There is no separate \"adapter steer\" plugin; the phrase in rsi-guide/enforce-guide comments is prose about adapter/preset guidance, not an implementation.",
+                        "path":  "plugins/standalone/dsh-global-tool-discovery",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/dsh-global-tool-discovery.git",
+                                         "ref":  "7607c3ae3508e4ea310c7ffc0d95cf00bfa0a4f9"
+                                     }
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-client-ui-subagent",
+                        "type":  "npm",
+                        "source":  "^0.2.1-rc.2",
+                        "package_spec":  "^0.2.1-rc.2",
+                        "install_type":  "npm",
+                        "description":  "Subagent client UI (0.2.1-rc.2, dependency only, not a bundle)."
+                    },
+                    {
+                        "id":  "dsh-fork-to-preset",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-fork-to-preset",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
+                        "install_type":  "link",
+                        "description":  "Fork any session into a chosen agent preset (header UI; host preset route; requires P9-P12 kernel patches). Full source snapshot is committed so a fresh machine never depends on the author local clone.",
+                        "path":  "plugins/standalone/dsh-fork-to-preset",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/dsh-fork-to-preset.git",
+                                         "ref":  "1cb7b9f60e52adf5702d37668c81792d748a0aa6"
+                                     }
+                    },
+                    {
+                        "id":  "dsh-web-billing",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-web-billing",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
+                        "install_type":  "link",
+                        "description":  "Web billing UI and metering ledger. Full source snapshot is committed; no author-local {{PLUGIN_SOURCES_DIR}} path is needed.",
+                        "path":  "plugins/standalone/dsh-web-billing",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/dsh-web-billing.git",
+                                         "ref":  "69410660b59960ddcd61a333864357ffd00e962d"
+                                     }
+                    },
+                    {
+                        "id":  "dsh-subagent-model",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-subagent-model",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+                        "install_type":  "link",
+                        "description":  "Subagent model selection badge. Full source snapshot is committed; no author-local {{PLUGIN_SOURCES_DIR}} path is needed.",
+                        "path":  "plugins/standalone/dsh-subagent-model",
+                        "upstream":  {
+                                         "repo":  "https://github.com/bpc-oss/dsh-subagent-model.git",
+                                         "ref":  "88253d25a6bf3c499bab1b57f90fd0036d2ecdd5"
+                                     }
+                    },
+                    {
+                        "id":  "@zseven-w/dsh-openpencil",
+                        "type":  "npm",
+                        "version":  "0.1.0-rc.2",
+                        "package_spec":  "0.1.0-rc.2",
+                        "install_type":  "npm",
+                        "description":  "OpenPencil drawing plugin (npm rc.2; part of the same interrupted manual install)"
+                    },
+                    {
+                        "id":  "@agent-os/dsh-governance",
+                        "type":  "standalone",
+                        "source":  "plugins/standalone/dsh-governance",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-governance",
+                        "install_type":  "link",
+                        "description":  "Agent OS governance plugin: native admission reader, capability router, policy guard, status and optional completion tool. Local-only source with no git remote, so the full src and dist trees are committed as a standalone snapshot.",
+                        "path":  "plugins/standalone/dsh-governance"
+                    },
+                    {
+                        "id":  "dsh-promise-guard",
+                        "kind":  "local-preset-plugin",
+                        "source":  "plugins/standalone/dsh-promise-guard",
+                        "description":  "Promise guard: no-tool promise steps become a logged error plus a corrective turn — NOT MOUNTED: NOT a profile bundle and never was — it is a local-preset-plugin whose payload (promise-guard.mjs) is installed into ~/.dsh/.agent-presets/\u003cpreset\u003e/ and mounted by each preset\u0027s agent.cordis.yml. Its absence from dsh.profile.bundles is correct.",
+                        "installed_to":  "~/.dsh/.agent-presets/\u003cpreset\u003e/promise-guard.mjs",
+                        "mounted_in":  [
+                                           "ai-tube-daily",
+                                           "anchored-standard",
+                                           "autoprompt",
+                                           "enforce-rsi-standard",
+                                           "enforce-standard",
+                                           "j-space-standard",
+                                           "verifier-standard"
+                                       ],
+                        "sha256":  "57b1d84672f7f1562d9ff3608c2ba167daca9a89b26d57230ddd598738c3f34b",
+                        "registered":  "20260929",
+                        "status":  "not-mounted",
+                        "payload":  "promise-guard.mjs"
+                    },
+                    {
+                        "id":  "dsh-local-presets",
+                        "type":  "local",
+                        "install_type":  "file-dir",
+                        "package_spec":  "file:./local-presets",
+                        "source":  "profile/local-presets",
+                        "description":  "Local preset layer: every preset mount is declared here (13 layer files + 00-runtime.patch.yml). Declared through the profile dsh.profile.bundles list."
+                    },
+                    {
+                        "id":  "dsh-full-remote",
+                        "type":  "standalone",
+                        "install_type":  "link",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-full-remote",
+                        "source":  "plugins/standalone/dsh-full-remote",
+                        "description":  "Remote-access reverse proxy. Snapshot is the local 0.3.7 package including the Connection-auth compatibility files (lib/index-authfix-v2.js and lib/backend-auth.mjs). Upstream repo is public; the snapshot preserves the author local compatibility patch.",
+                        "path":  "plugins/standalone/dsh-full-remote",
+                        "upstream":  {
+                                         "repo":  "https://github.com/JUANWANG-BUAA/dsh-full-remote.git",
+                                         "ref":  "0.3.7"
+                                     }
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-experimental-voice-input-bundle",
+                        "type":  "npm",
+                        "install_type":  "npm",
+                        "package_spec":  "*",
+                        "description":  "Official experimental voice-input bundle, brought in by the desktop 2.0.16 import. NOTE: it replaced dsh-voice-input, which the user removed on purpose — the package dsh-voice-input is still in node_modules but is NOT mounted and must not be re-declared."
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-experimental-agent-team-profile",
+                        "type":  "npm",
+                        "install_type":  "npm",
+                        "package_spec":  "*",
+                        "description":  "Official experimental agent-team profile bundle (desktop 2.0.16 import)."
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-experimental-schedule-bundle",
+                        "type":  "npm",
+                        "install_type":  "npm",
+                        "package_spec":  "*",
+                        "description":  "Official experimental schedule bundle (desktop 2.0.16 import).",
+                        "status":  "not-mounted",
+                        "removed_from_profile":  true,
+                        "removed_reason":  "0.2.1 folds scheduled tasks into the web core and no longer publishes this bundle; keeping it in dsh.profile.bundles broke boot with PackageOverlayNotFoundError.",
+                        "removed_on":  "20261019"
+                    },
+                    {
+                        "id":  "@deepseek-ai/dsh-experimental-auto-review",
+                        "type":  "npm",
+                        "install_type":  "npm",
+                        "package_spec":  "*",
+                        "description":  "Official experimental auto-review bundle (desktop 2.0.16 import)."
+                    },
+                    {
+                        "id":  "@agents-anywhere/dsh-bridge-next",
+                        "type":  "npm",
+                        "version":  "^2.0.2",
+                        "package_spec":  "^2.0.2",
+                        "install_type":  "npm",
+                        "description":  "Agents Anywhere phone-remote bridge; 0.2.1 profile bundle."
+                    },
+                    {
+                        "id":  "dsh-community-market",
+                        "type":  "npm",
+                        "version":  "^0.0.1",
+                        "package_spec":  "^0.0.1",
+                        "install_type":  "npm",
+                        "description":  "Community plugin market; 0.2.1 profile bundle."
+                    },
+                    {
+                        "id":  "@huanlin/dsh-plugin-better-locale",
+                        "type":  "npm",
+                        "version":  "^0.4.3",
+                        "package_spec":  "^0.4.3",
+                        "install_type":  "npm",
+                        "description":  "Locale pack required by dsh-better-sidebar 0.28.0."
+                    },
+                    {
+                        "id":  "m2-demo-plugin",
+                        "type":  "standalone",
+                        "kind":  "super-injector-plugin",
+                        "path":  "plugins/standalone/m2-demo-plugin",
+                        "source":  "plugins/standalone/m2-demo-plugin",
+                        "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/m2-demo-plugin",
+                        "install_type":  "link",
+                        "description":  "Generated demo plugin used by the super-injector registry. Its former only source was {{PLUGIN_SOURCES_DIR}}/dsh-experimental/m2-demo-plugin, which a fresh machine does not have; the snapshot is now committed."
+                    }
+                ]
 }

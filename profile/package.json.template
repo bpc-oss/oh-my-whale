@@ -2,30 +2,32 @@
   "name": "dsh-profile-web",
   "private": true,
   "dependencies": {
-    "@agent-os/dsh-governance": "file:{{USER_HOME}}/dev/dsh-governance",
+    "@agent-os/dsh-governance": "link:{{PLUGIN_SOURCES_DIR}}/dsh-governance",
     "@bpc-oss/dsh-client-ui-verification": "file:vendor-archives/bpc-oss-dsh-client-ui-verification-1.0.0-9e59c586.tgz",
     "@bpc-oss/dsh-evidence": "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
-    "@bpc-oss/dsh-plugin-chrome-faithful": "file:{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
+    "@bpc-oss/dsh-plugin-chrome-faithful": "link:{{PLUGIN_SOURCES_DIR}}/dsh-plugin-chrome-faithful",
     "@bpc-oss/dsh-verification": "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
     "@bpshil/litkit-dsh": "github:bpc-oss/litkit-search",
-    "@deepseek-ai/dsh-client-ui-subagent": "^0.2.0-rc.1",
-    "@deepseek-ai/dsh-subagent-claude-code": "^0.1.0-rc.8",
-    "@deepseek-ai/dsh-subagent-codex": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-client-ui-subagent": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-subagent-claude-code": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-subagent-codex": "^0.2.1-rc.2",
     "@dsh-external/dsh-super-injector": "file:vendor-archives/dsh-super-injector-0.3.3.tgz",
     "@omdsh-dev/dsh-genui": "github:omdsh-dev/dsh-genui",
     "@zseven-w/dsh-openpencil": "0.1.0-rc.2",
     "dsh-local-presets": "file:./local-presets",
-    "dsh-full-remote": "link:{{USER_HOME}}/.dsh/vendor-pkgs/fr/package",
+    "dsh-full-remote": "link:{{PLUGIN_SOURCES_DIR}}/dsh-full-remote",
     "dsh-bash-terminal": "^0.3.11",
-    "dsh-better-sidebar": "^0.24.1",
+    "dsh-better-sidebar": "^0.28.0",
     "dsh-continuous-worker": "link:{{PLUGIN_SOURCES_DIR}}/dsh-continuous-worker",
     "dsh-fork-to-preset": "link:{{PLUGIN_SOURCES_DIR}}/dsh-fork-to-preset",
-    "dsh-global-tool-discovery": "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
-    "dsh-plugin-manager": "^0.1.0",
+    "dsh-global-tool-discovery": "link:{{PLUGIN_SOURCES_DIR}}/dsh-global-tool-discovery",
     "dsh-routed-subagent": "link:{{PLUGIN_SOURCES_DIR}}/dsh-routed-subagent",
     "dsh-subagent-model": "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
-    "dsh-token-meter-hermes": "file:{{USER_HOME}}/dsh-token-meter-hermes",
-    "dsh-voice-input": "link:{{USER_HOME}}/dsh-voice-input"
+    "dsh-token-meter-hermes": "link:{{PLUGIN_SOURCES_DIR}}/dsh-token-meter-hermes",
+    "@huanlin/dsh-plugin-better-locale": "^0.4.3",
+    "dsh-community-market": "^0.0.1",
+    "@agents-anywhere/dsh-bridge-next": "^2.0.2",
+    "dsh-web-billing": "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing"
   },
   "dsh": {
     "profile": {
@@ -51,10 +53,10 @@
         "dsh-full-remote",
         "@deepseek-ai/dsh-experimental-voice-input-bundle",
         "@deepseek-ai/dsh-experimental-agent-team-profile",
-        "@deepseek-ai/dsh-experimental-schedule-bundle",
         "@deepseek-ai/dsh-experimental-auto-review",
-        "dsh-plugin-manager",
-        "dsh-better-sidebar"
+        "dsh-better-sidebar",
+        "@agents-anywhere/dsh-bridge-next",
+        "dsh-community-market"
       ]
     }
   }

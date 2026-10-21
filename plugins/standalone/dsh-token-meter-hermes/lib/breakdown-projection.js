@@ -5,21 +5,21 @@
  * vocabulary.
  *
  * Categories (Hermes' taxonomy, DSH mapping):
- *   systemTokens          — system prompt core (stable/volatile minus the
+ *   systemTokens          閳?system prompt core (stable/volatile minus the
  *                           recognizable skills / rules / memory blocks)
- *   rulesTokens           — <system-reminder> blocks (AGENTS.md instructions,
+ *   rulesTokens           閳?<system-reminder> blocks (AGENTS.md instructions,
  *                           DSH's closest analogue to Hermes' "rules" part)
- *   skillsTokens          — the <available_skills> catalog block
- *   memoryTokens          — a <memory> / <memories> block if present
- *   toolsTokens           — builtin tool schemas (not mcp_, not subagent)
- *   mcpTokens             — tools whose name starts with "mcp_"
- *   subagentTokens        — subagent/toolset tools (send_message, subagent,
+ *   skillsTokens          閳?the <available_skills> catalog block
+ *   memoryTokens          閳?a <memory> / <memories> block if present
+ *   toolsTokens           閳?builtin tool schemas (not mcp_, not subagent)
+ *   mcpTokens             閳?tools whose name starts with "mcp_"
+ *   subagentTokens        閳?subagent/toolset tools (send_message, subagent,
  *                           workflow, ralph, interrupt_agent, list_agents)
- *   messageTokens         — live conversation surface (shadow-price fold)
+ *   messageTokens         閳?live conversation surface (shadow-price fold)
  *
  * Envelope figures are last-wins per `request/header`; the message figure
- * rides foldSurfaceProjection — the same O(1) fold the occupancy projection
- * uses — so compaction shrinks the figure by its logged shadow price. The
+ * rides foldSurfaceProjection 閳?the same O(1) fold the occupancy projection
+ * uses 閳?so compaction shrinks the figure by its logged shadow price. The
  * state is a fixed handful of numbers, so the persisted checkpoint stays
  * O(1) over the session's life.
  *
@@ -113,7 +113,7 @@ function priceTools(header) {
  */
 export const hermesBreakdownProjectionDefinition = {
     key: 'contextBreakdownHermes',
-    schema: breakdownSchema,
+    stateSchema: breakdownSchema,
     init: () => ({
         systemTokens: 0, rulesTokens: 0, skillsTokens: 0, memoryTokens: 0,
         toolsTokens: 0, mcpTokens: 0, subagentTokens: 0, messageTokens: 0,
@@ -128,7 +128,20 @@ export const hermesBreakdownProjectionDefinition = {
             next = { ...next, ...system, ...tools };
         }
         if (fold.deltaTokens !== 0) {
-            next = { ...next, messageTokens: next.messageTokens + fold.deltaTokens };
+            // V2.1 (2026-09-11): clamp negative surface deltas at zero. Shadow
+            // prices are stamped at write time by the kernel's compaction
+            // producers under THEIR estimator, while appends fold here under
+            // this CJK/strip estimator — the two drift apart across kernel
+            // versions. Pre-P24 logs shadow inline video by base64 length
+            // (session-68cdbcc8: compaction/summary at seq 64789 claims
+            // 855,419 tokens over a range that now folds to 215,662), and P25
+            // video offloads claim a fixed 4096/block where this fold priced
+            // the stripped block structurally (~70). Such a claim can exceed
+            // the accumulated total; propagating the negative makes the whole
+            // history read fail on the wire schema's nonnegative guard. The
+            // clamp keeps the fold O(1) and the wire schema unchanged —
+            // unbacked negatives clamp to zero (drift), never corrupt state.
+            next = { ...next, messageTokens: Math.max(0, next.messageTokens + fold.deltaTokens) };
         }
         if (state.claim === undefined && fold.claim === undefined) {
             return next;
@@ -136,9 +149,12 @@ export const hermesBreakdownProjectionDefinition = {
         const { claim: _expired, ...withoutClaim } = next;
         return fold.claim === undefined ? withoutClaim : { ...withoutClaim, claim: fold.claim };
     },
-    view: ({ systemTokens, rulesTokens, skillsTokens, memoryTokens, toolsTokens, mcpTokens, subagentTokens, messageTokens }) => ({
-        systemTokens, rulesTokens, skillsTokens, memoryTokens,
-        toolsTokens, mcpTokens, subagentTokens, messageTokens,
-    }),
+    wire: {
+        viewSchema: breakdownSchema,
+        view: ({ systemTokens, rulesTokens, skillsTokens, memoryTokens, toolsTokens, mcpTokens, subagentTokens, messageTokens }) => ({
+            systemTokens, rulesTokens, skillsTokens, memoryTokens,
+            toolsTokens, mcpTokens, subagentTokens, messageTokens,
+        }),
+    },
     stateVersion: 1,
 };

@@ -52,6 +52,12 @@ jobs:
           done
           echo "JSON OK"
 
+      - name: Text integrity
+        run: node scripts/check-text-integrity.mjs
+
+      - name: Plugin sources complete
+        run: node scripts/audit-plugin-sources.mjs
+
       - name: Patches non-empty and git-apply format
         run: |
           for f in patches/host/*.patch patches/profile/*.patch; do

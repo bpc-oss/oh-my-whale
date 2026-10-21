@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.3.8] - 20261020 - reproducible plugin sources + full profile snapshot
+
+**Reproducibility fixes (a second machine no longer needs the author's local paths):**
+
+- `plugins/standalone/` now contains complete snapshots for `dsh-global-tool-discovery`
+  (RSI: `research_orchestrator`, `knowledge_ingest`, source adapter registry, RSS/HN
+  adapters), `dsh-fork-to-preset`, `dsh-subagent-model`, `dsh-web-billing`,
+  `dsh-token-meter-hermes`, `dsh-plugin-chrome-faithful`, `dsh-governance`,
+  `dsh-full-remote`, refreshed `dsh-routed-subagent` (8 previously missing tracked files),
+  `m2-demo-plugin` and refreshed `dsh-voice-input` (kept as not-mounted rollback source).
+- `profile/package.json.template` now resolves every local plugin through
+  `link:{{PLUGIN_SOURCES_DIR}}/<dir>`; no author `C:\Users\...` / `{{PLUGIN_SOURCES_DIR}}\...` path.
+- `plugins/SOURCES.json` is now the authoritative 38-entry source map, with upstream repo,
+  pinned ref, standalone path, and removed/not-mounted status.
+- New `scripts/audit-plugin-sources.mjs` gate runs in CI and before `pnpm install`.
+- `profile/cordis.patch.yml.template` is now a complete normalized snapshot of the live
+  profile: providers/models, permission presets, default model/preset, tool rows,
+  billing, web search, reverse proxy/authfix and agent-team/goal settings. The previous
+  template stopped at the governance row and would have lost the whole model catalog.
+- `scripts/template-render.ps1` now parameterizes `{{LOCAL_VLLM_BASE_URL}}`, defaults the
+  plugin-source root on a fresh machine, and no longer renders the legacy 0.1.x
+  `settings.yaml.template`.
+- `bootstrap.ps1` fixes: missing comma in `param()`; undefined `$UserHome`/`$User`;
+  creates the plugin-source parent before copying; renders `super-injector/registry.json`
+  instead of overwriting it with the raw `.template`; runs the source audit before install.
+- Added `scripts/check-text-integrity.mjs` as a CI/bootstrap gate for stray C0 control characters.
+- Repaired embedded control characters that corrupted `scripts\fix-bash-terminal-import.mjs`,
+  `scripts\verify-patch-port.mjs` and DSH Desktop paths in maintenance scripts.
+- Added `docs/reproduction.md` with the RSI source map and explicit external prerequisites.
+  No `adapter steer` plugin exists; the phrase is only a comment in rsi-guide/enforce-guide.
+
 ## [0.3.7] - 20261020 - durable-only subagent policy + Agent Team integration
 
 **Behaviour change (policy): `subagent_routed` never creates a one-shot child again.**
@@ -31,7 +62,7 @@ cannot be messaged and is discarded, which made every delegated conversation dea
 
 **Plugin features added:**
 
-- rchive_teammate (host patch P48) retires a teammate: the roster row keeps its journal history but stops consuming a slot, disappears from list_agents, and frees its name. Archiving does NOT reclaim disk - the Lead session log is append-only.
+- archive_teammate (host patch P48) retires a teammate: the roster row keeps its journal history but stops consuming a slot, disappears from list_agents, and frees its name. Archiving does NOT reclaim disk - the Lead session log is append-only.
 
 - help: true returns the full usage guide from inside the tool, so a conversation whose visible tool list predates newer parameters can still discover them.
 

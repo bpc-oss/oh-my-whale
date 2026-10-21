@@ -49,6 +49,20 @@ export function foldSurfaceProjection(claim, event) {
     if (op === 'append') {
         return { deltaTokens: tokens, claim: undefined };
     }
+    // V2.2 (2026-09-11): a replacement whose range is not resolvable on the
+    // wire (a bare `surfaceOp: "replace"` string, or an object missing
+    // start/end) cannot be price-matched against an armed claim. The compaction
+    // replay the query layer feeds the fold can carry such range-less replaces
+    // (session-fae8d68b: replace at rebased seq 847 over an armed claim covering
+    // 8-815), and reading `op.start` off them yields `undefined`, so the old
+    // adjacency check threw and failed the whole history read ("failed to
+    // project session"). Fold every range-less replace neutrally and expire the
+    // claim — historical replay degrades to drift (the same way the bounded
+    // state already treats pre-protocol replacements) rather than corrupting
+    // or blocking the session.
+    if (op === 'replace' || typeof op?.start !== 'number' || typeof op?.end !== 'number') {
+        return { deltaTokens: 0, claim: undefined };
+    }
     // Sessions recorded before the shadow-price protocol log replacements
     // with no adjacent metering event; the bounded state cannot reconstruct
     // the replaced range's price, so fold those neutrally — historical

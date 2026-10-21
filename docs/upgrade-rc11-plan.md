@@ -227,7 +227,7 @@ powershell -NoProfile -File scripts\drift-scan.ps1 -Compare baseline-drift.json
 桌面版 boot 失败）。操作前必须确认目标属性：
 ```powershell
 # 先确认是真实目录还是 junction（ReparsePoint 才安全动）
-(Get-Item 'E:i-files\dsh-fork-to-preset
+(Get-Item '{{PLUGIN_SOURCES_DIR}}\dsh-fork-to-preset
 ode_modules\@deepseek-ai' -Force).Attributes
 # 删除 junction 用 rmdir（不跟随），删除真实目录才用 Remove-Item -Recurse
 ```

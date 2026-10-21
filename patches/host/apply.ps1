@@ -16,9 +16,15 @@ if (-not $Manifest -or -not $Manifest.patches) {
 }
 
 if (-not $KernelDir) {
-  $new = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
+  # 2026-10-19: the shell has shipped UNPACKED since 2.0.x; resources\app.asar.unpacked
+  # no longer exists. Point at the app tree, and verify the directory really holds the
+  # kernel packages before accepting it.
+  $unpacked = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app\node_modules"
+  $legacy = "$env:LOCALAPPDATA\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
   $old = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
-  if (Test-Path $new) { $KernelDir = $new } elseif (Test-Path $old) { $KernelDir = $old }
+  if (Test-Path (Join-Path $unpacked "@deepseek-ai\dsh\package.json")) { $KernelDir = $unpacked }
+  elseif (Test-Path $legacy) { $KernelDir = $legacy }
+  elseif (Test-Path $old) { $KernelDir = $old }
 }
 Write-Host "KernelDir: $KernelDir"
 if (-not (Test-Path $KernelDir)) { Write-Host "FATAL: KernelDir not found"; exit 1 }
@@ -36,10 +42,15 @@ $skipped = 0
 $skippedIds = @()
 foreach ($p in $Manifest.patches) {
   if ($p.file -ne "host") { continue }
-  $target = Join-Path $KernelDir ($p.target -replace "/", "\")
+  # P18 (and other fan-out entries) declare target as an ARRAY. Join-Path does
+  # not accept an array, so the old code threw and silently skipped the entry.
+  # Resolve every target; one missing target means the patch is not applicable.
+  $targetPaths = @($p.target | ForEach-Object { Join-Path $KernelDir ($_ -replace "/", "\") })
+  $target = $targetPaths[0]
   $patchFile = Join-Path $Repo ("patches\" + $p.patchFile)
-  Write-Host "--- $($p.id): $($p.target)"
-  if (-not (Test-Path $target)) { Write-Host "  SKIP: target missing"; continue }
+  Write-Host "--- $($p.id): $($p.target -join ' ')"
+  $missingTarget = @($targetPaths | Where-Object { -not (Test-Path $_) })
+  if ($missingTarget.Count -gt 0) { Write-Host "  SKIP: target missing: $($missingTarget -join ', ')"; continue }
   if (-not (Test-Path $patchFile)) { Write-Host "  SKIP: patch missing"; continue }
 
   # version check

@@ -1,19 +1,66 @@
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-// --- oh-my-whale templating shim: {{DSH_HOME}} / {{USERPROFILE}} are rendered at runtime ---
-import { homedir } from "node:os";
-import { fileURLToPath } from "node:url";
-const __H = homedir().replace(/\\/g, "/");
-const __T = (s) => s.replace("{{DSH_HOME}}", __H + "/.dsh").replace("{{USERPROFILE}}", __H);
-import fs from "fs";
-import { createRequire } from "module";
 
-const require = createRequire("__T(file:///{{DSH_HOME}}/profiles/node_modules/)");
-let yaml;
-try { yaml = require("js-yaml"); } catch { yaml = require("yaml"); }
-const loader = yaml.load ?? yaml.parse;
-console.log("yaml lib:", yaml === undefined ? "?" : (typeof yaml.load === "function" ? "js-yaml" : "yaml"));
+const home = os.homedir();
+const dsh = path.join(home, ".dsh");
+const yamlTargets = [
+  path.join(dsh, "profiles", "web", "cordis.patch.yml"),
+  path.join(dsh, "settings.yaml"),
+].filter((f) => fs.existsSync(f));
+const zcode = path.join(home, ".zcode", "v2", "provider_config.json");
+const wantedReasoning = ["low", "medium", "high", "xhigh", "max"];
+let failures = 0;
 
-const check = (label, fn) => {
-  try { const r = fn(); console.log(`OK   ${label}${r ? " | " + r : ""}`); }
-  catch (e) { console.log(`FAIL ${label} | ${e.message.split("\n")[0]}`__T(); }\n};\n\n// 1. DSH settings.yaml -> is the bunny model now declared with image + efforts?\ncheck(\'DSH settings.yaml parses\', () => {\n  const doc = loader(fs.readFileSync(\'{{DSH_HOME}}/settings.yaml\', \'utf8\'));\n  const provs = doc[\'llm-pi-ai\'].providers;\n  const cc = provs.commandcode;\n  const m = cc.models.find((x) => x.id === \'stealth/space-bunny-alpha\');\n  return )`commandcode models=${cc.models.length} | bunny input=[${(m.input || []).join(",")}] efforts=${JSON.stringify(m.reasoningEfforts)} ctx=${m.contextWindow}`__T(;\n});\n\n// 2. preset + profile YAMLs edited in the vision change set\nfor (const f of [\'{{DSH_HOME}}/.agent-presets/autoprompt/agent.cordis.yml\',\n                 \'{{DSH_HOME}}/profiles/web/cordis.patch.yml\']) {\n  check(\'parses \' + f.split(\'/\').pop() + \' (\' + f.split(\'/\').slice(-2)[0] + \')\', () => {\n    const doc = loader(fs.readFileSync(f, \'utf8\'));\n    return \'root=\' + (Array.isArray(doc) ? )`array(${doc.length})`__T( : typeof doc);\n  });\n}\n\n// 3. autoprompt residentTools now carries read_image\ncheck(\'autoprompt residentTools\', () => {\n  const doc = loader(fs.readFileSync(\'{{DSH_HOME}}/.agent-presets/autoprompt/agent.cordis.yml\', \'utf8\'));\n  const row = (Array.isArray(doc) ? doc : []).flatMap((r) => (r && r.insert ? r.insert : [r]))\n    .find((r) => r && r.residentTools);\n  const list = row ? row.residentTools : [];\n  return )`count=${list.length} read_image=${list.includes("read_image")} vision_*= ${list.filter((x) => String(x).startsWith("vision")).length}`__T(;\n});\n\n// 4. zcode provider config\ncheck(\'zcode provider_config.json\', () => {\n  const doc = JSON.parse(fs.readFileSync(\'{{USERPROFILE}}/.zcode/v2/provider_config.json\', \'utf8\'));\n  const str = JSON.stringify(doc);\n  const i = str.indexOf('\'modelId\':\'stealth/space-bunny-alpha\'');\n  const seg = str.slice(i, i + 700);\n  const img = /\'supportsImage\':true/.test(seg);\n  const vals = JSON.parse(\'[\' + (/\\[([^\\]]*)\\]/.exec(seg)?.[1] ?? \'\') + \']\');\n  return )`bunny present=${i >= 0} supportsImage=${img} reasoningLevels=[${vals.join(",")}]`;
-});
+function ok(label, detail = "") { console.log(`OK   ${label}${detail ? " | " + detail : ""}`); }
+function fail(label, detail = "") { failures++; console.log(`FAIL ${label}${detail ? " | " + detail : ""}`); }
+
+function modelBlocks(text) {
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*-\s+id:\s*stealth\/space-bunny-alpha\s*$/.test(lines[i])) continue;
+    const indent = (lines[i].match(/^\s*/) || [""])[0];
+    let j = i + 1;
+    while (j < lines.length && !new RegExp(`^${indent}-\\s+id:`).test(lines[j])) j++;
+    out.push(lines.slice(i, j).join("\n"));
+  }
+  return out;
+}
+
+for (const file of yamlTargets) {
+  const blocks = modelBlocks(fs.readFileSync(file, "utf8"));
+  if (!blocks.length) { fail(`${file}: bunny model absent`); continue; }
+  for (const [i, block] of blocks.entries()) {
+    const hasImage = /input:\s*\n\s*-\s*text\s*\n\s*-\s*image/.test(block);
+    const hasEffort = /reasoningEfforts:\s*\n\s*low:\s*low\s*\n\s*high:\s*high\s*\n\s*max:\s*max/.test(block);
+    if (hasImage && hasEffort) ok(`${file}: bunny[${i}] input+reasoning`);
+    else fail(`${file}: bunny[${i}] missing input/effort`, `image=${hasImage} effort=${hasEffort}`);
+  }
+}
+
+if (!fs.existsSync(zcode)) {
+  fail(`${zcode}: absent`);
+} else {
+  const doc = JSON.parse(fs.readFileSync(zcode, "utf8"));
+  let found = 0;
+  const walk = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (node.modelId === "stealth/space-bunny-alpha") {
+      found++;
+      const vals = node?.config?.optionSpecs?.reasoningLevel?.values;
+      const image = node?.config?.properties?.inputFormat?.supportsImage === true;
+      if (image && JSON.stringify(vals) === JSON.stringify(wantedReasoning)) {
+        ok("zcode bunny", `image=${image} levels=[${(vals || []).join(",")}]`);
+      } else {
+        fail("zcode bunny", `image=${image} levels=${JSON.stringify(vals)}`);
+      }
+    }
+    for (const v of Object.values(node)) walk(v);
+  };
+  walk(doc);
+  if (!found) fail("zcode bunny missing");
+}
+
+console.log(failures ? `\nRESULT: ${failures} failure(s)` : "\nRESULT: bunny config OK");
+process.exit(failures ? 1 : 0);

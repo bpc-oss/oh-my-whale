@@ -1,11 +1,11 @@
 {
   "version": "1",
   "baseline": {
-    "shell": "2.0.16",
-    "kernel": "0.2.0-rc.1",
-    "cordis": "4.0.2",
-    "pi-ai": "0.85.1",
-    "loader": "1.0.3",
+    "shell": "2.0.18",
+    "kernel": "0.2.1-rc.2",
+    "cordis": "4.0.5",
+    "pi-ai": "1.2.0",
+    "loader": "1.0.6",
     "previousApplied": {
       "shell": "2.0.5",
       "kernel": "0.1.2-rc.1"
@@ -32,7 +32,7 @@
         "tree": "{{USERPROFILE}}/.dsh/runtime/v209-patched-tree"
       }
     },
-    "note": "Kernel tree scanned by default: %LOCALAPPDATA%ProgramsDSH Desktop\resourcesapp\node_modules (shell 2.0.16+ ships unpacked, no asar). The old .dsh/runtime/v209-patched-tree was the 0.1.5 runtime tree and is no longer the running kernel — drift-scan must be invoked with -Installed."
+    "note": "Kernel tree scanned by default: %LOCALAPPDATA%\\Programs\\DSH Desktop\\resources\\app\\node_modules (shell 2.0.16+ ships unpacked, no asar). The old .dsh/runtime/v209-patched-tree was the 0.1.5 runtime tree and is no longer the running kernel - drift-scan must be invoked with -Installed."
   },
   "patches": [
     {

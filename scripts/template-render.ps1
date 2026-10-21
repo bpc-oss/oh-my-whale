@@ -26,19 +26,22 @@ function Get-OmwPluginSources {
     foreach ($line in Get-Content $envFile -Encoding UTF8) {
       if ($line -match "^\s*(OMW_PLUGIN_SOURCES_DIR|PLUGIN_SOURCES_DIR)\s*=\s*(.+?)\s*$") {
         $v = $Matches[2].Trim().Trim('"').Trim("'")
+          $v = $v.Replace('%USERPROFILE%', $env:USERPROFILE)
         if ($v) { return ($v -replace "\\", "/") }
       }
     }
   }
+  # Fresh-machine fallback: bootstrap creates this directory and copies every
+  # plugins/standalone/<dir> snapshot into it before pnpm install. It is deliberately
+  # NOT a fatal error when the directory does not exist yet; requiring the user to
+  # pre-create a path was the old behaviour and made the first replay stop at render.
   $conventional = Join-Path $env:USERPROFILE "ai-files"
-  if (Test-Path $conventional) { return ($conventional -replace "\\", "/") }
-  return $null
+  return ($conventional -replace "\\", "/")
 }
 $PluginSources = Get-OmwPluginSources
 if (-not $PluginSources) {
   Write-Host "FATAL: cannot resolve PLUGIN_SOURCES_DIR." -ForegroundColor Red
   Write-Host "  Set OMW_PLUGIN_SOURCES_DIR, or put PLUGIN_SOURCES_DIR=<path> in the repo .env (gitignored)" -ForegroundColor Red
-  Write-Host "  (also probed: \$env:USERPROFILE\ai-files)" -ForegroundColor Red
   exit 1
 }
 Write-Host "PLUGIN_SOURCES_DIR: $PluginSources"
@@ -73,23 +76,48 @@ if (-not $ListenHost) {
 }
 if ($ListenHost) { Write-Host "DSH_LISTEN_HOST: $ListenHost" } else { Write-Host "DSH_LISTEN_HOST: (none found - set it in .env)" -ForegroundColor Yellow }
 
-# Collect variable values
+# Local OpenAI-compatible endpoints. The author machine used two DGX Spark ports
+# (:8888 for GLM-5.3 / main, :8899 for DeepSeek-V4.1). Another machine will almost
+# certainly differ, so neither is allowed to stay a hard-coded address. Override with
+# DSH_LOCAL_VLLM_BASE_URL / DSH_LOCAL_VLLM_DEEPSEEK_BASE_URL in the environment or
+# .env. Loopback defaults keep a fresh replay functional and off the public internet.
+function Get-EnvOrDotEnv([string]$name,[string]$fallback) {
+  $v = [Environment]::GetEnvironmentVariable($name)
+  if (-not $v) {
+    $envFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env"
+    if (Test-Path $envFile) {
+      foreach ($line in Get-Content $envFile -Encoding UTF8) {
+        if ($line -match "^\s*$([regex]::Escape($name))\s*=\s*(.+?)\s*$") { $v = $Matches[1].Trim().Trim('"').Trim("'") }
+      }
+    }
+  }
+  if (-not $v) { $v = $fallback }
+  return $v
+}
+$LocalVllmBaseUrl = Get-EnvOrDotEnv "DSH_LOCAL_VLLM_BASE_URL" "http://127.0.0.1:8888/v1"
+$LocalVllmDeepSeekBaseUrl = Get-EnvOrDotEnv "DSH_LOCAL_VLLM_DEEPSEEK_BASE_URL" "http://127.0.0.1:8899/v1"
+Write-Host "DSH_LOCAL_VLLM_BASE_URL: $LocalVllmBaseUrl"
+Write-Host "DSH_LOCAL_VLLM_DEEPSEEK_BASE_URL: $LocalVllmDeepSeekBaseUrl"
+$TailscaleHost = Get-EnvOrDotEnv "TAILSCALE_HOST" ""
+
+# Collect variable values. Path values are emitted with forward slashes so templates
+# that embed them in quoted YAML or file:// URLs stay consistent on Windows.
 $Vars = @{
-  "{{DSH_USER_HOME}}"       = $DshHome
-  "{{USER_HOME}}"           = $UserHome
-  "{{LOCAL_APP_DATA}}"      = "$UserHome\AppData\Local"
+  "{{DSH_USER_HOME}}"       = ($DshHome -replace '\\', '/')
+  "{{USER_HOME}}"           = ($UserHome -replace '\\', '/')
+  "{{LOCAL_APP_DATA}}"      = ("$UserHome\AppData\Local" -replace '\\', '/')
   "{{USER_NAME}}"           = $User
     # Resolved here, not by the caller. The four link:/… plugin specs render to a bare
     # "link:/" when this is empty, which installs nothing and still reports success.
     # drift-scan had its own copy of this detect and set the variable before shelling out,
     # so it passed while bootstrap — the real deploy path — produced a broken manifest.
     # One definition, in the one place that does the substitution.
-    "{{PLUGIN_SOURCES_DIR}}"  = $PluginSources
-  "{{TAILSCALE_HOST}}"      = ""
+    "{{PLUGIN_SOURCES_DIR}}"  = ($PluginSources -replace '\\', '/')
+  "{{TAILSCALE_HOST}}"      = $TailscaleHost
   "{{UV_PYTHON_PATH}}"      = ""
-  "{{AGENT_OS_DIR}}"        = "$UserHome\AppData\Local\AgentOS"
-  "{{AGENT_OS_BRIDGE}}"     = "C:\ProgramData\AgentOS\LCO-Client\agentos-lco-dsh-bridge.exe"
-  "{{CHROME_FAITHFUL_DIR}}" = "$UserHome\chrome-faithful"
+  "{{AGENT_OS_DIR}}"        = ("$UserHome\AppData\Local\AgentOS" -replace '\\', '/')
+  "{{AGENT_OS_BRIDGE}}"     = "C:/ProgramData/AgentOS/LCO-Client/agentos-lco-dsh-bridge.exe"
+  "{{CHROME_FAITHFUL_DIR}}" = ("$UserHome\chrome-faithful" -replace '\\', '/')
   "{{VOICE_MODEL_DIR}}"     = "$UserHome/dsh-voice-input/dsh-voice-models"
   # Inbound reverse-proxy bind address. Machine-specific and NOT reliably guessable:
   # this host alone has five IPv4 interfaces (vEthernet, WireGuard, Tailscale, Ethernet,
@@ -98,6 +126,8 @@ $Vars = @{
   #   2. the first private-range IPv4 that is not loopback / link-local / virtual
   # The probe prints what it picked — a wrong guess must be visible, not silent.
   "{{DSH_LISTEN_HOST}}"     = $ListenHost
+  "{{LOCAL_VLLM_BASE_URL}}" = $LocalVllmBaseUrl
+  "{{LOCAL_VLLM_DEEPSEEK_BASE_URL}}" = $LocalVllmDeepSeekBaseUrl
   # 2026-09-30: the bounty-pipeline preset text was captured into the registry with its
   # real mailbox and password replaced by placeholders. They cannot be guessed, so they
   # come from the environment when set; when unset the placeholder SURVIVES into the
@@ -117,6 +147,8 @@ if ($uvPython) { $Vars["{{UV_PYTHON_PATH}}"] = $uvPython.FullName }
 if (-not $DefaultsOnly) {
   $prompts = @(
     @("{{PLUGIN_SOURCES_DIR}}", "Plugin sources dir (set OMW_PLUGIN_SOURCES_DIR, e.g. D:\ai-files)"),
+    @("{{LOCAL_VLLM_BASE_URL}}", "Local OpenAI-compatible vLLM base URL"),
+    @("{{LOCAL_VLLM_DEEPSEEK_BASE_URL}}", "Second local vLLM base URL (dgx-spark-deepseek-v41)"),
     @("{{TAILSCALE_HOST}}", "Tailscale hostname (optional, e.g. host.tailXXXX.ts.net)"),
     @("{{UV_PYTHON_PATH}}", "uv python executable path (optional)"),
     @("{{CHROME_FAITHFUL_DIR}}", "chrome-faithful source dir"),
@@ -155,6 +187,12 @@ function Normalize-FileUrls([string]$text) {
 # Render a template file
 function Render-Template([string]$templatePath, [string]$outPath, [hashtable]$vars) {
   $text = [System.IO.File]::ReadAllText($templatePath)
+  # Optional list members: an empty TAILSCALE_HOST must remove the whole YAML list
+  # item. Leaving "- " behind makes trustedHosts contain null, and the schema is
+  # z.array(String), so the whole client-connection plugin fails to load.
+  if ([string]::IsNullOrWhiteSpace([string]$vars["{{TAILSCALE_HOST}}"]) -and $text.Contains('{{TAILSCALE_HOST}}')) {
+    $text = [regex]::Replace($text, '(?m)^[ \t]*-[ \t]*\{\{TAILSCALE_HOST\}\}[ \t]*\r?\n', '')
+  }
   foreach ($key in $vars.Keys) {
     $text = $text.Replace($key, $vars[$key])
   }
@@ -166,8 +204,11 @@ function Render-Template([string]$templatePath, [string]$outPath, [hashtable]$va
 }
 
 # Map template files to output locations
+# 2026-10-20: config/settings.yaml.template is legacy (0.1.x-era provider catalog).
+# On 0.2.1 the live profile has NO ~/.dsh/settings.yaml; all model/provider/permission
+# settings are carried by profile/cordis.patch.yml. Rendering the old file on a fresh
+# machine would reintroduce a second, conflicting source of truth, so it is not mapped.
 $mappings = @(
-  @("$Repo\config\settings.yaml.template",         "$OutDir\settings.yaml"),
   @("$Repo\profile\package.json.template",          "$OutDir\profiles\web\package.json"),
   @("$Repo\profile\cordis.patch.yml.template",      "$OutDir\profiles\web\cordis.patch.yml"),
   @("$Repo\profile\pnpm-workspace.yaml.template",   "$OutDir\profiles\web\pnpm-workspace.yaml"),

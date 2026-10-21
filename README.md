@@ -1,99 +1,128 @@
-# Oh My Whale — 专属 dsh 发行版
+# Oh My Whale — 可复现的 DSH 个人发行版
 
-> 把本机 8 月踩坑沉淀下来的专属 DeepSeek Harness 环境固化为可复现的个人发行版。
-> 新电脑 = 装官方 dsh + 一条命令 → 恢复完整开发环境（内核补丁 / 模型配置 / 插件体系 / 事故知识库）。
+> 目标：一台新 Windows 机器，只安装官方 DSH Desktop 2.0.18（内核 0.2.1-rc.2），
+> clone 本仓库并执行 `bootstrap.ps1`，即可得到与作者一致的内核补丁、模型目录、
+> 13 套 agent preset、25 个 profile bundle、权限/主题/反代配置，以及 RSI
+> （research_orchestrator + knowledge_ingest + source adapters）能力。
 
-## 一键安装
+## 1. 先看结论：RSI 源码在哪里
+
+RSI 不是三个独立仓库，而是同一个 bundle：
+
+| 能力 | 源码位置 |
+|---|---|
+| `research_orchestrator` / `research_job_get` / `research_memory_query` | `plugins/standalone/dsh-global-tool-discovery/lib/research.mjs`（兼容别名 `lib/research-orchestrator.mjs`） |
+| `knowledge_ingest` | `plugins/standalone/dsh-global-tool-discovery/lib/knowledge.mjs`（兼容别名 `lib/knowledge-ingest.mjs`） |
+| source adapter 注册表 | `plugins/standalone/dsh-global-tool-discovery/lib/registry.mjs` |
+| RSS / Hacker News adapters | `plugins/standalone/dsh-global-tool-discovery/adapters/rss.mjs`、`adapters/hackernews.mjs` |
+| 全局工具发现 / skills 注入 | `plugins/standalone/dsh-global-tool-discovery/lib/core.mjs`、`lib/skills.mjs`、`lib/session-unlock.mjs` |
+
+上游仓库：<https://github.com/bpc-oss/dsh-global-tool-discovery>（快照 commit `7607c3a`）。
+
+**不存在名为 `adapter steer` 的插件。** `rsi-guide.mjs` / `enforce-guide.mjs` 里
+“adapter steer text”只是注释，指 preset/adapter 层的引导文本，不是可安装源码。
+真正可扩展的是 `adapterWhitelist` + `registerSourceAdapter()`，见
+`docs/reproduction.md` 的 “RSI / adapters” 一节。
+
+## 2. 前置条件
+
+- Windows 10/11，管理员 PowerShell。
+- 官方 DSH Desktop **2.0.18**（内核 `@deepseek-ai/dsh 0.2.1-rc.2`）。
+- `git`、Node.js >= 22.12、`pnpm`。
+- 可选：本地 OpenAI-compatible vLLM 服务；不配置也能启动，但本地模型不可用。
+- 需要联网安装 npm / GitHub 依赖；API Key 只放在环境变量，不进入仓库。
+
+## 3. 一键部署
 
 ```powershell
-# 1. 安装 DSH Desktop v2.0.9（官方 GitHub releases / dshdesktop.cn）
-#    ⚠ 2026-09-11 起内核在 app.asar 内且受 Electron 完整性 fuse 保护：
-#    打完补丁必须关 fuse（见 docs/upgrade-v209-executed.md 附7 与 scripts/v209/pack-209.ps1）
-# 2. 以管理员身份打开 PowerShell
-git clone <你的 oh-my-whale 仓库地址>
+git clone https://github.com/bpc-oss/oh-my-whale.git
 cd oh-my-whale
-.\scripts\check-env.ps1    # 前置检查
-.\bootstrap.ps1            # 一键部署
-# 3. 按提示设置环境变量（见 config/.env.example）
-# 4. 重启桌面版 → 全部自定义模型、插件、补丁就绪
+Copy-Item config\.env.example .env
+# 编辑 .env：至少设置 OMW_PLUGIN_SOURCES_DIR、DSH_LOCAL_VLLM_BASE_URL；
+# 需要哪些模型就填哪些 API Key（不要把 .env 提交到 git）。
+.\bootstrap.ps1
+# 重启 DSH Desktop
 ```
 
-## 这是什么
+`bootstrap.ps1` 会：
 
-| 资产 | 说明 |
-|---|---|
-| **内核补丁** | `patches/` — 5 个补丁（loader 防环 / cordis 缓存 / pi-ai bai 特判 / session 事件 / gateway 集成），版本基线 rc.8 |
-| **模型配置** | `config/settings.yaml.template` — 6 组 provider（bai / deepseek / 本地 vLLM / opencode / qwen） |
-| **插件体系** | `plugins/SOURCES.json` — 18 个插件的来源清单；`plugins/standalone/` 内嵌 4 个本地插件源码 |
-| **准入机制** | `gateway/` — plugin-gateway 静态准入（进 profile 前必过） |
-| **知识库** | `docs/handoff.md` — 事故复盘（YAML 陷阱 / schema 根 / file:// URL / 升级流程） |
+1. 备份现有 `~/.dsh` profile 和 settings；
+2. 应用 `patches/host` 内核补丁；
+3. 用 `scripts/template-render.ps1` 渲染 `~/.dsh/profiles/web/cordis.patch.yml`；
+4. 把 `plugins/standalone/*` 复制到 `OMW_PLUGIN_SOURCES_DIR`；
+5. `pnpm install`，再应用 profile 补丁；
+6. 部署 plugin-gateway / super-injector；
+7. 做 mjs / 补丁 / super-injector 冒烟检查。
 
-## 目录结构
+> 新机器不需要作者本机的 `C:\Users\...`、`{{PLUGIN_SOURCES_DIR}}`、`C:\...\dev\...` 路径。
+> 所有本地插件源码都已快照进 `plugins/standalone/`。
 
-```
+## 4. 仓库结构
+
+```text
 oh-my-whale/
-├── bootstrap.ps1              # 一键安装（7 阶段）
-├── patches/                   # 内核补丁（host + profile 分离）
-│   ├── manifest.json          # 补丁元信息 + 版本基线
-│   ├── host/                  # P1-P4 宿主内核补丁 + apply/verify
-│   └── profile/               # P5 profile 补丁（存档）
-├── profile/                   # profile 模板（路径变量化）
-│   ├── package.json.template  # 18 deps / 17 bundles
-│   ├── cordis.patch.yml.template
-│   ├── *.mjs                  # 全局工具（session-tool-unlock 等）
-│   └── vendor/                # vendor-archives tgz（含重建的 super-injector）
-├── config/                    # 配置模板
-│   ├── settings.yaml.template
-│   ├── .agent-presets/        # 10 个 preset
-│   └── .env.example
-├── gateway/                   # plugin-gateway 源码
-├── plugins/                   # 插件清单 + 指纹 + standalone 源码
-│   ├── SOURCES.json           # 插件来源清单（23 项）
-│   ├── FINGERPRINTS.json      # 本地插件源码指纹（capture-sources.ps1 生成）
-│   ├── inventory.md
-│   └── standalone/            # 4 个本地插件源码
-├── local-overrides/           # 基线之后的受管覆盖（settings/zcode/kimi 脱敏 diff + verify.ps1）
-├── scripts/                   # 工具
-│   ├── capture.sh             # 从本机捕获补丁
-│   ├── capture-sources.ps1    # 采集本地插件源码指纹（git HEAD / dirty / 版本 / tgz sha256）
-│   ├── drift-scan.ps1         # 五层漂移扫描（补丁/配置/插件注册/junction/源码指纹）
-│   ├── template-render.ps1    # 模板渲染
-│   ├── check-private.ps1      # 隐私扫描
-│   └── check-env.ps1          # 新机前置检查
-└── docs/                      # 文档（architecture / handoff / upgrading）
+├── bootstrap.ps1                 # 安装入口
+├── patches/                      # host + profile 内核补丁与 manifest
+├── profile/
+│   ├── package.json.template     # 26 deps / 25 bundles
+│   ├── cordis.patch.yml.template # 完整 profile 配置（模型/权限/插件/反代）
+│   ├── local-presets/            # 13 preset 的 bundle 层挂载
+│   └── vendor/                   # 5 个离线 tgz
+├── config/
+│   ├── .agent-presets/           # 13 套 preset 源码
+│   └── .env.example              # 全部环境变量清单
+├── plugins/
+│   ├── SOURCES.json              # 38 条来源登记（机器可读权威）
+│   ├── FINGERPRINTS.json         # 本地开发源指纹
+│   ├── inventory.md              # 人类可读清单
+│   └── standalone/               # 13 个完整本地插件源码快照
+├── gateway/                      # plugin-gateway
+├── super-injector/               # registry 模板
+├── scripts/                      # render / drift / source audit / privacy scan
+└── docs/                         # 复现说明、迁移记录、事故知识库
 ```
 
-## 核心机制
+## 5. 必须知道的配置规则
 
-### 补丁管理（升级安全）
-- `scripts/capture.sh`：从本机内核捕获补丁（diff .bak 快照 vs 当前）
-- `patches/host/apply.ps1`：幂等应用（CheckOnly 模式 + 版本基线校验）
-- 官方升级时：dry-run 全部补丁 → 逐个迁移 → 更新 manifest 基线
+- `profile/cordis.patch.yml.template` 是 profile 配置的**唯一权威**。
+  `config/settings.yaml.template` 是 0.1.x 遗留参考，0.2.1 不再渲染它。
+- 机器相关值必须写成占位符，由 renderer 替换：
+  `{{USER_HOME}}`、`{{DSH_USER_HOME}}`、`{{LOCAL_APP_DATA}}`、
+  `{{PLUGIN_SOURCES_DIR}}`、`{{DSH_LISTEN_HOST}}`、`{{TAILSCALE_HOST}}`、
+  `{{LOCAL_VLLM_BASE_URL}}`、`{{LOCAL_VLLM_DEEPSEEK_BASE_URL}}`。
+- `.env` 被 `.gitignore` 忽略；`scripts/check-private.ps1` 会在提交前扫描机器路径、
+  邮箱、密码形态和 API Key。
+- 本地插件一律通过 `plugins/standalone/` 快照 + `link:{{PLUGIN_SOURCES_DIR}}/<dir>`
+  安装。不要再在 `package.json.template` 里写 `C:\Users\...` 或 `{{PLUGIN_SOURCES_DIR}}\...`。
 
-### 插件源码追踪（本地开发同步）
-本地 `{{PLUGIN_SOURCES_DIR}}/*` 插件频繁更新时，靠 **源码指纹** 保持 oh-my-whale 与本地一致：
-- `scripts/capture-sources.ps1`：扫描本机 profile，为每个本地源插件记录指纹
-  - git 仓库：`git HEAD` + `dirty`（未提交改动数）+ `version`
-  - vendor tgz：`sha256`
-  - 自动发现 deps 未声明的 node_modules 链接（野插件，如 dsh-web-billing）
-- `scripts/drift-scan.ps1` 第 4 层（Plugin sources）：实时重算指纹 vs 仓库 `FINGERPRINTS.json`
-  - `CHANGED: <id> (HEAD xxx -> yyy)` = 本地插件更新了但仓库快照过期 → 跑 `capture-sources.ps1` 重新采集
-  - `NEW-UNREGISTERED: <id>` = 新插件出现但 SOURCES.json 没登记
-- 工作流：**改插件 → 跑 `capture-sources.ps1` → commit FINGERPRINTS.json**；升级前 drift-scan 全绿
+## 6. 验证
 
-### 模板化（换机安全）
-- 所有机器路径用 `{{VAR}}` 占位符，`template-render.ps1` 渲染
-- `check-private.ps1`：commit 前扫描（机器路径 / 凭据 / tailscale 域名）
+```powershell
+node scripts/check-text-integrity.mjs   # C0 控制字符/编码损坏检查
+node scripts/audit-plugin-sources.mjs   # 每个依赖是否都有可复现源码
+node scripts/audit-registry.mjs        # registry 条目是否在 live 安装中存在
+node scripts/audit-preset-mounts.mjs    # preset 挂载是否完整
+powershell -NoProfile -File scripts/check-private.ps1
+powershell -NoProfile -File scripts/drift-scan.ps1 -Out drift-report.json
+```
 
-## 版本基线
+`audit-plugin-sources.mjs` 是 2026-10-20 新增的 gate：它会检查
+`package.json.template` 的每个依赖、`plugins/standalone/*` 的 package name、
+`promise-guard` 的 sha256、以及每个 preset 的 `name: ./x.mjs` / 相对 import。
+
+## 7. 当前版本基线
 
 | 组件 | 版本 |
 |---|---|
-| 桌面壳 | DSH Desktop v2.0.9（内核 0.1.5-rc.1，packed-asar 布局；见 CHANGELOG 0.3.0） |
-| 内核 | @deepseek-ai/dsh 0.1.0-rc.8 |
-| cordis / loader / pi-ai | 4.0.1 / 1.0.2 / 0.82.1 |
-| 补丁 | P1-P12（manifest.json 为权威；rc.8 升级曾丢 dsh-goal seam / apiproxy 降载 / fork+preset 能力，8/21 已捕获为 P6/P7/P9-P12） |
+| DSH Desktop | 2.0.18 |
+| 内核 | `@deepseek-ai/dsh 0.2.1-rc.2` |
+| profile dependencies | 26 |
+| profile bundles | 25 |
+| registry entries | 38 |
+| standalone snapshots | 13 |
+| agent presets | 13 |
+| 内核补丁基线 | `patches/manifest.json`（当前 kernel line 0.2.1-rc.2） |
 
-## License
+## 8. 许可
 
-MIT
+MIT。第三方插件/上游代码的许可证保留在各 `plugins/standalone/*` 目录内。

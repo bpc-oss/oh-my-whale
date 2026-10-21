@@ -4,7 +4,7 @@
 - insert:
     - id: voice
       name: 'dsh-voice-input'
-      inject: [connection]
+      inject: [connection, webServer]
       config:
         # 引擎：auto（默认，有本地模型用 native，否则浏览器 Web Speech 兜底）| native | browser
         engine: auto

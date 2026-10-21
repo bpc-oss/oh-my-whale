@@ -1,0 +1,49 @@
+﻿import test from 'node:test'
+import assert from 'node:assert/strict'
+import { apply } from '../lib/index.mjs'
+
+function createFakeCtx() {
+  let registered = []
+  let disposed = false
+  const ctx = {
+    tools: {
+      register(def) {
+        registered.push(def)
+        return () => {
+          disposed = true
+        }
+      },
+      schemas() {
+        return []
+      },
+    },
+    effect(fn) {
+      const cleanup = fn()
+      assert.equal(typeof cleanup, 'function')
+    },
+    on() {},
+  }
+  return { ctx, getTool: (name) => registered.find((t) => t.name === name), isDisposed: () => disposed }
+}
+
+test('apply registers dev_tool_search with valid schema', () => {
+  const { ctx, getTool } = createFakeCtx()
+  apply(ctx, { maxResults: 10, residentTools: ['pwsh', 'str_replace_editor'] })
+
+  const tool = getTool('dev_tool_search')
+  assert.equal(tool.name, 'dev_tool_search')
+  assert.equal(tool.parameters.type, 'object')
+  assert.equal(tool.parameters.properties.query.type, 'string')
+  assert.equal(tool.parameters.properties.toolNames.type, 'array')
+  assert.deepEqual(tool.parameters.properties.toolNames.items, { type: 'string' })
+  assert.equal(tool.output.schema.type, 'object')
+  assert.match(tool.description, /SESSION-SCOPED/)
+  assert.match(tool.description, /pwsh/)
+})
+
+test('apply disables session-scoped wording when configured', () => {
+  const { ctx, getTool } = createFakeCtx()
+  apply(ctx, { sessionScoped: false, maxResults: 5 })
+  const tool = getTool('dev_tool_search')
+  assert.doesNotMatch(tool.description, /SESSION-SCOPED/)
+})

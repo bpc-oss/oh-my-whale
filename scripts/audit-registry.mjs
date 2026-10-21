@@ -166,6 +166,16 @@ for (const p of plugins) {
     else OK('plugin', id, `${mounts.length} presets, payload sha256 matches`);
     continue;
   }
+  if (kind === 'super-injector-plugin') {
+    // m2-demo-plugin is deliberately NOT in package.json: it is mounted by the
+    // super-injector registry. Check that registry instead of the profile manifest.
+    const reg = readJson(join(DSH, 'super-injector', 'registry.json'));
+    const entries = Array.isArray(reg) ? reg : (reg?.entries || []);
+    const hit = entries.find((e) => e?.name === id || e?.dir?.endsWith(`/${id}`) || e?.dir?.endsWith(`\\${id}`));
+    if (hit) OK('plugin', id, `mounted by super-injector -> ${hit.dir}`);
+    else MISS('plugin', id, 'not present in ~/.dsh/super-injector/registry.json');
+    continue;
+  }
   if (kind === 'local') {
     // vendored / linked payload: either a registry-relative dir or a machine path
     // that may carry a {{PLACEHOLDER}} the template renderer substitutes

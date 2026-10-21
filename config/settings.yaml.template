@@ -1,3 +1,6 @@
+# LEGACY REFERENCE ONLY — as of DSH 0.2.1 the live install has no ~/.dsh/settings.yaml.
+# The authoritative, portable config is profile/cordis.patch.yml.template.
+# scripts/template-render.ps1 intentionally does NOT render this file anymore.
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 permission:

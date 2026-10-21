@@ -1,0 +1,24 @@
+{
+  "name": "dsh-subagent-model",
+  "version": "0.1.0",
+  "description": "Show the current provider/model of a subagent session in its composer - a read-only badge next to the input controls (display-only).",
+  "license": "MIT",
+  "type": "module",
+  "keywords": ["deepseek-harness", "dsh", "plugin", "subagent", "model"],
+  "author": "bpc-oss",
+  "engines": { "node": ">=22" },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web" }
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/bpc-oss/dsh-subagent-model.git" },
+  "homepage": "https://github.com/bpc-oss/dsh-subagent-model",
+  "bugs": { "url": "https://github.com/bpc-oss/dsh-subagent-model/issues" },
+  "files": ["lib/", "cordis.patch.yml", "README.md", "README.zh.md", "LICENSE", ".gitignore"]
+}

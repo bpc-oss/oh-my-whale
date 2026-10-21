@@ -1,0 +1,6 @@
+# @agent-os/dsh-governance bundle patch (default disabled; soak before advisory).
+- insert:
+    - id: agent-os-dsh-governance
+      name: '@agent-os/dsh-governance'
+      config:
+        enabled: false

@@ -5,13 +5,15 @@ param(
   [string]$ProfileName = "web",
   [switch]$SkipPatches,
   [switch]$SkipInstall,
-  [switch]$DryRun
+  [switch]$DryRun,
   [switch]$Interactive              # answer the renderer prompts (implies a blocking run)
 )
 
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path
-$DshHome = "$env:USERPROFILE\.dsh"
+$UserHome = $env:USERPROFILE
+$User = $env:USERNAME
+$DshHome = "$UserHome\.dsh"
 $ProfileDir = "$DshHome\profiles\$ProfileName"
 $StartTime = Get-Date
 
@@ -68,13 +70,16 @@ function Get-OmwPluginSources {
     foreach ($line in Get-Content $envFile -Encoding UTF8) {
       if ($line -match "^\s*(OMW_PLUGIN_SOURCES_DIR|PLUGIN_SOURCES_DIR)\s*=\s*(.+?)\s*$") {
         $v = $Matches[2].Trim().Trim('"').Trim("'")
+          $v = $v.Replace('%USERPROFILE%', $env:USERPROFILE)
         if ($v) { return ($v -replace "\\", "/") }
       }
     }
   }
+  # Fresh-machine fallback. Phase 4 below creates this directory and copies each
+  # plugins/standalone/<dir> snapshot into it, so a first replay must not stop here
+  # just because the directory does not exist yet.
   $conventional = Join-Path $env:USERPROFILE "ai-files"
-  if (Test-Path $conventional) { return ($conventional -replace "\\", "/") }
-  return $null
+  return ($conventional -replace "\\", "/")
 }
 $PluginSources = Get-OmwPluginSources
 $dshVer = (Get-Content "$kernelDir\@deepseek-ai\dsh\package.json" -Encoding UTF8 -Raw | ConvertFrom-Json).version
@@ -88,22 +93,28 @@ function omw-dryrun { param([string]$What) if ($DryRun) { Write-Host "  [dry-run
 # ---------------- Phase 1: backup ----------------
 Step "Phase 1: backup existing state"
 $backupStamp = Get-Date -Format "yyyyMMdd-HHmmss"
-if (Test-Path $ProfileDir) {
-  Copy-Item $ProfileDir "$DshHome\profiles\$ProfileName.bak-oh-my-whale-$backupStamp" -Recurse
-  Write-Host "profile backed up -> $ProfileName.bak-oh-my-whale-$backupStamp"
-}
-if (Test-Path "$DshHome\settings.yaml") {
-  Copy-Item "$DshHome\settings.yaml" "$DshHome\settings.yaml.bak-oh-my-whale-$backupStamp"
-  Write-Host "settings.yaml backed up"
+if ($DryRun) {
+  Write-Host "  [dry-run] skip: backup of profile/settings"
+} else {
+  if (Test-Path $ProfileDir) {
+    Copy-Item $ProfileDir "$DshHome\profiles\$ProfileName.bak-oh-my-whale-$backupStamp" -Recurse
+    Write-Host "profile backed up -> $ProfileName.bak-oh-my-whale-$backupStamp"
+  }
+  if (Test-Path "$DshHome\settings.yaml") {
+    Copy-Item "$DshHome\settings.yaml" "$DshHome\settings.yaml.bak-oh-my-whale-$backupStamp"
+    Write-Host "settings.yaml backed up"
+  }
 }
 
 # ---------------- Phase 2: apply patches ----------------
 if (-not $SkipPatches) {
   Step "Phase 2: apply kernel patches"
-  $applyResult = & powershell -ExecutionPolicy Bypass -File "$Repo\patches\host\apply.ps1" -KernelDir $kernelDir 2>&1
+  $applyArgs = @("-KernelDir", $kernelDir)
+  if ($DryRun) { $applyArgs += "-CheckOnly" }
+  $applyResult = & powershell -ExecutionPolicy Bypass -File "$Repo\patches\host\apply.ps1" @applyArgs 2>&1
   $applyResult | Write-Host
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: kernel patches"; exit 1 }
-  Write-Host "kernel patches OK"
+  Write-Host $(if ($DryRun) { "kernel patches check-only OK" } else { "kernel patches OK" })
 } else {
   Write-Host "patches skipped (-SkipPatches)"
 }
@@ -111,7 +122,9 @@ if (-not $SkipPatches) {
 # ---------------- Phase 3: deploy configs ----------------
 Step "Phase 3: render and deploy configs"
 if ($PluginSources) { $env:OMW_PLUGIN_SOURCES_DIR = $PluginSources }
-$renderArgs = @("-OutDir", $DshHome)
+$renderRoot = if ($DryRun) { Join-Path $env:TEMP "omw-dryrun-render-$backupStamp" } else { $DshHome }
+$renderArgs = @("-OutDir", $renderRoot)
+if ($DryRun) { Write-Host "  [dry-run] rendering to isolated temp dir: $renderRoot" }
 # The renderer prompts five times unless -DefaultsOnly, and Read-Host blocks FOREVER when
 # stdin is redirected — an unattended provisioning run simply hung (exit 124 under a
 # timeout, reproduced in review). Default to non-interactive; -Interactive opts back in.
@@ -122,7 +135,7 @@ $renderOut | Write-Host
 # Copy vendor tgz files to vendor-archives
 $vendorSrc = "$Repo\profile\vendor"
 $vendorDst = "$ProfileDir\vendor-archives"
-if (Test-Path $vendorSrc) {
+if ((Test-Path $vendorSrc) -and -not (omw-dryrun "vendor tgz copy")) {
   New-Item -ItemType Directory -Path $vendorDst -Force | Out-Null
   Get-ChildItem $vendorSrc -Filter "*.tgz" | ForEach-Object {
     # Rename: dsh-external-dsh-super-injector-0.3.3.tgz -> dsh-super-injector-0.3.3.tgz (deployed name)
@@ -137,7 +150,7 @@ if (Test-Path $vendorSrc) {
 # presets, including the file:// paths that mount each preset's skills directory. The
 # renderer is dot-sourced here rather than shelled out so the deploy reuses the exact
 # $Vars map the profile templates are rendered with — one definition, one source.
-if (Test-Path "$Repo\config\.agent-presets" -and -not (omw-dryrun "agent-presets deploy")) {
+if ((Test-Path "$Repo\config\.agent-presets") -and -not (omw-dryrun "agent-presets deploy")) {
   New-Item -ItemType Directory -Path "$DshHome\.agent-presets" -Force | Out-Null
   # Credentials are not machine paths: the bounty-pipeline preset text was captured with
   # its real mailbox and password replaced by placeholders, and those cannot be inferred.
@@ -206,7 +219,7 @@ if (Test-Path "$Repo\config\.agent-presets" -and -not (omw-dryrun "agent-presets
 }
 
 # ---------------- Phase 4: install dependencies ----------------
-if (-not $SkipInstall) {
+if (-not $SkipInstall -and -not $DryRun) {
   Step "Phase 4: install profile dependencies"
   # Prepare link/file-dir targets from SOURCES.json
   $sources = Get-Content "$Repo\plugins\SOURCES.json" -Encoding UTF8 -Raw | ConvertFrom-Json
@@ -226,11 +239,18 @@ if (-not $SkipInstall) {
       if (-not (Test-Path $target)) {
         Write-Host "  link target missing: $target"
         if ($plugin.type -eq "standalone") {
-          # copy from repo standalone
-          $srcDir = "$Repo\plugins\standalone\$($plugin.id -replace '^[^/]+/','')"
+          # Copy the committed snapshot. Resolve the source from the registry's
+          # explicit path first; fall back to the id-derived directory for older
+          # registry entries. Create the parent because a fresh machine has no
+          # %USERPROFILE%\ai-files yet.
+          $srcDir = if ($plugin.path) { Join-Path $Repo ($plugin.path -replace '/', '\') } else { "$Repo\plugins\standalone\$($plugin.id -replace '^[^/]+/','')" }
           if (Test-Path $srcDir) {
+            $parent = Split-Path $target -Parent
+            if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             Copy-Item $srcDir $target -Recurse
             Write-Host "  restored standalone: $target"
+          } else {
+            Write-Host "  ERROR: standalone snapshot absent for $($plugin.id): $srcDir" -ForegroundColor Red
           }
         }
       } else {
@@ -238,6 +258,14 @@ if (-not $SkipInstall) {
       }
     }
   }
+
+  # Fail before pnpm if a plugin source snapshot or preset-local import is missing.
+  # This is the check that would have caught the 2026-10-20 source gaps (research/
+  # knowledge inside dsh-global-tool-discovery and the old author-local links).
+  & node "$Repo\scripts\check-text-integrity.mjs" "$Repo"
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: text integrity check" -ForegroundColor Red; exit 1 }
+  & node "$Repo\scripts\audit-plugin-sources.mjs" "$Repo"
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: plugin source completeness audit" -ForegroundColor Red; exit 1 }
 
   $failPatch = 0
   Push-Location $ProfileDir
@@ -254,7 +282,7 @@ if (-not $SkipInstall) {
   # omw: profile-side repairs that a fresh pnpm install would wipe. The dead
   # settingsNamespace import in dsh-bash-terminal makes the whole bash tool fail to load on
   # kernel 0.2.0-rc.1; node_modules is not tracked, so this must be re-applied here.
-  & node "scriptsix-bash-terminal-import.mjs"
+  & node "scripts\fix-bash-terminal-import.mjs"
 
   # omw: the deploy steps the post-deploy gates assert. Without these a fresh machine boots
   # and then fails gate 4 (kernel patches), gate 10 (local-overrides) and the super-injector
@@ -267,6 +295,8 @@ if (-not $SkipInstall) {
     Select-Object -Last 6
   if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: apply-post-install-patches.ps1 exited $LASTEXITCODE" -ForegroundColor Red; $failPatch = 1 }
   if ($failPatch) { Write-Host "DEPLOY INCOMPLETE: a patch step failed — see above." -ForegroundColor Red; exit 1 }
+} elseif ($DryRun) {
+  Write-Host "install skipped (-DryRun)"
 } else {
   Write-Host "install skipped (-SkipInstall)"
 }
@@ -282,16 +312,19 @@ Get-ChildItem "$Repo\local-overrides" -Filter "*.patch" -ErrorAction SilentlyCon
 }
 
 Step "Phase 5: deploy plugin-gateway"
-if (Test-Path "$Repo\gateway") {
+if ((Test-Path "$Repo\gateway") -and -not (omw-dryrun "plugin-gateway deploy")) {
   New-Item -ItemType Directory -Path "$DshHome\plugin-gateway" -Force | Out-Null
   Copy-Item "$Repo\gateway\*" "$DshHome\plugin-gateway\" -Recurse -Force
   Write-Host "gateway deployed"
 }
-# super-injector registry template
-if (Test-Path "$Repo\super-injector\registry.json.template") {
-  New-Item -ItemType Directory -Path "$DshHome\super-injector" -Force | Out-Null
-  Copy-Item "$Repo\super-injector\registry.json.template" "$DshHome\super-injector\registry.json" -Force
-  Write-Host "super-injector registry template deployed"
+# super-injector registry is rendered in Phase 3 (it contains {{PLUGIN_SOURCES_DIR}}).
+# Do not copy the .template raw here: that overwrote the rendered file with a literal
+# placeholder and left super-injector pointing at a path named "{{PLUGIN_SOURCES_DIR}}".
+$siRegistry = "$DshHome\super-injector\registry.json"
+if (Test-Path $siRegistry) {
+  Write-Host "super-injector registry rendered: $siRegistry"
+} else {
+  Write-Host "WARN: super-injector registry missing: $siRegistry" -ForegroundColor Yellow
 }
 
 # ---------------- Phase 6: smoke ----------------
@@ -338,12 +371,12 @@ Step "Phase 6.5: governance split assets"
 $govSources = Get-Content "$Repo\plugins\SOURCES.json" -Encoding UTF8 -Raw | ConvertFrom-Json
 $govRow = $govSources.plugins | Where-Object { $_.id -eq '@agent-os/dsh-governance' }
 if ($govRow) { Write-Host "SOURCES: @agent-os/dsh-governance present (install_type=$($govRow.install_type), default disabled)" } else { Write-Host "WARN: governance source row missing"; $failSmoke = 1 }
-$govDev = "$env:USERPROFILE\dev\dsh-governance"
+$govDev = Join-Path $Repo "plugins\standalone\dsh-governance"
 if (Test-Path "$govDev\package.json") {
   Write-Host "A plugin repo: $govDev (default disabled; enable only after isolated smoke + gateway pass)"
   if (-not $DryRun) { node "$DshHome\plugin-gateway\scripts\verify.mjs" "$govDev" 2>&1 | Select-Object -Last 3 }
 } else { Write-Host "WARN: A plugin repo missing at $govDev" }
-$cDev = "$env:USERPROFILE\dev\agentos-framework-governance"
+$cDev = Join-Path $env:LOCALAPPDATA "AgentOS\framework-governance"
 if (Test-Path "$cDev\pyproject.toml") { Write-Host "C plugin repo: $cDev (independent service; bootstrap does NOT auto-start it)" } else { Write-Host "WARN: C plugin repo missing at $cDev" }
 # ---------------- Phase 7: output ----------------
 Step "Phase 7: next steps"

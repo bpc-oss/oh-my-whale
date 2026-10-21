@@ -1,4 +1,4 @@
-﻿# capture-sources.ps1 - Capture current local plugin source fingerprints into plugins/FINGERPRINTS.json
+# capture-sources.ps1 - Capture current local plugin source fingerprints into plugins/FINGERPRINTS.json
 # Usage:
 #   .\scripts\capture-sources.ps1                     # scan local install, write FINGERPRINTS.json
 #   .\scripts\capture-sources.ps1 -ProfileDir <dir>   # custom profile dir
@@ -33,11 +33,14 @@ $sources = Get-Text $SourcesJson | ConvertFrom-Json
 $pkg = Get-Text "$ProfileDir\package.json" | ConvertFrom-Json
 
 # Resolve {{VAR}} placeholders used in SOURCES.json
+$agentOsDir = Join-Path $env:LOCALAPPDATA "AgentOS"
+$pluginSourcesDir = if ($env:OMW_PLUGIN_SOURCES_DIR) { $env:OMW_PLUGIN_SOURCES_DIR } else { Join-Path $env:USERPROFILE "ai-files" }
+$chromeFaithfulDir = Join-Path $env:USERPROFILE "chrome-faithful"
 $envMap = @{
-  "AGENT_OS_DIR"    = if (Test-Path "C:\Users\Administrator\AppData\Local\AgentOS") { "C:/Users/Administrator/AppData/Local/AgentOS" } else { "{{AGENT_OS_DIR}}" }
+  "AGENT_OS_DIR"    = if (Test-Path $agentOsDir) { ($agentOsDir -replace '\\', '/') } else { "{{AGENT_OS_DIR}}" }
   "USER_HOME"       = $env:USERPROFILE
-  "PLUGIN_SOURCES_DIR" = if (Test-Path "E:\ai-files") { "E:/ai-files" } else { "{{PLUGIN_SOURCES_DIR}}" }
-  "CHROME_FAITHFUL_DIR" = if (Test-Path "C:\Users\Administrator\chrome-faithful") { "C:/Users/Administrator/chrome-faithful" } else { "{{CHROME_FAITHFUL_DIR}}" }
+  "PLUGIN_SOURCES_DIR" = if (Test-Path $pluginSourcesDir) { ($pluginSourcesDir -replace '\\', '/') } else { "{{PLUGIN_SOURCES_DIR}}" }
+  "CHROME_FAITHFUL_DIR" = if (Test-Path $chromeFaithfulDir) { ($chromeFaithfulDir -replace '\\', '/') } else { "{{CHROME_FAITHFUL_DIR}}" }
 }
 # Reverse templating: replace machine-specific paths back to {{VAR}} so the
 # committed FINGERPRINTS.json stays portable (privacy + cross-machine diff).

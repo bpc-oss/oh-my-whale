@@ -1,0 +1,9 @@
+{
+  "name": "m2-demo-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./lib/index.mjs",
+  "exports": {
+    ".": "./lib/index.mjs"
+  }
+}

@@ -1,13 +1,25 @@
+# oh-my-whale portable profile patch template.
+#
+# Snapshot source: the live ~/.dsh/profiles/web/cordis.patch.yml on 2026-10-20.
+# Normalized so a second machine can render it with scripts/template-render.ps1.
+#
+# Machine-specific placeholders (resolved by the renderer):
+#   USER_HOME                      - C:/Users/<you>
+#   DSH_USER_HOME                  - USER_HOME/.dsh
+#   LOCAL_APP_DATA                 - USER_HOME/AppData/Local
+#   PLUGIN_SOURCES_DIR             - where bootstrap copies plugins/standalone/*
+#   DSH_LISTEN_HOST                - LAN address for the inbound reverse proxy
+#   TAILSCALE_HOST                 - optional tailnet hostname
+#   LOCAL_VLLM_BASE_URL            - local OpenAI-compatible vLLM endpoint (default :8888)
+#   LOCAL_VLLM_DEEPSEEK_BASE_URL   - second local endpoint used by dgx-spark-deepseek-v41 (default :8899)
+#
+# This file intentionally carries the complete model/provider catalog, permission presets,
+# default model/preset selection, plugin toggles, web/billing/search settings and the
+# reverse-proxy/authfix entries. Earlier snapshots stopped at the governance row and lost
+# the whole provider/model section on replay.
 # Your patch layer for this dsh profile, applied after every bundle layer:
 # a top-level YAML array of loader patch entries (id-targeted config
 # overrides, disables, and insert lists; `!!js` expressions allowed).
-# v209-era rebuild (2026-09-11, from live ~/.dsh/profiles/web/cordis.patch.yml):
-# - trustedHosts 静态化：v209 桌面壳静态校验拒 !!js（见 web-runtime 块注释）。
-# - A5：agentos-dsh-lco 已于 2026-09-30 按用户指示移除（不再 merely disabled）。
-# - continuous-worker：当前 disabled（v2 冻结在 ~/.dsh/releases/continuous-worker-v2/<hash>，
-#   启用时删 disabled 行并按发布目录核对 databasePath/policyPath）。
-# - 本模板止于 governance 块；其后的 '#Managed by dsh-plugin-manager...' 行是装机期
-#   dsh-plugin-manager 自动追加的运行态，不入模板。
 #
 # dsh-web-billing 已作为 bundle 安装（见 package.json 的 dsh.profile.bundles），
 # 其自带 cordis.patch.yml 提供默认配置，本层无需重复 insert。
@@ -68,9 +80,7 @@
   config:
     writeEveryEvents: 5000
     writeIntervalMs: 30000
-# 20260929 卸载遗留外部视觉工具链（原生 read_image 取代）。回滚=删掉下面每行的 '# ' 前缀。
-# 注意：super-injector 写的 id 是包名 dsh-vision-toolkit，拦不住 bundle patch；
-# 必须用行 id vision-toolkit 才能真正阻断自装配。
+# 2026-09-29 卸载遗留外部视觉工具链（改用原生 read_image）。回滚=去掉下面每行的 '# ' 前缀。
 # - id: vision-toolkit
 #   config:
 #     provider:
@@ -86,17 +96,16 @@
 #       mode: managed
 #       python: '{{USER_HOME}}\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python.exe'
 #     allowedDirs: []
+# 2026-09-29 硬禁用：用正确的行 id 阻断 bundle patch 自装配（super-injector 写的 id 是包名，不匹配）
 - id: vision-toolkit
-  # The plugin stays uninstalled, but its provider override is kept HERE on purpose:
-  # if it is ever re-enabled, the toolkit's own vLLM default is a PUBLIC cloud
-  # endpoint (https://api.inferera.com/v1, gemini-3.6-flash), which would upload
-  # every image off-box. Pinning it to the on-box GLM-5.3 endpoint makes that
-  # impossible. Losing this block on a replay is a privacy regression, not a
-  # cosmetic one — keep it in sync with profiles/web/cordis.patch.yml.
+  # 2026-09-30: the DSH 2.0.16 import dropped the provider override that the
+  # 2026-09-29 change made. Restored so that re-enabling the plugin can never fall
+  # back to a public cloud VLM (vLLM default = https://api.inferera.com/v1,
+  # gemini-3.6-flash), which would upload every image off-box.
   config:
     provider:
       credential: DGX_SPARK_VLLM_API_KEY
-      baseUrl: http://192.168.31.221:8888/v1
+      baseUrl: {{LOCAL_VLLM_BASE_URL}}
       model: GLM-5.3-Flash-EXL3
     language: zh
     timeoutMs: 180000
@@ -121,10 +130,10 @@
       name: "@bpc-oss/dsh-client-ui-verification"
 # 手机远程访问（2026-08-16 配置）：Tailscale Serve 把 127.0.0.1:<web端口>
 # 暴露为 https://{{TAILSCALE_HOST}}（仅 tailnet 内可访问）。
-# /api 信任围栏按 Host 放行；受信 authority 静态并入 webRuntime.trustedHosts（无端口=匹配任意端口）。
-# v209 起必须写静态列表：桌面壳的静态配置校验拒绝 !!js 表达式（旧的 !!js 合并 ctx.webStartup.trustedHosts
-# 写法会被拒装载）——这就是本文件 trustedHosts 静态化的原因（2026-09-11 v209 迁移定稿）。
-# 撤销远程访问时删除 tailnet 行，并执行：tailscale serve reset
+# /api 信任围栏按 Host 放行；web-runtime 行把受信 authority 并入 webRuntime.trustedHosts，
+# connection 行已引用该值（无端口=匹配任意端口）。
+# 注意：js-yaml 不支持 !!js 直接作用在流式数组上，须用带引号的整体 js 表达式。
+# 撤销远程访问时删除本块，并执行：tailscale serve reset
 - id: web-runtime
   config:
     printUrl: true
@@ -133,22 +142,25 @@
       - localhost
       - 127.0.0.1
       - {{TAILSCALE_HOST}}
-# dsh-voice-input 语音输入插件（本地离线识别模型目录；覆盖 bundle 层默认值。
-# 撤销时删除本块即可回退到「浏览器识别」模式）。
-- id: voice
+# 反代入口（dsh-full-remote）：监听局域网 IP:41180，把请求鉴权后
+# 重写 Host/Origin 为 127.0.0.1 再转给内核 Web（特权 API 因此远程可用），
+# 并附带 gzip（首屏约 1.29MB→351KB）与哈希资源长缓存。
+# 手机经路由器端口映射访问 http://<公网IP>:41180/?token=…（token 在面板里）。
+# 端口说明：45120~48120 段被 winnat 隐性保留（绑定报 EADDRINUSE 但 netstat 无人监听），
+# 故用实测可绑的 41180。启动/停止与改监听地址：设置 → 反向代理。
+# 撤销请删本块并移除防火墙规则 “DSH Reverse Proxy Inbound (41180)”。
+- id: reverse-proxy
+  disabled: true
   config:
-    engine: auto
-    modelDir: '{{USER_HOME}}/dsh-voice-input/dsh-voice-models'
-    asrDir: 'asr-zh'
-    vadThreshold: 0.3
-    tailPadSeconds: 0.6
-    hotkey: 'ctrl+space'
-    lang: auto
-    autoSend: false
-    punct: smart
-# dsh-token-meter-hermes：Hermes 风格上下文分解投影（contextBreakdownHermes），
-# CJK 密度感知估算 + 图片 flat cost + 8 类 breakdown。不碰 token-meter 现有投影。
-# 撤销时删除本块即可（package.json 依赖可留可删）。
+    listenHost: {{DSH_LISTEN_HOST}}
+    listenPort: 41180
+# Local 0.2 Connection authentication compatibility; original plugin retained for rollback.
+- insert:
+    - id: reverse-proxy-authfix-v2
+      name: file:///{{PLUGIN_SOURCES_DIR}}/dsh-full-remote/lib/index-authfix-v2.js
+      config:
+        listenHost: {{DSH_LISTEN_HOST}}
+        listenPort: 41180
 - insert:
     - id: token-meter-hermes
       name: dsh-token-meter-hermes
@@ -175,23 +187,12 @@
 # 已卸载插件（@dsh-external/test-run-plugin）：disabled 阻断其 bundle patch 自装配
 - id: test-run-plugin
   disabled: true
-# Inbound reverse proxy (the phone connects here). listenHost is machine-specific and
-# resolved at render time — see {{DSH_LISTEN_HOST}} in scripts/template-render.ps1.
-# listenPort 41180 is NOT a default: 45120-48120 is partly reserved on this box, where
-# binding reports EADDRINUSE with nothing listening in netstat, so 41180 was chosen by
-# measurement. Change the listen address from the app: 设置 -> 反向代理.
-# To undo: delete this block and remove the firewall rule "DSH Reverse Proxy Inbound (41180)".
-- id: reverse-proxy
-  config:
-    listenHost: {{DSH_LISTEN_HOST}}
-    listenPort: 41180
 
-
-# Agent OS LCO adapter — REMOVED 2026-09-30 on the user instruction ("lco 不要了").
-# Had been parked with disabled: true since 2026-09-10; the block is now gone so a replay
-# cannot resurrect it. The native-admission path goes with it: its pointer/snapshot
-# material lived under AgentOS/dsh/native-admission, part of the same LCO evidence tree.
-
+# Agent OS LCO adapter — REMOVED 2026-09-30 on the user's instruction ("lco 不要了").
+# It had been parked with disabled: true since 2026-09-10. The block is gone, not merely
+# disabled, so a future render or replay cannot resurrect it. That also puts the
+# native-admission path out of scope: its pointer/snapshot material lived under
+# AgentOS/dsh/native-admission, part of the same LCO evidence tree.
 
 # 2026-08-20 v2.0.1 compatibility: chrome-faithful-mcp MCP spawn fails on new shell (Electron main process)
 # failOnStartupError: false makes it warn/retry instead of fatal boot.
@@ -217,18 +218,811 @@
     enabled: true
     # A plugin go-live (2026-08-22): advisory observation; completion submitter lazy-connects to C watcher
     clientActivation: {{LOCAL_APP_DATA}}/AgentOS/framework-governance/state/client-activation.json
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-ralph
+  name: "@deepseek-ai/dsh-tool-ralph"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: plan-mode
+  name: "@deepseek-ai/dsh-plan-mode"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-pwsh
+  name: "@deepseek-ai/dsh-tool-pwsh"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: skill-filesystem
+  name: "@deepseek-ai/dsh-skill-filesystem"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: skill-badge
+  name: "@deepseek-ai/dsh-skill-badge"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-skill
+  name: "@deepseek-ai/dsh-tool-skill"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-workflow
+  name: "@deepseek-ai/dsh-tool-workflow"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+# 2026-09-29 升 0.2.0 后 @deepseek-ai/dsh-workflow-worker-thread 包已消失。实测该 profile
+# 的 0.2.0 组合里也没有任何 entry 提供 workflowEngine（试过 workflow-worker-thread /
+# workflow-ptc / workflow 三个 id，全部 "entry not found"），故删除这行陈旧元数据。
+# tool-workflow / tool-ralph 在 0.2.0 下默认 pending，需要时用插件管理器开启工作流 bundle。
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-web
+  name: "@deepseek-ai/dsh-tool-web"
+  disabled: false
+  config:
+    search: false
+    fetch: true
+# Disable the base profile's DeepSeek web-search provider; agent-reach handles search.
+- id: web-search-deepseek
+  name: "@deepseek-ai/dsh-web-search-deepseek"
+  disabled: true
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-todo
+  name: "@deepseek-ai/dsh-tool-todo"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-goal
+  name: "@deepseek-ai/dsh-tool-goal"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: command-goal
+  name: "@deepseek-ai/dsh-command-goal"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-fs
+  name: "@deepseek-ai/dsh-tool-fs"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-fs-search
+  name: "@deepseek-ai/dsh-tool-fs-search"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: compaction-basic
+  name: "@deepseek-ai/dsh-compaction-basic"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: command-compact
+  name: "@deepseek-ai/dsh-command-compact"
+  disabled: false
+#Managed by dsh-plugin-manager. Remove this row to return control to higher-level configuration.
+- id: tool-result-pruner
+  name: "@deepseek-ai/dsh-compaction-tool-result-pruner"
+  disabled: false
 
-# 2.0.9 官方右侧栏与 better-sidebar 功能重复——用户决定 2026-09-12：保留 better-sidebar。
-# ui-sidebar-right 必须保留：dsh-client-ui-chat 的 dsh.client.inject 引用它，整禁会 renderer boot fail
-# （实测 renderer boot failed (plugins: @deepseek-ai/dsh-client-ui-chat)）。
-# 右侧栏重复展开按钮由内核补丁 P31 隐藏（sidebar-right client.js ExpandButton 恒返 null，见 patches/manifest.json）。
-# ui-sidebar-files（Explorer 文件树 tab）与 better-sidebar 的文件树重复 → 禁用。
-# ui-sidebar-documentpreview（文件/图片预览 tab）不禁！它认领 dsh-resource://file/** pattern，聊天里点
-# 图片/文件预览依赖它；2026-09-12 曾误禁，报 "sidebarRight: no registered tab type claims <url>" 后恢复。
+# ui-sidebar-right 必须保留：dsh-client-ui-chat 的 dsh.client.inject 引用它，整禁会 renderer boot fail。
+# 2026-09-30：P31（隐藏官方右栏 ExpandButton）已撤销。better-sidebar 0.24.1 改为在官方右栏内注册
+# pane（bundle inject @deepseek-ai/dsh-client-ui-sidebar-right，走 sidebar.right.pane.tab /
+# .tab.title slot，入口在 conversation.session.header.utilities），官方 ExpandButton 不再是"重复入口"，
+# 而是到达插件 pane 的唯一入口。P31 时期的判断针对 0.12.2——那个版本把开关挂在 document.body，
+# 完全不用宿主右栏。
+# ui-sidebar-files（Explorer 文件树 tab）与 better-sidebar 文件树重复 → 禁用。
+# ui-sidebar-documentpreview（文件/图片预览 tab，认领 dsh-resource://file/**）不重复——聊天里点图片/文件
+# 预览依赖它，2026-09-12 实测禁用后报 "no registered tab type claims ..."，恢复启用。
 - id: ui-sidebar-files
   disabled: true
 
-# 已卸载插件（@dsh-external/dsh-vision-toolkit）：disabled 阻断其 bundle patch 自装配。
-# 与上面的 `- id: vision-toolkit` 并存：前者拦 bundle patch，后者拦 super-injector 的包名 id 自装配。
+# 已卸载插件（@dsh-external/dsh-vision-toolkit）：disabled 阻断其 bundle patch 自装配
 - id: dsh-vision-toolkit
   disabled: true
+- id: desktop-shell
+  name: dsh-plugin-desktop
+  config:
+    mode: compatibility
+    macosMaterial: transparent
+    windowsMaterial: off
+    openBrowser: true
+    networkExposure: lan
+- id: ui-settings-general
+  name: "@deepseek-ai/dsh-client-ui-settings-general"
+  config:
+    welcomeNoticeVersion: 2026-08-13.1
+- id: permission
+  name: "@deepseek-ai/dsh-permission-presets"
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+    defaultPreset: danger-full-access
+- id: llm-deepseek
+  name: "@deepseek-ai/dsh-llm-deepseek-api-key"
+  config:
+    retryPolicy:
+      mode: normal
+      maxRetries: 5
+- id: ui-theme
+  name: "@deepseek-ai/dsh-client-ui-theme"
+  config:
+    preference: light
+    fontSize: 17
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: deepseek
+    model: deepseek-v4.1-flash-1017
+    reasoningEffort: max
+- id: agent-preset-registry
+  name: "@deepseek-ai/dsh-agent-preset-registry"
+  config:
+    default: standard
+    selectedDefault: enforce-rsi-standard
+- id: desktop-notifications
+  name: dsh-plugin-desktop/notifications
+  config:
+    enabled: true
+    notifyOnTurnCompletion: true
+    notifyOnTurnFailure: true
+    notifyOnJobCompletion: true
+    notifyOnJobFailure: true
+    notifyOnScheduleCompletion: true
+    notifyOnScheduleFailure: true
+- id: ui-chat
+  name: "@deepseek-ai/dsh-client-ui-chat"
+  config:
+    transcriptView: normal
+    performanceUsage: detailed
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      dgx-spark-glm53-exl3:
+        displayName: DGX Spark GLM-5.3 Flash EXL3
+        api: openai-completions
+        baseURL: {{LOCAL_VLLM_BASE_URL}}
+        streamIdleTimeoutMs: 1800000
+        retryPolicy:
+          mode: normal
+          maxRetries: 100
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+          backoff:
+            initialDelayMs: 2000
+            maxDelayMs: 30000
+            jitterRatio: 0.3
+        defaultInput:
+          - text
+          - image
+          - video
+        models:
+          - id: GLM-5.3-Flash-EXL3
+            name: Local GLM-5.3 Flash EXL3 (DFlash2)
+            contextWindow: 512000
+            maxTokens: 131072
+            input:
+              - text
+              - image
+              - video
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+        apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+      dgx-spark-deepseek-v41:
+        displayName: DGX Spark DeepSeek-V4.1-Flash-1017 (ABLIT, TensorFold 1M)
+        api: openai-completions
+        baseURL: {{LOCAL_VLLM_DEEPSEEK_BASE_URL}}
+        streamIdleTimeoutMs: 1800000
+        retryPolicy:
+          mode: normal
+          maxRetries: 100
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+          backoff:
+            initialDelayMs: 2000
+            maxDelayMs: 30000
+            jitterRatio: 0.3
+        defaultInput:
+          - text
+          - image
+        models:
+          - id: DeepSeek-V4.1-Flash-1017
+            name: Local DeepSeek V4.1 Flash 1017 (ABLIT)
+            contextWindow: 524288
+            maxTokens: 32768
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+        apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+      opencode:
+        api: openai-completions
+        baseURL: https://opencode.ai/zen/v1
+        retryPolicy:
+          mode: always
+        models:
+          - id: x-preview-f-free
+            name: Ox Alpha Free
+            contextWindow: 1048576
+            maxTokens: 131072
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: deepseek-v4-flash-free
+            name: DeepSeek V4 Flash Free
+            contextWindow: 200000
+            maxTokens: 128000
+          - id: laguna-s-2.1-free
+            name: Laguna S 2.1 Free
+            contextWindow: 256000
+            maxTokens: 32000
+          - id: ling-3.0-flash-free
+            name: Ling-3.0-flash Free
+            contextWindow: 262144
+            maxTokens: 32768
+          - id: mimo-v2.5-free
+            name: MiMo V2.5 Free
+            contextWindow: 200000
+            maxTokens: 32000
+          - id: nemotron-3-ultra-free
+            name: Nemotron 3 Ultra Free
+            contextWindow: 1000000
+            maxTokens: 128000
+          - id: north-mini-code-free
+            name: North Mini Code Free
+            contextWindow: 256000
+            maxTokens: 64000
+        apiKeyEnv: OPENCODE_API_KEY
+      bai:
+        displayName: B.AI
+        apiKeyEnv: BAI_API_KEY
+        api: openai-completions
+        baseURL: https://api.b.ai/v1/
+        maxRequestImageBytes: 4194304
+        retryPolicy:
+          mode: always
+          backoff:
+            initialDelayMs: 2000
+            maxDelayMs: 30000
+            jitterRatio: 0.3
+        streamIdleTimeoutMs: 300000
+        models:
+          - id: hy3
+            name: hy3 (Free)
+            contextWindow: 256000
+            maxTokens: 64000
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: glm-5.3-flash
+            name: glm-5.3-flash
+            contextWindow: 600000
+            maxTokens: 131072
+            input:
+              - text
+              - image
+              - video
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+      teamoroute:
+        apiKeyEnv: TEAMOROUTE_API_KEY
+        api: openai-responses
+        baseURL: https://api.teamorouter.cn/v1
+        reasoning: high
+        retryPolicy:
+          mode: normal
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: glm-5.3-flash-free
+            name: glm-5.3-flash-free
+            contextWindow: 1000000
+            maxTokens: 256000
+            input:
+              - text
+              - image
+              - video
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: deepseek-flash-free
+            name: deepseek-flash-free
+            contextWindow: 1000000
+            maxTokens: 256000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: glm-5.3-flash
+            name: glm-5.3-flash
+            contextWindow: 1000000
+            maxTokens: 128000
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+      tokenrouter:
+        apiKeyEnv: TOKENROUTER_API_KEY
+        api: openai-completions
+        baseURL: https://api.tokenrouter.com/v1
+        reasoning: high
+        retryPolicy:
+          mode: normal
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: z-ai/glm-5.3-free
+            name: glm-5.3-free
+            contextWindow: 1000000
+            maxTokens: 128000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+      zai-coding-cn:
+        models:
+          - id: glm-5.3-flash
+            name: GLM-5.3-Flash
+            contextWindow: 1000000
+            maxTokens: 131072
+        apiKeyEnv: ZAI_CODING_CN_API_KEY
+        retryPolicy:
+          mode: normal
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+      tm:
+        apiKeyEnv: TM_API_KEY
+        api: openai-completions
+        baseURL: https://api.teamorouter.cn/v1
+        retryPolicy:
+          mode: normal
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: glm-5.3-flash-free
+            name: glm-5.3-flash-free
+            contextWindow: 1000000
+            maxTokens: 128000
+          - id: deepseek-flash-free
+            name: deepseek-flash-free
+            contextWindow: 1000000
+            maxTokens: 128000
+      commandcode:
+        apiKeyEnv: COMMANDCODE_API_KEY
+        api: openai-completions
+        baseURL: https://api.commandcode.ai/provider/v1
+        reasoning: high
+        retryPolicy:
+          mode: normal
+          maxRetries: 1000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+          backoff:
+            initialDelayMs: 2000
+            maxDelayMs: 30000
+        models:
+          - id: deepseek/deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: z-ai/glm-5.3-flash
+            name: GLM-5.3 Flash
+            contextWindow: 1048576
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: xiaomi/mimo-v2.5-pro
+            name: MiMo V2.5 Pro
+            contextWindow: 1000000
+            input:
+              - text
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: Qwen/Qwen3.8-Omni-Flash
+            name: Qwen 3.8 Omni Flash
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: meituan/LongCat-2.0:free
+            name: LongCat 2.0
+            contextWindow: 1048576
+            input:
+              - text
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: meta/muse-spark-1.3-contributor
+            name: Muse Spark 1.3 Contributor
+            contextWindow: 1048576
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: stealth/space-bunny-alpha
+            name: Space Bunny Alpha
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: stealth/pixel-canary
+            name: Pixel Canary
+            contextWindow: 262144
+      stepfun:
+        apiKeyEnv: STEPFUN_API_KEY
+        api: openai-completions
+        baseURL: https://api.stepfun.com/step_plan/v1
+        retryPolicy:
+          mode: normal
+          maxRetries: 10000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: step-3.7-flash
+            name: step-3.7-flash
+            contextWindow: 262144
+          - id: step-image-edit-2
+            name: step-image-edit-2
+          - id: step-5-preview
+            name: step-5-preview
+            contextWindow: 1024000
+            input:
+              - text
+              - image
+      yzs:
+        apiKeyEnv: YZS_API_KEY
+        api: openai-completions
+        baseURL: https://maas-api.unisound.com/v1
+        retryPolicy:
+          mode: normal
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: u2-flash
+            name: u2-flash
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            maxTokens: 128000
+      laobazhongzhuang:
+        apiKeyEnv: LAOBAZHONGZHUANG_API_KEY
+        api: openai-responses
+        baseURL: https://api.supergpt.dev
+        retryPolicy:
+          mode: normal
+          maxRetries: 1000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: gpt-6-astra
+            name: gpt-6-astra
+            contextWindow: 300000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: gpt-6-luna
+            name: GPT-6 Luna
+            contextWindow: 300000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: gpt-6-sol
+            name: GPT-6 Sol
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: gpt-6.1-sol
+            name: GPT-6.1 Sol
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+        displayName: supergptpro
+      laobaguomo:
+        apiKeyEnv: LAOBAGUOMO_API_KEY
+        api: openai-completions
+        baseURL: https://api.supergpt.dev/v1
+        retryPolicy:
+          mode: normal
+          maxRetries: 1000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+            - INVALID_REQUEST
+        models:
+          - id: gpt-6-astra
+            name: GPT-6 Astra
+          - id: gpt-6.1-sol
+            name: GPT-6.1 Sol
+            input:
+              - text
+              - image
+        displayName: supergpt
+      laobacc:
+        apiKeyEnv: LAOBACC_API_KEY
+        api: anthropic-messages
+        baseURL: https://agentcheck.top
+        retryPolicy:
+          mode: normal
+          maxRetries: 1000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - PI_AI_ERROR
+        models:
+          - id: claude-fable-5-1
+            name: claude-fable-5-1
+            contextWindow: 512000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              xhigh: xhigh
+              max: max
+          - id: claude-opus-5-5
+            name: claude-opus-5-5
+            contextWindow: 512000
+            input:
+              - text
+              - image
+            compat:
+              forceAdaptiveThinking: true
+            reasoningEfforts:
+              off: null
+              xhigh: xhigh
+              max: max
+          - id: claude-sonnet-5
+            name: claude-sonnet-5
+            contextWindow: 512000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              xhigh: xhigh
+              max: max
+      dgx-spark-glm53-responses:
+        displayName: DGX Spark GLM-5.3 Flash (Chat Completions compatibility)
+        api: openai-completions
+        baseURL: {{LOCAL_VLLM_BASE_URL}}
+        streamIdleTimeoutMs: 1800000
+        retryPolicy:
+          mode: normal
+          maxRetries: 100
+          backoff:
+            initialDelayMs: 2000
+            maxDelayMs: 30000
+            jitterRatio: 0.3
+        defaultInput:
+          - text
+          - image
+        models:
+          - id: GLM-5.3-Flash-EXL3
+            name: Local GLM-5.3 Flash EXL3 (Responses)
+            contextWindow: 512000
+            maxTokens: 131072
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+        apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+      deepseek:
+        apiKeyEnv: JIYUAN_API_KEY
+        api: openai-completions
+        baseURL: https://tokenrhythm.studio/v1
+        # 2026-10-19 user request: jiyuan route retry budget -> 10000
+        retryPolicy:
+          mode: normal
+          maxRetries: 10000
+        models:
+          - id: glm-5.3-flash
+            name: glm-5.3-flash
+            contextWindow: 1048576
+            input:
+              - text
+              - image
+            # 2026-10-19: GLM-5.3-Flash family tiers (low/high/max, no medium,
+            # thinking cannot be disabled). Same as sibling flashx + other
+            # GLM-5.3-Flash entries in this file.
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: glm-5.3-flashx
+            name: glm-5.3-flashx
+            contextWindow: 1048576
+            input:
+              - text
+              - image
+            # 2026-10-19: relay-verified enum. medium -> 400 UNSUPPORTED_FIELD,
+            # off -> 400 REASONING_REQUIRED ("must enable deep thinking").
+            reasoningEfforts:
+              low: low
+              high: high
+              max: max
+          - id: deepseek-v4.1-flash-1017
+            name: deepseek-v4.1-flash-1017
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            # 2026-10-19: relay-verified enum
+            # ("只支持 low、medium、high、xhigh、max"); off rejected.
+            reasoningEfforts:
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+- id: ui-settings-account
+  name: "@deepseek-ai/dsh-client-ui-settings-account"
+  config:
+    version: 1
+    step: done
+    purpose: null
+    process: standard
+    completion: skipped
+    usage: compact
+    developerTools: false
+- id: ui-settings
+  name: "@deepseek-ai/dsh-client-ui-settings"
+  config:
+    enabled: true
+- id: better-sidebar
+  name: dsh-better-sidebar
+  config:
+    titleBarCompat: true
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+# 2026-10-03 user request: default goal round budget -> 100000 (was 256)
+- id: goal
+  config:
+    defaultMaxGoalRounds: 100000
+
+# ── Agent Team roster capacity (2026-10-20) ────────────────────────────────
+# Bundle default is maxMembers: 8. Roster rows are IMMUTABLE journal entries that
+# are never reclaimed (including failed ones), so 8 capped team-mode dispatches to
+# 8 per Lead conversation. Raised to the JS safe-integer ceiling: a profile-layer
+# override REPLACES the whole config, so every sibling field is restated.
+- id: agent-team
+  config:
+    maxMembers: 9007199254740991
+    maxTasks: 256
+    maxMessageBytes: 65536
+    disposalTimeoutMs: 5000

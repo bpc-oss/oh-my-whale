@@ -1,4 +1,4 @@
-﻿# drift-scan.ps1 - Detect drift between oh-my-whale repo and local DSH installation
+# drift-scan.ps1 - Detect drift between oh-my-whale repo and local DSH installation
 # Usage:
 #   .\scripts\drift-scan.ps1                     # scan, print to terminal, write drift-report.json
 #   .\scripts\drift-scan.ps1 -Out report.json    # specify output path
@@ -88,10 +88,10 @@ $KernelVersion = if (Test-Path "$KernelDir\@deepseek-ai\dsh\package.json") {
 # Authority note for the kernel-patch section below: after the 0.2.0 port the
 # per-patch check is a TEXTUAL reverse-apply, and most ports were hand-rewritten
 # against a reshaped 0.2.0 file. A rewritten-but-correct patch therefore reports
-# LOST here. scriptserify-patch-port.mjs is the authority: it asserts the
+# LOST here. scripts\verify-patch-port.mjs is the authority: it asserts the
 # capability each patch exists to provide, not the patch's original text.
 $PortMeter = Join-Path $PSScriptRoot "verify-patch-port.mjs"
-$AppRoot = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktopesourcespp"
+$AppRoot = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktop\resources\app"
 Write-Host "=== oh-my-whale drift scan ===" -ForegroundColor Cyan
 Write-Host ("KernelDir : {0} ({1}){2}" -f $KernelDir, $KernelVersion, $(if ($Installed) { " [installed: $InstalledLayout]" } else { "" }))
 Write-Host "Repo      : $Repo"
@@ -175,9 +175,11 @@ $Symbols = @{
   "P27"  = @('"video",')
   "P28"  = '"instruction-hint"'
   "P29"  = "backoffDelayMs"
-  "P30"  = "keep auto-update checks opt-in"
+  "P30"  = "enabled: z.boolean().default(false)"
   "P37"  = "applyP37Video"
-  "P38"  = "a module loaded by file:// URL that lives OUTSIDE every"
+  "P38"  = "DSH patch (P38)"
+  "P43"  = "rewriteRelayHostileToolCallIds"
+  "P44"  = "presetTarget"
 }
 
 # 1a. Check each manifest patch (file == "host" only, P5 is profile-tree)
@@ -196,6 +198,11 @@ foreach ($p in $Manifest.patches) {
     if (Test-Path $a) { $a } elseif (Test-Path $b) { $b } else { $a }
   })
   $patchFile = Join-Path $Repo "patches\$($p.patchFile)"
+
+  if ($p.status -like "skip-*") {
+    Write-Host "  $($p.id): SKIP-STATUS ($($p.status)) - not drift"
+    continue
+  }
 
   $missing = @()
   for ($i = 0; $i -lt $targetPaths.Count; $i++) {
@@ -323,10 +330,10 @@ $configMatches = @()
 
 $tmpRender = Join-Path $env:TEMP "omw-drift-render-$(Get-Random)"
 try {
-  # 自动推断 PLUGIN_SOURCES_DIR（本机 E:\ai-files）
+  # Resolve PLUGIN_SOURCES_DIR the same way bootstrap/template-render do:
+  # environment override first, then the conventional %USERPROFILE%\ai-files.
   if (-not $env:OMW_PLUGIN_SOURCES_DIR) {
-    if (Test-Path "E:\ai-files") { $env:OMW_PLUGIN_SOURCES_DIR = "E:/ai-files" }
-    elseif (Test-Path "$env:USERPROFILE\ai-files") { $env:OMW_PLUGIN_SOURCES_DIR = "$env:USERPROFILE/ai-files" }
+    $env:OMW_PLUGIN_SOURCES_DIR = (Join-Path $env:USERPROFILE "ai-files") -replace '\\', '/'
   }
   & "$Repo\scripts\template-render.ps1" -OutDir $tmpRender -DefaultsOnly 2>&1 | Out-Null
   $DshHome = "$env:USERPROFILE\.dsh"
@@ -336,7 +343,6 @@ try {
   $credPatterns = @('api[_-]?key', 'sk-[a-zA-Z0-9]{20,}', 'password', 'token', 'secret', 'credential', 'auth')
 
   $mappings = @(
-    @("settings.yaml", "$DshHome\settings.yaml"),
     @("profiles\web\package.json", "$DshHome\profiles\web\package.json"),
     @("profiles\web\cordis.patch.yml", "$DshHome\profiles\web\cordis.patch.yml"),
     @("profiles\web\pnpm-workspace.yaml", "$DshHome\profiles\web\pnpm-workspace.yaml"),
@@ -560,7 +566,7 @@ Write-Host "[3.5] Junctions" -ForegroundColor Yellow
 $junctionIssues = @()
 $junctionOK = @()
 
-$newKernelPath = "C:\Users\Administrator\AppData\Local\Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
+$newKernelPath = Join-Path $env:LOCALAPPDATA "Programs\DSH Desktop\resources\app.asar.unpacked\node_modules"
 $oldKernelPath = "C:\Program Files\DeepSeek Harness\resources\host\node_modules"
 
 if (Test-Path $profilePkg) {
