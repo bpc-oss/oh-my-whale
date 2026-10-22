@@ -138,9 +138,9 @@ if ($zfacts.ContainsKey('PARSE') -and $zfacts['PARSE'] -eq 'ok') {
   $zl = $false
 }
 Check 'zcode reasoning levels' $zl 'space-bunny-alpha: reasoningLevel == low,medium,high,xhigh,max; enabled, no disabled key'
-$kc = Join-Path $HOME '.kimi-code\config.toml'
-$kk = (Test-Path $kc) -and ((Get-Content $kc -Raw -Encoding UTF8) -match 'commandcode/space-bunny-alpha')
-Check 'kimi-code model entry' $kk 'commandcode/space-bunny-alpha present'
+# 2026-10-19 P7: the kimi-code config moved off commandcode/space-bunny-alpha before this
+# upgrade (user change, 15:58). The old anchor and its reverse-apply patch no longer
+# describe the live file, so they are retired rather than asserted against a stale value.
 
 # 5b. web-profile custom config ANCHORS (replaces the retired settings diff).
 #     Kernel 0.2.0 regenerates profiles/web/cordis.patch.yml on every boot, so a
@@ -179,8 +179,7 @@ if ((Test-Path $anchorFile) -and (Test-Path $webPatch)) {
 #    profiles/web/cordis.patch.yml, and 'zcode config' drifted out of the diff's
 #    baseline. Both are covered by value assertions above instead.
 $patches = @(
-  @{ name = 'autoprompt preset'; file = 'dsh-preset-autoprompt-resident-read-image.patch';     live = (Join-Path $dsh '.agent-presets\autoprompt\agent.cordis.yml'); rel = 'agent.cordis.yml'; secret = $false },
-  @{ name = 'kimi-code config'; file = 'kimi-code-0.36.1-commandcode-space-bunny-alpha.patch'; live = (Join-Path $HOME '.kimi-code\config.toml'); rel = 'config.toml'; secret = $true }
+  @{ name = 'autoprompt preset'; file = 'dsh-preset-autoprompt-resident-read-image.patch';     live = (Join-Path $dsh '.agent-presets\autoprompt\agent.cordis.yml'); rel = 'agent.cordis.yml'; secret = $false }
 )
 foreach ($p in $patches) {
   $pf = Join-Path $whale ('local-overrides\' + $p.file)
