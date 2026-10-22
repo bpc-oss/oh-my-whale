@@ -27,7 +27,8 @@
     "@huanlin/dsh-plugin-better-locale": "^0.4.3",
     "dsh-community-market": "^0.0.1",
     "@agents-anywhere/dsh-bridge-next": "^2.0.2",
-    "dsh-web-billing": "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing"
+    "dsh-web-billing": "link:{{PLUGIN_SOURCES_DIR}}/dsh-web-billing",
+    "dsh-context": "github:bowenliang123/dsh-context#14aa60d33e829eb6bbcc8bdcea9f97819b24caea"
   },
   "dsh": {
     "profile": {
@@ -56,7 +57,8 @@
         "@deepseek-ai/dsh-experimental-auto-review",
         "dsh-better-sidebar",
         "@agents-anywhere/dsh-bridge-next",
-        "dsh-community-market"
+        "dsh-community-market",
+        "dsh-context"
       ]
     }
   }

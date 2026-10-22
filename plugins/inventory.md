@@ -1,7 +1,7 @@
 # DSH 插件清单（oh-my-whale）
 
 > 机器可读权威是 [`SOURCES.json`](./SOURCES.json)。本文件只做人类速查。
-> 本仓库当前登记 **38** 条，其中 **13** 个目录有完整 standalone 源码快照。
+> 本仓库当前登记 **39** 条，其中 **13** 个目录有完整 standalone 源码快照。
 
 ## 完整本地源码快照（standalone）
 
@@ -56,7 +56,8 @@
 | `@deepseek-ai/dsh-experimental-auto-review` | npm | * | active — Official experimental auto-review bundle (desktop 2.0.16 import). |
 | `@agents-anywhere/dsh-bridge-next` | npm | ^2.0.2 | active — Agents Anywhere phone-remote bridge; 0.2.1 profile bundle. |
 | `dsh-community-market` | npm | ^0.0.1 | active — Community plugin market; 0.2.1 profile bundle. |
-| `@huanlin/dsh-plugin-better-locale` | npm | ^0.4.3 | active — Locale pack required by dsh-better-sidebar 0.28.0. |
+| `@huanlin/dsh-plugin-better-locale` | npm | ^0.4.3 |
+| `dsh-context` | github | github:bowenliang123/dsh-context#14aa60d33e829eb6bbcc8bdcea9f97819b24caea (0.74.0) | active — Context inspector: composition browser, token/cost analytics, context command. Mounted as a profile bundle; supersedes the temp super-injector mount. | active — Locale pack required by dsh-better-sidebar 0.28.0. |
 
 ## 本地/特殊来源
 
@@ -69,8 +70,8 @@
 
 ## 统计
 
-- Profile dependencies: **26**
-- Profile bundles: **25**
+- Profile dependencies: **27**
+- Profile bundles: **26**
 - Agent presets: **13**
-- Registry entries: **38**
+- Registry entries: **39**
 - Standalone snapshots: **13**

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.9] - 20261021 - add dsh-context (context inspector)
+
+- New profile bundle `dsh-context` (v0.74.0, pinned to upstream commit 14aa60d33e829eb6bbcc8bdcea9f97819b24caea):
+  context composition browser, token/cost analytics, context command. Declared in
+  `dsh.profile.bundles` and registered in `plugins/SOURCES.json` (install_type github).
+- Replaces the temporary super-injector runtime mount used for the first install;
+  the injector registry entry is retired in favor of the profile bundle.
 ## [0.3.8] - 20261020 - reproducible plugin sources + full profile snapshot
 
 **Reproducibility fixes (a second machine no longer needs the author's local paths):**

@@ -389,6 +389,16 @@
                         "package_spec":  "link:{{PLUGIN_SOURCES_DIR}}/m2-demo-plugin",
                         "install_type":  "link",
                         "description":  "Generated demo plugin used by the super-injector registry. Its former only source was {{PLUGIN_SOURCES_DIR}}/dsh-experimental/m2-demo-plugin, which a fresh machine does not have; the snapshot is now committed."
+                    },
+                    {
+                        "id":  "dsh-context",
+                        "type":  "github",
+                        "repo":  "bowenliang123/dsh-context",
+                        "ref":  "14aa60d33e829eb6bbcc8bdcea9f97819b24caea",
+                        "version":  "0.74.0",
+                        "package_spec":  "github:bowenliang123/dsh-context#14aa60d33e829eb6bbcc8bdcea9f97819b24caea",
+                        "install_type":  "github",
+                        "description":  "Context inspector: composition browser, token/cost analytics, context command. Mounted as a profile bundle; supersedes the temporary super-injector mount."
                     }
                 ]
 }

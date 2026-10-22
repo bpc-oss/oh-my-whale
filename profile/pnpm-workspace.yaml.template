@@ -25,3 +25,5 @@ minimumReleaseAgeExclude:
 allowBuilds:
   node-pty: true
   protobufjs: true
+  dsh-context: true
+  'dsh-context@https://codeload.github.com/bowenliang123/dsh-context/tar.gz/14aa60d33e829eb6bbcc8bdcea9f97819b24caea': true
