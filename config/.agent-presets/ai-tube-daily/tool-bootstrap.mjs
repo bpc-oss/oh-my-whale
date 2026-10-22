@@ -131,6 +131,7 @@ const DEFAULT_BOOTSTRAP_TOOLS = ['bash', 'str_replace_editor']
 
 /** Discovery tools always resident after promotion (the tool-search pattern). */
 const RESIDENT_DISCOVERY_TOOLS = ['dev_tool_search', 'skill_search', 'skill_load']
+const RESIDENT_CONTEXT_TOOLS = ['compress', 'decompress', 'search_context', 'acp_status']
 
 /**
  * Native DSH image reader. `read_image` returns the image (or video) itself,
@@ -262,6 +263,7 @@ export function apply(ctx, config) {
         const keep = new Set([
           ...bootstrapTools,
           ...RESIDENT_DISCOVERY_TOOLS,
+          ...RESIDENT_CONTEXT_TOOLS.filter((toolName) => assembled.tools.some((tool) => tool.name === toolName)),
           ...RESIDENT_VISION_TOOLS.filter((toolName) =>
             assembled.tools.some((tool) => tool.name === toolName)),
           ...unlockedFor(context.agent?.session),
