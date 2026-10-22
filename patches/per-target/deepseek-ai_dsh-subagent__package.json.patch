@@ -1,0 +1,11 @@
+--- a/@deepseek-ai/dsh-subagent/package.json
++++ b/@deepseek-ai/dsh-subagent/package.json
+@@ -143,5 +143,6 @@
+     "@deepseek-ai/dsh-util-time": "0.2.0-rc.1",
+     "@deepseek-ai/dsh-workspace": "0.2.0-rc.1",
+     "@deepseek-ai/dsh-permission-presets": "0.2.0-rc.1"
+-  }
++  },
++  "dshRoutedSubagentPatch": "v3.1-preset-mount"
+ }
+\ No newline at end of file

@@ -1,0 +1,25 @@
+--- a/@deepseek-ai/dsh-cordis-client-runner/lib/client.js
++++ b/@deepseek-ai/dsh-cordis-client-runner/lib/client.js
+@@ -1329,11 +1329,11 @@
+ 						returns: "bounded results, or a business/transport error."
+ 					},
+ 					{
+-						signature: "fork(opts: { sessionId: SessionId atSeq?: number increaseTitle?: boolean onCreated?: (childId: SessionId) => void }): Promise<SessionId>",
++						signature: "fork(opts: { sessionId: SessionId atSeq?: number agentPreset?: string increaseTitle?: boolean onCreated?: (childId: SessionId) => void }): Promise<SessionId>",
+ 						description: "Fork a session from an exact inclusive prefix of the source; on resolution the child is catalogued and can be explicitly retained.",
+ 						parameters: [{
+ 							name: "opts",
+-							description: "source session id, the optional exact inclusive boundary seq (a real event seq the caller already knows; a cut inside an open turn is balanced Host-side with synthetic closers, and omission selects the latest completed-turn prefix), and whether to increment an inherited durable title before resolving. `onCreated` observes the catalogued child before that optional rename."
++							description: "source session id, the optional exact inclusive boundary seq (a real event seq the caller already knows; a cut inside an open turn is balanced Host-side with synthetic closers, and omission selects the latest completed-turn prefix), the optional preset to run the child under instead of the source's, and whether to increment an inherited durable title before resolving. `onCreated` observes the catalogued child before that optional rename."
+ 						}],
+ 						returns: "the child session id.",
+ 						throws: ["when the fork fails, or when a requested child-title rename fails after creation."]
+@@ -1984,7 +1984,7 @@
+ 			},
+ 			{
+ 				name: "PromptContentPart",
+-				declaration: "export type PromptContentPart = {\n    readonly type: 'text';\n    readonly text: string;\n} | {\n    readonly type: 'image';\n    readonly mediaType: ImageMediaType;\n    readonly data: string;\n    readonly name?: string;\n} | {\n    readonly type: 'file';\n    readonly receiptId: Branded<'file-upload-receipt-id'>;\n};"
++				declaration: "export type PromptContentPart = {\n    readonly type: 'text';\n    readonly text: string;\n} | {\n    readonly type: 'image';\n    readonly mediaType: ImageMediaType;\n    readonly data: string;\n    readonly name?: string;\n} | {\n    readonly type: 'file';\n    readonly receiptId: Branded<'file-upload-receipt-id'>;\n} | {\n    readonly type: 'video';\n    readonly mediaType: string;\n    readonly url: string;\n    readonly name?: string;\n};"
+ 			},
+ 			{
+ 				name: "PromptError",

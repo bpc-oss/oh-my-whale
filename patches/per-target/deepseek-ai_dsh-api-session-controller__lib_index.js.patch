@@ -1,0 +1,68 @@
+--- a/@deepseek-ai/dsh-api-session-controller/lib/index.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/index.js
+@@ -770,7 +770,7 @@
+ 	* Create a new ordinary Session from an exact event prefix. An explicit
+ 	* `atSeq` is the inclusive cut; an omitted value selects the latest
+ 	* completed-turn prefix. An open cut receives synthetic fork closers.
+-	* @param request - source Session and optional exact event boundary.
++	* @param request - source Session, optional exact event boundary, and optional target preset.
+ 	* @returns the new Session identity.
+ 	*/
+ 	async fork(request) {
+@@ -804,7 +804,9 @@
+ 				throw new RemoteError("gateway/internal", `failed to resolve fork workspace for session "${request.sessionId}": ${String(error)}`, {});
+ 			}
+ 			const childId = brandString(`session-${randomUUID()}`);
+-			const composition = await this.agents.composeAgent(this.agents.presetForObservation(source));
++			// P9: an explicit `agentPreset` forks the child under a DIFFERENT
++			// composition instead of the one the source session runs.
++			const composition = await this.agents.composeAgent(request.agentPreset === void 0 ? this.agents.presetForObservation(source) : request.agentPreset);
+ 			try {
+ 				const { provider, model } = this.ctx.agentDefaultModel.currentSelection();
+ 				await this.ctx.agents.create({
+@@ -823,6 +825,15 @@
+ 					},
+ 					setup: composition.setup
+ 				});
++				// A fork inherits the source event prefix, including historical
++				// agent-preset/selected events, and the agentPreset projection folds
++				// that seed over the child header. Commit the explicit target as the
++				// child's newest durable selection so it wins the fold.
++				if (request.agentPreset !== void 0 && composition.agentPreset !== void 0) {
++					const child = this.ctx.agents.get(childId);
++					if (child === void 0) throw new Error(`fork child "${childId}" is not locally addressable`);
++					child.session.append("agent-preset/selected", { agentPreset: composition.agentPreset });
++				}
+ 			} catch (error) {
+ 				throw new RemoteError("gateway/internal", `failed to fork session "${request.sessionId}": ${String(error)}`, {});
+ 			}
+@@ -2017,17 +2028,27 @@
+ 	}
+ };
+ /**
++* Heavy projection keys a Session-list row does not need — token statistics, context
++* pressure, permission/subagent state. Detail views read the full block, so only the
++* listing is denoised. Denylist rather than allowlist: a future projection key is kept
++* by default instead of silently vanishing from the wire.
++*/
++const LIST_PROJECTION_EXCLUDED = /* @__PURE__ */ new Set(["tokenUsage", "contextPressure", "contextBreakdown", "contextBreakdownHermes", "subagent", "subagentCatalog", "subagentIdentity", "subagentModelSelectionPolicy", "subagentTiming", "permissions", "verification", "imageLimits", "todos", "plan"]);
++/**
+ * Wrap one projection block as Session-list hints of the named sequence space.
+ * @param kind - which sequence space the block's watermark belongs to.
+ * @param block - the block, or `undefined` when no source served one.
+ * @returns the hints, or `undefined` when the block is absent or carries no value.
+ */
+ function hintsOf(kind, block) {
+-	if (block === void 0 || Object.keys(block.values).length === 0) return void 0;
++	if (block === void 0) return void 0;
++	const values = {};
++	for (const key in block.values) if (LIST_PROJECTION_EXCLUDED.has(key) === false) values[key] = block.values[key];
++	if (Object.keys(values).length === 0) return void 0;
+ 	return {
+ 		kind,
+ 		asOfSeq: block.asOfSeq,
+-		values: block.values
++		values
+ 	};
+ }
+ function normalizeSearchQuery(query) {

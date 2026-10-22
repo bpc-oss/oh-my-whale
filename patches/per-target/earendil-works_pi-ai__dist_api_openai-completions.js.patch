@@ -1,0 +1,86 @@
+--- a/@earendil-works/pi-ai/dist/api/openai-completions.js
++++ b/@earendil-works/pi-ai/dist/api/openai-completions.js
+@@ -937,6 +937,22 @@
+                             text: sanitizeSurrogates(item.text),
+                         };
+                     }
++                    else if (item.type === "image_url") {
++                        // P20: frame extraction already produced a wire-ready image_url
++                        // (data URL). Pass it through instead of re-wrapping as base64.
++                        return { type: "image_url", image_url: item.image_url };
++                    }
++                    else if (item.type === "video_url") {
++                        // P17c: DSH serializes a video content block to the wire as a
++                        // video_url part. OpenAI-compatible endpoints that declare
++                        // video input (b.ai, qwen, glm) consume this part directly.
++                        return {
++                            type: "video_url",
++                            video_url: {
++                                url: item.video_url?.url ?? item.url ?? '',
++                            },
++                        };
++                    }
+                     else {
+                         return {
+                             type: "image_url",
+@@ -1072,9 +1088,10 @@
+                     .map((block) => block.text)
+                     .join("\n");
+                 const hasImages = toolMsg.content.some((c) => c.type === "image");
++                const hasVideos = toolMsg.content.some((c) => c.type === "video_url");
+                 // Always send tool result with text (or placeholder if only images)
+                 const hasText = textResult.length > 0;
+-                const toolResultText = hasText ? textResult : hasImages ? "(see attached image)" : "(no tool output)";
++                const toolResultText = hasText ? textResult : hasImages ? "(see attached image)" : hasVideos ? "(see attached video)" : "(no tool output)";
+                 // Some providers require the 'name' field in tool results
+                 const toolResultMsg = {
+                     role: "tool",
+@@ -1090,7 +1107,7 @@
+                         deferredToolNames.add(name);
+                     }
+                 }
+-                if (hasImages && model.input.includes("image")) {
++                if ((hasImages && model.input.includes("image")) || (hasVideos && model.input.includes("video"))) {
+                     for (const block of toolMsg.content) {
+                         if (isImageContentBlock(block)) {
+                             imageBlocks.push({
+@@ -1100,6 +1117,15 @@
+                                 },
+                             });
+                         }
++                        else if (block.type === "video_url") {
++                            // P23: video blocks from tool results ride the same follow-up
++                            // user message images already use - the wire tool message
++                            // itself is text-only, so media must be re-attached after it.
++                            imageBlocks.push({
++                                type: "video_url",
++                                video_url: block.video_url,
++                            });
++                        }
+                     }
+                 }
+             }
+@@ -1247,7 +1273,13 @@
+     const isCloudflareAiGateway = provider === "cloudflare-ai-gateway" || baseUrl.includes("gateway.ai.cloudflare.com");
+     const isNvidia = provider === "nvidia" || baseUrl.includes("integrate.api.nvidia.com");
+     const isAntLing = provider === "ant-ling" || baseUrl.includes("api.ant-ling.com");
+-    const isDeepSeek = provider === "deepseek" || baseUrl.toLowerCase().includes("deepseek.com");
++    const isBai = provider === "bai" || baseUrl.toLowerCase().includes("api.b.ai");
++    // P3: b.ai serves a DeepSeek-compatible wire (it demands reasoning_content be
++    // passed back on assistant turns) but speaks a different role set - it rejects
++    // the `developer` role outright with 400 "unknown variant `developer`".
++    // So: count it as DeepSeek for content shaping, and explicitly exclude it from
++    // the developer-role set so system is used instead.
++    const isDeepSeek = provider === "deepseek" || baseUrl.toLowerCase().includes("deepseek.com") || isBai;
+     const isNonStandard = isNvidia ||
+         provider === "cerebras" ||
+         baseUrl.includes("cerebras.ai") ||
+@@ -1276,7 +1308,7 @@
+     const cacheControlFormat = provider === "openrouter" && model.id.startsWith("anthropic/") ? "anthropic" : undefined;
+     return {
+         supportsStore: !isNonStandard,
+-        supportsDeveloperRole: isOpenRouterDeveloperRoleModel || (!isNonStandard && !isOpenRouter),
++        supportsDeveloperRole: (isOpenRouterDeveloperRoleModel || (!isNonStandard && !isOpenRouter)) && !isBai,
+         supportsReasoningEffort: !isGrok && !isZai && !isMoonshot && !isTogether && !isCloudflareAiGateway && !isNvidia && !isAntLing,
+         supportsUsageInStreaming: true,
+         supportsFinishReason: true,

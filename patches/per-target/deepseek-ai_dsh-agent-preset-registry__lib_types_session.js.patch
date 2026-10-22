@@ -1,0 +1,15 @@
+--- a/@deepseek-ai/dsh-agent-preset-registry/lib/types/session.js
++++ b/@deepseek-ai/dsh-agent-preset-registry/lib/types/session.js
+@@ -20,7 +20,11 @@
+     key: 'agentPreset',
+     stateSchema: agentPresetSchema,
+     init: header => header.agentPreset ?? null,
+-    apply: (state, event) => event.type === 'agent-preset/selected'
++    // P11: a fork seed carries the source session's historical preset selections.
++    // They describe the source's past, not the child's current composition, so only
++    // selections committed at or after the seed boundary advance the state.
++    apply: (state, event, context) => event.type === 'agent-preset/selected'
++        && (context === undefined || context.seq >= context.inheritedEventCount)
+         ? event.data.agentPreset
+         : state,
+     wire: { viewSchema: agentPresetSchema, view: state => state },

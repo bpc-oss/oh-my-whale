@@ -1,0 +1,35 @@
+--- a/@deepseek-ai/dsh-session/lib/index.js
++++ b/@deepseek-ai/dsh-session/lib/index.js
+@@ -90,6 +90,8 @@
+ 	"compaction/prune",
+ 	"compaction/start",
+ 	"compaction/summary",
++	// P4: registered out-of-repo event names (continuous-worker / verification plugins).
++	"continuous-worker/change",
+ 	"deliverables/presented",
+ 	"developer/message",
+ 	"feedback/message-delete",
+@@ -134,6 +136,7 @@
+ 	"turn/end",
+ 	"turn/start",
+ 	"user/message",
++	"verification/change",
+ 	"web/deepseek-search-llm-request",
+ 	"workspace/changes"
+ ]);
+@@ -1364,6 +1367,15 @@
+ 		return this.log[seq];
+ 	}
+ 	/**
++	 * P26 v205 compat shim: restore the rc.2 `.events` accessor (0.1.2 kernel
++	 * removed it; profile plugins still iterate `session.events`). Same cache
++	 * lifecycle as snapshotEvents() - invalidated on append.
++	 */
++	get events() {
++		this.eventsSnapshot ??= Object.freeze([...this.log]);
++		return this.eventsSnapshot;
++	}
++	/**
+ 	* Materialize an immutable snapshot of a half-open event sequence range.
+ 	* A full current snapshot is reused until the next append; every previously
+ 	* returned snapshot remains stable after later appends.

@@ -1,0 +1,24 @@
+--- a/@deepseek-ai/dsh-client-ui-attachment/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-attachment/lib/client.js
+@@ -660,9 +660,19 @@
+ 									className: ComposerAttachments_module_css_default.thumbnail,
+ 									title: t("image.openOriginal"),
+ 									onClick: () => {
+-										setPreview(attachment);
++										if (attachment.kind !== "video") setPreview(attachment);
+ 									},
+-									children: (0, react_jsx_runtime.jsx)("img", {
++									children: attachment.kind === "video" ? (0, react_jsx_runtime.jsx)("video", {
++										src: attachment.previewUrl,
++										muted: true,
++										playsInline: true,
++										preload: "metadata",
++										style: {
++											width: "100%",
++											height: "100%",
++											objectFit: "cover"
++										}
++									}) : (0, react_jsx_runtime.jsx)("img", {
+ 										src: attachment.previewUrl,
+ 										alt: attachment.file.name || t("image.pending")
+ 									})

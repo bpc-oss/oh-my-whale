@@ -1,0 +1,11 @@
+--- a/lib/updates.js
++++ b/lib/updates.js
+@@ -300,7 +300,7 @@
+ const MAX_TIMER_DELAY_MS = 2147483647;
+ /** Validated scheduled update policy. */
+ const Config = z.object({
+-	enabled: z.boolean().default(true),
++	enabled: z.boolean().default(false),
+ 	initialDelayMs: z.number().step(1).min(0).max(MAX_TIMER_DELAY_MS).default(6e4),
+ 	intervalMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(360 * 60 * 1e3),
+ 	requestTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(15e3)

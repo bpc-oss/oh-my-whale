@@ -1,0 +1,21 @@
+--- a/@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/service.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/service.js
+@@ -330,7 +330,8 @@
+      * @param opts - source session id, the optional exact inclusive boundary
+      *   seq (a real event seq the caller already knows; a cut inside an open
+      *   turn is balanced Host-side with synthetic closers, and omission selects
+-     *   the latest completed-turn prefix), and whether to increment an
++     *   the latest completed-turn prefix), the optional preset to run the child
++     *   under instead of the source's, and whether to increment an
+      *   inherited durable title before resolving.
+      * @returns the child session id.
+      * @throws {SessionForkError} with the source id.
+@@ -343,6 +344,8 @@
+         const result = await this.manager.fork({
+             sessionId: opts.sessionId,
+             ...(opts.atSeq === undefined ? {} : { atSeq: SessionSeq(opts.atSeq) }),
++            // P10: forward an explicit target so the child can run a different preset.
++            ...(opts.agentPreset === undefined ? {} : { agentPreset: opts.agentPreset }),
+         });
+         if (!result.ok)
+             throw new SessionForkError(result.error, opts.sessionId);

@@ -1,0 +1,204 @@
+--- a/@deepseek-ai/dsh-client-ui-commands/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-commands/lib/client.js
+@@ -193,7 +193,55 @@
+ 			epoch = 0;
+ 			lastError;
+ 			waiters = [];
++			/** P29 backoff: consecutive failed pulls for this key; cleared on success. */
++			failures = 0;
++			/** P29 backoff: earliest next automatic pull (epoch ms; 0 = open). */
++			nextAttemptAt = 0;
++			/** P29 backoff: armed re-pull timer, single-flight per entry (null = none). */
++			retryTimer = null;
++			/** P29b: the key's flying pull promise (null = none) — force-merge target. */
++			inflight = null;
++			/** P29b: until this epoch-ms, a repeated force reuses `inflight` instead of re-pulling. */
++			nextForceAt = 0;
+ 		};
++		/**
++		* P29: exponential pull-backoff for the commands/list retry storm — delay =
++		* min(30s, 1s * 2^(failures - 1)). The 30s cap is the open circuit breaker:
++		* at most one probe per 30s per key, and event/interaction wakes (force
++		* refresh) still cut through it immediately, so nothing dead-waits.
++		* @param failures - consecutive failed pulls for one session key.
++		* @returns milliseconds to wait before the next automatic pull.
++		*/
++		function backoffDelayMs(failures) {
++			if (failures <= 0) return 0;
++			return Math.min(30000, 1000 * 2 ** (failures - 1));
++		}
++		/** P29b: hard deadline for one pull — a hung command.list must never leave the entry pending forever. */
++		const PULL_TIMEOUT_MS = 15000;
++		/** P29b: same-key force pulls merge into the flying one inside this window (event-storm dampener). */
++		const FORCE_MERGE_MS = 250;
++		/**
++		* P29b: race one pull against a 15s AbortController deadline. The RPC itself is
++		* not cancellable at this layer; when the deadline wins, the rejection flows
++		* into refresh()'s normal failure path (state=failed, backoff armed) and the
++		* late RPC result is dropped by the epoch guard — the pending state can no
++		* longer hang forever.
++		*/
++		function pullWithTimeout(fetchCommands, sessionId) {
++			const controller = new AbortController();
++			let timer = null;
++			const flying = fetchCommands(sessionId, controller.signal);
++			flying.catch(() => {});
++			const deadline = new Promise((_, reject) => {
++				timer = setTimeout(() => {
++					controller.abort();
++					reject(new Error(`command pull timed out after ${PULL_TIMEOUT_MS}ms`));
++				}, PULL_TIMEOUT_MS);
++			});
++			return Promise.race([flying, deadline]).finally(() => {
++				if (timer !== null) clearTimeout(timer);
++			});
++		}
+ 		/** The session-keyed directory cache. Plain class — the owning service wires events and RPC. */
+ 		var CommandDirectory = class {
+ 			fetchCommands;
+@@ -220,9 +268,30 @@
+ 				if (entry === void 0 || entry.state !== "ready") return void 0;
+ 				return resolveCommand(name, entry.commands);
+ 			}
+-			/** Soft invalidation (commands-changed): background repull on every touched key; ready snapshots keep serving. */
++			/** Soft invalidation (commands-changed): background repull on every touched key; ready snapshots keep serving. P29c: storm-guarded force (pending never double-fires). */
+ 			invalidateAll() {
+-				for (const key of this.entries.keys()) this.refresh(key);
++				for (const key of this.entries.keys()) this.forceRefresh(key);
++			}
++			/**
++			* P29c: event-driven force wake with storm defense. Immediate only when the
++			* entry is settled (failed/ready, or cold with nothing flying). While a pull
++			* is pending, the event never starts a second one: the flying publish stands
++			* and a single retry timer (merge window, past any open backoff) re-forces
++			* once it lands.
++			* @param sessionId - session key.
++			*/
++			forceRefresh(sessionId) {
++				const entry = this.entry(sessionId);
++				if (entry.state === "pending") {
++					if (entry.retryTimer === null) {
++						entry.retryTimer = setTimeout(() => {
++							entry.retryTimer = null;
++							this.refresh(sessionId, true);
++						}, Math.max(FORCE_MERGE_MS, entry.nextAttemptAt - Date.now()));
++					}
++					return;
++				}
++				this.refresh(sessionId, true);
+ 			}
+ 			/**
+ 			* Drop one Session's obsolete composition-specific snapshot and prewarm its replacement.
+@@ -233,7 +302,7 @@
+ 				entry.state = "cold";
+ 				entry.commands = [];
+ 				entry.lastError = void 0;
+-				this.refresh(sessionId);
++				this.forceRefresh(sessionId);
+ 			}
+ 			/**
+ 			* Hard reset on reconnect: every entry drops its snapshot (the agent world
+@@ -243,43 +312,84 @@
+ 				for (const [key, entry] of this.entries) {
+ 					entry.state = "cold";
+ 					entry.commands = [];
+-					this.refresh(key);
++					this.refresh(key, true);
+ 				}
+ 			}
+ 			/**
+ 			* Fire-and-forget prewarm of one session (the command source's scope-birth
+-			* warm hook lands here).
++			* warm hook lands here). P29: one session switch is a user interaction —
++			* it resets the backoff count and allows exactly one immediate pull.
+ 			* @param sessionId - session key.
+ 			*/
+ 			warm(sessionId) {
+ 				const entry = this.entry(sessionId);
+-				if (entry.state === "cold" || entry.state === "failed") this.refresh(sessionId);
++				if (entry.state === "cold" || entry.state === "failed") return this.refresh(sessionId, true);
+ 			}
+ 			/**
+ 			* Start one pull for one session. Publishes ready/failed only while it is
+ 			* still the key's latest pull (epoch guard); a ready snapshot is not
+-			* demoted while the pull flies.
++			* demoted while the pull flies. P29: consecutive failures apply the
++			* exponential backoff window below; `force` (commands-changed, preset
++			* switch, reconnect, session warm = one user interaction) clears the
++			* window and pulls at once. P29b: the pull races a 15s AbortController
++			* deadline (pending can never hang forever), and a second force for the
++			* same key inside the 250ms merge window reuses the flying promise
++			* instead of starting a new pull — the reuse path touches no counter, so
++			* `failures` can never be driven negative.
+ 			* @param sessionId - session key.
++			* @param force - wake through any open backoff window and reset the count.
+ 			* @returns settled when this pull's outcome is published or discarded.
+ 			*/
+-			async refresh(sessionId) {
++			async refresh(sessionId, force = false) {
+ 				const entry = this.entry(sessionId);
++				if (force) {
++					const now = Date.now();
++					if (entry.inflight !== null && now < entry.nextForceAt) return entry.inflight;
++				}
++				if (entry.retryTimer !== null) {
++					clearTimeout(entry.retryTimer);
++					entry.retryTimer = null;
++				}
++				if (force) {
++					entry.failures = 0;
++					entry.nextAttemptAt = 0;
++					entry.nextForceAt = Date.now() + FORCE_MERGE_MS;
++				} else if (entry.failures > 0 && Date.now() < entry.nextAttemptAt) {
++					if (entry.state !== "pending") {
++						entry.retryTimer = setTimeout(() => {
++							entry.retryTimer = null;
++							this.refresh(sessionId);
++						}, entry.nextAttemptAt - Date.now());
++					}
++					return;
++				}
+ 				const epoch = ++entry.epoch;
+ 				if (entry.state !== "ready") entry.state = "pending";
+-				try {
+-					const commands = await this.fetchCommands(sessionId);
+-					if (epoch !== entry.epoch) return;
+-					entry.commands = commands;
+-					entry.state = "ready";
+-					entry.lastError = void 0;
+-				} catch (error) {
+-					if (epoch !== entry.epoch) return;
+-					entry.commands = [];
+-					entry.state = "failed";
+-					entry.lastError = error;
+-				} finally {
+-					if (epoch === entry.epoch) notifyWaiters(entry);
+-				}
++				const task = (async () => {
++					try {
++						const commands = await pullWithTimeout(this.fetchCommands, sessionId);
++						if (epoch !== entry.epoch) return;
++						entry.commands = commands;
++						entry.state = "ready";
++						entry.lastError = void 0;
++						entry.failures = 0;
++						entry.nextAttemptAt = 0;
++					} catch (error) {
++						if (epoch !== entry.epoch) return;
++						entry.commands = [];
++						entry.state = "failed";
++						entry.lastError = error;
++						entry.failures += 1;
++						entry.nextAttemptAt = Date.now() + backoffDelayMs(entry.failures);
++					} finally {
++						if (epoch === entry.epoch) notifyWaiters(entry);
++					}
++				})();
++				entry.inflight = task;
++				task.finally(() => {
++					if (entry.inflight === task) entry.inflight = null;
++				});
++				return task;
+ 			}
+ 			/**
+ 			* Strong-wait until one session's catalog is servable (the enter-

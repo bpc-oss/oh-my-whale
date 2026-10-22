@@ -1,0 +1,22 @@
+--- a/@deepseek-ai/dsh-subagent/lib/types/child-agent.js
++++ b/@deepseek-ai/dsh-subagent/lib/types/child-agent.js
+@@ -154,8 +154,17 @@
+  * @param parent - the delegating parent whose composition the child joins.
+  * @param composition - the per-child persona and tool filter to install.
+  */
+-export function applyChildComposition(childCtx, parent, composition) {
+-    childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx);
++export async function applyChildComposition(childCtx, parent, composition) {
++    // PATCH (dsh-routed-subagent v3.1) - mirrors lib/index.js. Mount the TARGET
++    // preset instead of joining the parent's composition; composeFrom binds the
++    // child scope key to the parent's standing mount and a second bind throws.
++    if (composition.preset !== undefined) {
++        await childCtx.get('agentPresets')?.mount(childCtx, composition.preset);
++        childCtx.agent.session.append('agent-preset/selected', { agentPreset: composition.preset });
++    }
++    else {
++        childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx);
++    }
+     childCtx.systemPrompt.context({
+         name: 'subagent:delegation',
+         order: childCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),

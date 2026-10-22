@@ -1,0 +1,11 @@
+--- a/@deepseek-ai/dsh-tool-cordis/lib/types/api-catalog.js
++++ b/@deepseek-ai/dsh-tool-cordis/lib/types/api-catalog.js
+@@ -6499,7 +6499,7 @@
+     },
+     {
+         name: 'SessionForkRequest',
+-        declaration: 'export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n}',
++        declaration: 'export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n    /** Fork the child under this preset instead of the source session\'s. */\n    readonly agentPreset?: string;\n}',
+     },
+     {
+         name: 'SessionForkSource',

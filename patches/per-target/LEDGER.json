@@ -1,0 +1,1277 @@
+{
+  "generatedAt": "2026-10-19",
+  "phase": "P1",
+  "criterion": "per-target diff = pristine -> live; replay with patch -p1 --fuzz=0 in a scratch tree, then cmp with the live file: byte-identical",
+  "applyRoots": {
+    "resources/app/node_modules": "kernel packages (path is <pkg>/<rel> under that root)",
+    "resources/app": "shell-side files (lib/*), no package segment",
+    "profiles/web/node_modules": "profile-scoped private package @dsh-external/dsh-super-injector (NOT the kernel tree)"
+  },
+  "counts": {
+    "patchFiles": 43,
+    "distinctTargets": 42,
+    "byCategory": {
+      "main": 24,
+      "coverage-gap": 13,
+      "extra": 5,
+      "extra-semantic": 1
+    },
+    "byDirectory": {
+      "patches/per-target": 37,
+      "patches/per-target-extra": 6
+    },
+    "extraTotal": 6,
+    "categoryMeaning": {
+      "main": "original 24 targets ported by the manifest (one artifact per target)",
+      "coverage-gap": "live delta with no manifest entry at all; added by the P1 coverage audit (lives in patches/per-target)",
+      "extra": "manifest status is skip/retired but a real live delta exists (lives in patches/per-target-extra)",
+      "extra-semantic": "LF-normalized semantic form of the P5 change, same target as the whole-file artifact; needs the lf-to-crlf post-step"
+    },
+    "entriesByApplyRoot": {
+      "resources/app/node_modules": 39,
+      "profiles/web/node_modules": 2,
+      "resources/app": 2
+    },
+    "distinctTargetsByApplyRoot": {
+      "resources/app/node_modules": 39,
+      "profiles/web/node_modules": 1,
+      "resources/app": 2
+    },
+    "entriesByBaselineSource": {
+      "npm": 34,
+      "vendor": 2,
+      "installer": 7
+    },
+    "noDiff": 7,
+    "driftWhitelist": 4,
+    "driftWhitelistDiffering": 2
+  },
+  "verification": {
+    "method": "verify-ledger.mjs (this run): for every entry, copy its baselinePath into a scratch tree at <applyRoot>/<target>, apply the shipped patch with -p1 --fuzz=0, then cmp against the live file",
+    "passed": 43,
+    "failed": 0,
+    "failures": []
+  },
+  "notes": [
+    "Apply exactly one artifact per distinct target. dsh-subagent/lib/index.js is one file carrying P16 + P44 (and P18+P16 history); the two P5 artifacts are alternative forms of the same change.",
+    "P44 shares its patchFile with P16 by design (manifest P44.patchFile = per-target/deepseek-ai_dsh-subagent__lib_index.js.patch). Dedupe by file; never apply the same artifact twice.",
+    "Two of the four manifest.driftWhitelist paths do differ from the installer tree but are ruled non-mirrored dead copies; see driftWhitelist below."
+  ],
+  "entries": [
+    {
+      "file": "patches/per-target/deepseek-ai_cordis-plugin-loader__lib_index.js.patch",
+      "target": "@deepseek-ai/cordis-plugin-loader/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "1.0.5",
+      "baselineSource": "npm:@deepseek-ai/cordis-plugin-loader@1.0.5",
+      "baselinePath": "pristine/@deepseek-ai/cordis-plugin-loader/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 2516,
+      "hunks": 3,
+      "added": 20,
+      "removed": 5,
+      "covers": [
+        "P1"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_cordis__lib_index.js.patch",
+      "target": "@deepseek-ai/cordis/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "4.0.4",
+      "baselineSource": "npm:@deepseek-ai/cordis@4.0.4",
+      "baselinePath": "pristine/@deepseek-ai/cordis/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 2316,
+      "hunks": 2,
+      "added": 29,
+      "removed": 1,
+      "covers": [
+        "P2"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/earendil-works_pi-ai__dist_api_openai-completions.js.patch",
+      "target": "@earendil-works/pi-ai/dist/api/openai-completions.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.85.1",
+      "baselineSource": "npm:@earendil-works/pi-ai@0.85.1",
+      "baselinePath": "pristine/@earendil-works/pi-ai/dist/api/openai-completions.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 5116,
+      "hunks": 6,
+      "added": 36,
+      "removed": 4,
+      "covers": [
+        "P3",
+        "P17c",
+        "P23"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-session__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-session/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-session@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-session/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1133,
+      "hunks": 3,
+      "added": 12,
+      "removed": 0,
+      "covers": [
+        "P4",
+        "P26"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/dsh-external_dsh-super-injector__lib_index.js.patch",
+      "target": "@dsh-external/dsh-super-injector/lib/index.js",
+      "applyRoot": "profiles/web/node_modules",
+      "baselineVersion": "0.3.3",
+      "baselineSource": "vendor:oh-my-whale/profile/vendor/dsh-external-dsh-super-injector-0.3.3.tgz!package/lib/index.js.bak-gateway-20260820",
+      "baselinePath": "pristine-vendor/@dsh-external/dsh-super-injector/lib/index.js",
+      "eol": {
+        "live": "CRLF",
+        "pristine": "LF"
+      },
+      "patchBytes": 794118,
+      "hunks": 1,
+      "added": 9713,
+      "removed": 9699,
+      "covers": [
+        "P5"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-goal__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-goal/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-goal@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-goal/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 3917,
+      "hunks": 5,
+      "added": 49,
+      "removed": 3,
+      "covers": [
+        "P6"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-api-session-controller__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-session-controller@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-session-controller/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 3614,
+      "hunks": 4,
+      "added": 25,
+      "removed": 4,
+      "covers": [
+        "P7",
+        "P9",
+        "P11"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-api-session-controller__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-session-controller@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-session-controller/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 2509,
+      "hunks": 3,
+      "added": 10,
+      "removed": 4,
+      "covers": [
+        "P10"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-file-reference-local__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-file-reference-local/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-file-reference-local@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-file-reference-local/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 546,
+      "hunks": 1,
+      "added": 1,
+      "removed": 1,
+      "covers": [
+        "P14"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-subagent__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-subagent/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-subagent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-subagent/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 7823,
+      "hunks": 10,
+      "added": 64,
+      "removed": 10,
+      "covers": [
+        "P16",
+        "P44"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "P16 and P44 share this one artifact (P44.patchFile points at it). Apply once per file, never twice."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-subagent__package.json.patch",
+      "target": "@deepseek-ai/dsh-subagent/package.json",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-subagent/package.json",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-subagent/package.json",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 356,
+      "hunks": 1,
+      "added": 2,
+      "removed": 1,
+      "covers": [
+        "P16b"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-llm-pi-ai__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-llm-pi-ai/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-llm-pi-ai/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 16320,
+      "hunks": 11,
+      "added": 193,
+      "removed": 7,
+      "covers": [
+        "P17",
+        "P19b",
+        "P20",
+        "P25",
+        "P39",
+        "P41",
+        "P43"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-client-ui-conversation__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-client-ui-conversation/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-client-ui-conversation/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 9650,
+      "hunks": 14,
+      "added": 81,
+      "removed": 16,
+      "covers": [
+        "P18b"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-client-ui-attachment__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-client-ui-attachment/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-client-ui-attachment/lib/client.js",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-client-ui-attachment/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 943,
+      "hunks": 1,
+      "added": 12,
+      "removed": 2,
+      "covers": [
+        "P18c"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-llm__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-llm/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-llm@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-llm/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 3321,
+      "hunks": 2,
+      "added": 5,
+      "removed": 1,
+      "covers": [
+        "P19"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-tool-fs__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-tool-fs/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-tool-fs@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-tool-fs/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 6000,
+      "hunks": 7,
+      "added": 66,
+      "removed": 4,
+      "covers": [
+        "P21"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/earendil-works_pi-ai__dist_api_openai-responses-shared.js.patch",
+      "target": "@earendil-works/pi-ai/dist/api/openai-responses-shared.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.85.1",
+      "baselineSource": "npm:@earendil-works/pi-ai@0.85.1",
+      "baselinePath": "pristine/@earendil-works/pi-ai/dist/api/openai-responses-shared.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 2347,
+      "hunks": 2,
+      "added": 25,
+      "removed": 1,
+      "covers": [
+        "P22"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-token-meter__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-token-meter/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-token-meter@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-token-meter/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 993,
+      "hunks": 2,
+      "added": 10,
+      "removed": 0,
+      "covers": [
+        "P24"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-session-format-v2-to-v3__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-session-format-v2-to-v3@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 514,
+      "hunks": 2,
+      "added": 8,
+      "removed": 1,
+      "covers": [
+        "P27",
+        "P28"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-client-ui-commands__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-client-ui-commands/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-client-ui-commands/lib/client.js",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-client-ui-commands/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 8373,
+      "hunks": 4,
+      "added": 132,
+      "removed": 22,
+      "covers": [
+        "P29"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/app__lib_updates.js.patch",
+      "target": "lib/updates.js",
+      "applyRoot": "resources/app",
+      "baselineVersion": "2.0.16",
+      "baselineSource": "installer:app-64.7z!resources/app/lib/updates.js",
+      "baselinePath": "pristine-installer/app/lib/updates.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 732,
+      "hunks": 1,
+      "added": 4,
+      "removed": 1,
+      "covers": [
+        "P30"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-client-ui-sidebar-documentpreview__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 4912,
+      "hunks": 2,
+      "added": 115,
+      "removed": 0,
+      "covers": [
+        "P37"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/app__lib_module-resolution-CTTB3FAS.js.patch",
+      "target": "lib/module-resolution-CTTB3FAS.js",
+      "applyRoot": "resources/app",
+      "baselineVersion": "2.0.16",
+      "baselineSource": "installer:app-64.7z!resources/app/lib/module-resolution-CTTB3FAS.js",
+      "baselinePath": "pristine-installer/app/lib/module-resolution-CTTB3FAS.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1553,
+      "hunks": 1,
+      "added": 18,
+      "removed": 1,
+      "covers": [
+        "P38"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-tool-subagent__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-tool-subagent/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-tool-subagent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-tool-subagent/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1027,
+      "hunks": 1,
+      "added": 8,
+      "removed": 1,
+      "covers": [
+        "P42"
+      ],
+      "category": "main",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-agent-preset-registry__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-agent-preset-registry/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-agent-preset-registry@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-agent-preset-registry/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 827,
+      "hunks": 1,
+      "added": 4,
+      "removed": 1,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-agent-preset-registry__lib_invariant.js.patch",
+      "target": "@deepseek-ai/dsh-agent-preset-registry/lib/invariant.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-agent-preset-registry@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-agent-preset-registry/lib/invariant.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 835,
+      "hunks": 1,
+      "added": 4,
+      "removed": 1,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-agent-preset-registry__lib_types_session.js.patch",
+      "target": "@deepseek-ai/dsh-agent-preset-registry/lib/types/session.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-agent-preset-registry@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-agent-preset-registry/lib/types/session.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 859,
+      "hunks": 1,
+      "added": 5,
+      "removed": 1,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-session-projection__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-session-projection/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-session-projection@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-session-projection/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 3631,
+      "hunks": 5,
+      "added": 27,
+      "removed": 5,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-session-projection__lib_types_index.js.patch",
+      "target": "@deepseek-ai/dsh-session-projection/lib/types/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-session-projection@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-session-projection/lib/types/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 4027,
+      "hunks": 5,
+      "added": 15,
+      "removed": 6,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-cordis-client-runner__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-cordis-client-runner/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-cordis-client-runner@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-cordis-client-runner/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 2690,
+      "hunks": 2,
+      "added": 3,
+      "removed": 3,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-session__lib_types_known-event-types.js.patch",
+      "target": "@deepseek-ai/dsh-session/lib/types/known-event-types.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-session@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-session/lib/types/known-event-types.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 606,
+      "hunks": 2,
+      "added": 3,
+      "removed": 0,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-api-session-controller__lib_types_client_sessions_manager.js.patch",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/manager.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-session-controller@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/manager.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1174,
+      "hunks": 2,
+      "added": 4,
+      "removed": 1,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-api-session-controller__lib_types_client_sessions_service.js.patch",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/service.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-session-controller@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/service.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1280,
+      "hunks": 2,
+      "added": 4,
+      "removed": 1,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-attachment__lib_types_index.js.patch",
+      "target": "@deepseek-ai/dsh-attachment/lib/types/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-attachment@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-attachment/lib/types/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1862,
+      "hunks": 2,
+      "added": 7,
+      "removed": 2,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-subagent__lib_types_child-agent.js.patch",
+      "target": "@deepseek-ai/dsh-subagent/lib/types/child-agent.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-subagent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-subagent/lib/types/child-agent.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1239,
+      "hunks": 1,
+      "added": 11,
+      "removed": 2,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-subagent__lib_types_continuation-activation.js.patch",
+      "target": "@deepseek-ai/dsh-subagent/lib/types/continuation-activation.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-subagent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-subagent/lib/types/continuation-activation.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1121,
+      "hunks": 1,
+      "added": 2,
+      "removed": 2,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target/deepseek-ai_dsh-tool-cordis__lib_types_api-catalog.js.patch",
+      "target": "@deepseek-ai/dsh-tool-cordis/lib/types/api-catalog.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-tool-cordis@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-tool-cordis/lib/types/api-catalog.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 624,
+      "hunks": 1,
+      "added": 1,
+      "removed": 1,
+      "covers": [],
+      "category": "coverage-gap",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": "No manifest entry covers this file: live delta found during the P1 coverage audit (independent full-tree installer-vs-live comparison). Registered here so the upgrade can restore it."
+    },
+    {
+      "file": "patches/per-target-extra/deepseek-ai_dsh-agent__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-agent/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-agent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-agent/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 503,
+      "hunks": 1,
+      "added": 2,
+      "removed": 1,
+      "covers": [
+        "P15"
+      ],
+      "category": "extra",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target-extra/deepseek-ai_dsh-api-session-controller__lib_typert.host.js.patch",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/typert.host.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-session-controller@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-session-controller/lib/typert.host.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 2650,
+      "hunks": 4,
+      "added": 9,
+      "removed": 2,
+      "covers": [
+        "P18"
+      ],
+      "category": "extra",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target-extra/deepseek-ai_dsh-api-session-controller__lib_typert.remote-client.js.patch",
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-session-controller@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1236,
+      "hunks": 2,
+      "added": 7,
+      "removed": 0,
+      "covers": [
+        "P18"
+      ],
+      "category": "extra",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target-extra/deepseek-ai_dsh-api-remotes__lib_client.js.patch",
+      "target": "@deepseek-ai/dsh-api-remotes/lib/client.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-remotes@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-remotes/lib/client.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1389,
+      "hunks": 2,
+      "added": 9,
+      "removed": 1,
+      "covers": [
+        "P18"
+      ],
+      "category": "extra",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target-extra/deepseek-ai_dsh-attachment__lib_index.js.patch",
+      "target": "@deepseek-ai/dsh-attachment/lib/index.js",
+      "applyRoot": "resources/app/node_modules",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-attachment@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-attachment/lib/index.js",
+      "eol": {
+        "live": "LF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1396,
+      "hunks": 3,
+      "added": 13,
+      "removed": 1,
+      "covers": [
+        "P18"
+      ],
+      "category": "extra",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": []
+      },
+      "note": ""
+    },
+    {
+      "file": "patches/per-target-extra/dsh-external_dsh-super-injector__lib_index.js.semantic.patch",
+      "target": "@dsh-external/dsh-super-injector/lib/index.js",
+      "applyRoot": "profiles/web/node_modules",
+      "baselineVersion": "0.3.3",
+      "baselineSource": "vendor:oh-my-whale/profile/vendor/dsh-external-dsh-super-injector-0.3.3.tgz!package/lib/index.js.bak-gateway-20260820",
+      "baselinePath": "pristine-vendor/@dsh-external/dsh-super-injector/lib/index.js",
+      "eol": {
+        "live": "CRLF",
+        "pristine": "LF"
+      },
+      "patchBytes": 1619,
+      "hunks": 1,
+      "added": 14,
+      "removed": 0,
+      "covers": [
+        "P5"
+      ],
+      "category": "extra-semantic",
+      "replay": {
+        "apply": "clean",
+        "cmp": "byte-identical",
+        "postSteps": [
+          "lf-to-crlf"
+        ]
+      },
+      "note": "Same target as the whole-file P5 patch: LF-normalized 14-line semantic delta. Post-step required (live file is CRLF). Do not apply together with the whole-file P5 patch; pick one."
+    }
+  ],
+  "noDiff": [
+    {
+      "target": "@deepseek-ai/dsh-client-ui-subagent/lib/client.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-client-ui-subagent/lib/client.js",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-client-ui-subagent/lib/client.js",
+      "eol": "LF",
+      "covers": [
+        "P8"
+      ],
+      "status": "skip-upstream",
+      "check": "pristine == live (byte-identical)"
+    },
+    {
+      "target": "@deepseek-ai/dsh-client-connection/lib/client.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-client-connection@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-client-connection/lib/client.js",
+      "eol": "LF",
+      "covers": [
+        "P12"
+      ],
+      "status": "skip-absorbed",
+      "check": "pristine == live (byte-identical)"
+    },
+    {
+      "target": "@deepseek-ai/dsh-api-gateway/lib/index.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-api-gateway@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-api-gateway/lib/index.js",
+      "eol": "LF",
+      "covers": [
+        "P13"
+      ],
+      "status": "skip-not-portable",
+      "check": "pristine == live (byte-identical)"
+    },
+    {
+      "target": "@deepseek-ai/dsh-llm-deepseek/lib/index.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-llm-deepseek@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-llm-deepseek/lib/index.js",
+      "eol": "LF",
+      "covers": [
+        "P17b"
+      ],
+      "status": "skip-upstream",
+      "check": "pristine == live (byte-identical)"
+    },
+    {
+      "target": "@deepseek-ai/dsh-subagent/lib/typert.host.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-subagent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-subagent/lib/typert.host.js",
+      "eol": "LF",
+      "covers": [
+        "P18"
+      ],
+      "status": "skip-upstream",
+      "check": "pristine == live (byte-identical)"
+    },
+    {
+      "target": "@deepseek-ai/dsh-subagent/lib/typert.remote-client.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "npm:@deepseek-ai/dsh-subagent@0.2.0-rc.1",
+      "baselinePath": "pristine/@deepseek-ai/dsh-subagent/lib/typert.remote-client.js",
+      "eol": "LF",
+      "covers": [
+        "P18"
+      ],
+      "status": "skip-upstream",
+      "check": "pristine == live (byte-identical)"
+    },
+    {
+      "target": "@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js",
+      "baselineVersion": "0.2.0-rc.1",
+      "baselineSource": "installer:app-64.7z!resources/app/node_modules/@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js",
+      "baselinePath": "pristine-installer/@deepseek-ai/dsh-client-ui-sidebar-right/lib/client.js",
+      "eol": "LF",
+      "covers": [
+        "P31"
+      ],
+      "status": "retired",
+      "check": "pristine == live (byte-identical)"
+    }
+  ],
+  "driftWhitelist": [
+    {
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/types/list.js",
+      "differsFromInstaller": true,
+      "ruling": "driftWhitelist: dead copy / generated artifact — not mirrored, not a patch, not reported as drift"
+    },
+    {
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/types/commands.js",
+      "differsFromInstaller": true,
+      "ruling": "driftWhitelist: dead copy / generated artifact — not mirrored, not a patch, not reported as drift"
+    },
+    {
+      "target": "@deepseek-ai/dsh-api-session-controller/lib/types/index.js",
+      "differsFromInstaller": false,
+      "ruling": "driftWhitelist: dead copy / generated artifact — not mirrored, not a patch, not reported as drift"
+    },
+    {
+      "target": "@deepseek-ai/dsh-subagent/lib/types/index.js",
+      "differsFromInstaller": false,
+      "ruling": "driftWhitelist: dead copy / generated artifact — not mirrored, not a patch, not reported as drift"
+    }
+  ]
+}

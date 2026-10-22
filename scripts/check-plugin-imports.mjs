@@ -24,6 +24,7 @@
  * Usage: node --experimental-vm-modules scripts/check-plugin-imports.mjs
  */
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join, dirname, isAbsolute, resolve as resolvePath } from 'node:path';
 import vm from 'node:vm';
 
@@ -86,6 +87,15 @@ function resolveFile(spec, fromDir) {
       const f = `${p}.js`;
       if (existsSync(f) && statSync(f).isFile()) return f;
     }
+  }
+  // Subpath imports (`pkg/sub`) are resolved through package.json "exports", which a
+  // plain path probe cannot see. Use Node's own resolver from both trees before giving
+  // up, so a plugin that imports an officially exported subpath is not a false FAIL.
+  for (const base of [PROFILE_NM, APP_NM]) {
+    try {
+      const r = createRequire(join(base, '_probe.js'));
+      return r.resolve(spec);
+    } catch { /* try the next tree */ }
   }
   return null;
 }

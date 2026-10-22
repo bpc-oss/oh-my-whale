@@ -1,0 +1,28 @@
+--- a/lib/module-resolution-CTTB3FAS.js
++++ b/lib/module-resolution-CTTB3FAS.js
+@@ -346,7 +346,24 @@
+ function resolveWithState(state, specifier, context, nextResolve) {
+ 	if (state.bypassDepth > 0 || isBuiltin(specifier)) return nextResolve(specifier, context);
+ 	const parentRegistration = registrationForParent(state, context.parentURL);
+-	return parentRegistration === void 0 ? nextResolve(specifier, context) : resolveForRegistration(state, parentRegistration, specifier, context, nextResolve);
++	if (parentRegistration === void 0) {
++		// DSH patch: a module loaded by file:// URL that lives OUTSIDE every
++		// registered profile tree - a preset entry, a plugin repo, a fork - is not
++		// covered by the profile resolver, so Node walks node_modules up from the
++		// MODULE'S OWN directory and never reaches the @deepseek-ai packages that
++		// ship inside the app tree. Without this, such a module dies with
++		// ERR_MODULE_NOT_FOUND on its first `import "@deepseek-ai/..."`.
++		// Resolve those against the desktop tree; defer unchanged otherwise, so
++		// nothing that used to resolve is altered.
++		if (specifier.startsWith("@deepseek-ai/")) try {
++			return {
++				url: pathToFileURL(DESKTOP_REQUIRE.resolve(specifier)).href,
++				shortCircuit: true
++			};
++		} catch {}
++		return nextResolve(specifier, context);
++	}
++	return resolveForRegistration(state, parentRegistration, specifier, context, nextResolve);
+ }
+ function migrateResolverState(state) {
+ 	let latestSequence = Number.isFinite(state.nextSequence) ? state.nextSequence : 0;

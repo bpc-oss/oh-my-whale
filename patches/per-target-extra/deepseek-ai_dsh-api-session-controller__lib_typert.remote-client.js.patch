@@ -1,0 +1,23 @@
+--- a/@deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/typert.remote-client.js
+@@ -366,6 +366,8 @@
+ const _deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema$value ??= z.object({
+   'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
+   'atSeq': z.number().readonly().optional(),
++  // P9/P12: fork the child under an explicitly requested preset.
++  'agentPreset': z.string().readonly().optional(),
+ }))
+ let _deepseek_ai_dsh_api_session_controller_session_fork_result$schema$value
+ const _deepseek_ai_dsh_api_session_controller_session_fork_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_fork_result$schema$value ??= z.object({
+@@ -676,6 +678,11 @@
+ }), z.object({
+   'type': z.literal("file").readonly(),
+   'receiptId': z.intersection(z.string(), z.unknown()).readonly(),
++}), z.object({
++  'type': z.literal("video").readonly(),
++  'mediaType': z.string().readonly(),
++  'url': z.string().readonly(),
++  'name': z.string().readonly().optional(),
+ })])).readonly(),
+   'clientTimeZone': z.string().readonly().optional(),
+ }))

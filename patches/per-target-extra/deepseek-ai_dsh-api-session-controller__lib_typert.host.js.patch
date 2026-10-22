@@ -1,0 +1,41 @@
+--- a/@deepseek-ai/dsh-api-session-controller/lib/typert.host.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/typert.host.js
+@@ -366,6 +366,8 @@
+ const _deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema = () => (_deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema$value ??= z.object({
+   'sessionId': z.intersection(z.string(), z.unknown()).readonly(),
+   'atSeq': z.number().readonly().optional(),
++  // P9/P12: fork the child under an explicitly requested preset.
++  'agentPreset': z.string().readonly().optional(),
+ }))
+ let _deepseek_ai_dsh_api_session_controller_session_fork_result$schema$value
+ const _deepseek_ai_dsh_api_session_controller_session_fork_result$schema = () => (_deepseek_ai_dsh_api_session_controller_session_fork_result$schema$value ??= z.object({
+@@ -676,6 +678,11 @@
+ }), z.object({
+   'type': z.literal("file").readonly(),
+   'receiptId': z.intersection(z.string(), z.unknown()).readonly(),
++}), z.object({
++  'type': z.literal("video").readonly(),
++  'mediaType': z.string().readonly(),
++  'url': z.string().readonly(),
++  'name': z.string().readonly().optional(),
+ })])).readonly(),
+   'clientTimeZone': z.string().readonly().optional(),
+ }))
+@@ -1838,7 +1845,7 @@
+           },
+           {
+             "name": "PromptContentPart",
+-            "declaration": "export type PromptContentPart = { readonly type: 'text'; readonly text: string; } | { readonly type: 'image'; readonly mediaType: ImageMediaType; readonly data: string; readonly name?: string; } | { readonly type: 'file'; readonly receiptId: Branded<'file-upload-receipt-id'>; };"
++            "declaration": "export type PromptContentPart = { readonly type: 'text'; readonly text: string; } | { readonly type: 'image'; readonly mediaType: ImageMediaType; readonly data: string; readonly name?: string; } | { readonly type: 'file'; readonly receiptId: Branded<'file-upload-receipt-id'>; } | { readonly type: 'video'; readonly mediaType: string; readonly url: string; readonly name?: string; };"
+           },
+           {
+             "name": "ProviderRequestId",
+@@ -2006,7 +2013,7 @@
+           },
+           {
+             "name": "SessionForkRequest",
+-            "declaration": "export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n}"
++            "declaration": "export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n    /** Fork the child under this preset instead of the source session's. */\n    readonly agentPreset?: string;\n}"
+           },
+           {
+             "name": "SessionForkValue",

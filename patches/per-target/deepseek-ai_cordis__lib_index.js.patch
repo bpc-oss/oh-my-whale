@@ -1,0 +1,55 @@
+--- a/@deepseek-ai/cordis/lib/index.js
++++ b/@deepseek-ai/cordis/lib/index.js
+@@ -72,13 +72,35 @@
+ 	return value && (typeof value === "object" || typeof value === "function");
+ }
+ /** Find a property descriptor by walking an object's prototype chain. */
++// 2026-08-20 链上定位缓存（方案 v3，复审通过）：
++// 属性所在原型层运行期稳定，缓存 depth；每次命中后单层 getOwnPropertyDescriptor 取最新值
++// （writable 实例字段/ctx.baseUrl 改写均可见）。不存在属性不缓存（防先探测后赋值）。
++// set/defineProperty 陷阱失效缓存（见 createTraceable handler）。
++const descLocationCache = /* @__PURE__ */ new WeakMap();
+ function getPropertyDescriptor(target, prop) {
++	let cache = descLocationCache.get(target);
++	if (cache === undefined) {
++		cache = new Map();
++		descLocationCache.set(target, cache);
++	}
++	const depth = cache.get(prop);
++	if (depth !== undefined) {
++		let proto = target;
++		for (let i = 0; i < depth; i++) proto = Object.getPrototypeOf(proto);
++		return Reflect.getOwnPropertyDescriptor(proto, prop);
++	}
+ 	let proto = target;
++	let d = 0;
+ 	while (proto) {
+ 		const desc = Reflect.getOwnPropertyDescriptor(proto, prop);
+-		if (desc) return desc;
++		if (desc) {
++			cache.set(prop, d);
++			return desc;
++		}
+ 		proto = Object.getPrototypeOf(proto);
++		d++;
+ 	}
++	return undefined;
+ }
+ /** Wrap services/functions so method calls see the caller's active context. */
+ function getTraceable(ctx, value) {
+@@ -147,9 +169,15 @@
+ 			if (prop === tracker.property) return false;
+ 			if (typeof prop === "symbol") return Reflect.set(target, prop, value, receiver);
+ 			if (tracker.associate && ctx.reflect.props[`${tracker.associate}.${prop}`]) return Reflect.set(ctx, `${tracker.associate}.${prop}`, value, withProp(ctx, symbols.receiver, receiver));
++			descLocationCache.get(target)?.delete(prop);
+ 			const shadow = createShadow(ctx, target, tracker.property, receiver);
+ 			return Reflect.set(target, prop, value, shadow);
+ 		},
++		defineProperty: (target, prop, desc) => {
++			const result = Reflect.defineProperty(target, prop, desc);
++			if (result) descLocationCache.get(target)?.delete(prop);
++			return result;
++		},
+ 		apply: (target, thisArg, args) => {
+ 			return applyTraceable(proxy, target, thisArg, args);
+ 		}

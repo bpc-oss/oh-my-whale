@@ -1,0 +1,26 @@
+--- a/@deepseek-ai/dsh-token-meter/lib/index.js
++++ b/@deepseek-ai/dsh-token-meter/lib/index.js
+@@ -14,6 +14,13 @@
+ */
+ /** Fixed text-density estimate used until exact tokenization is needed. */
+ const CHARS_PER_TOKEN = 4;
++/**
++* P24: a video block carries an inline data URL. The upstream ingests the video
++* natively (frame-sampled), so price a fixed heuristic instead of counting the
++* base64 payload as text tokens - a 20MB clip would otherwise be billed as tens of
++* millions of tokens and blow every context-budget guard.
++*/
++const VIDEO_BLOCK_TOKENS = 4096;
+ /** Per-block structural overhead for JSON framing and type tags. */
+ const BLOCK_OVERHEAD = 4;
+ /**
+@@ -46,6 +53,9 @@
+ 		case "tool-call":
+ 			tokens += Math.ceil(block.name.length / CHARS_PER_TOKEN) + Math.ceil(block.arguments.length / CHARS_PER_TOKEN) + BLOCK_OVERHEAD;
+ 			break;
++		case "video":
++			tokens += VIDEO_BLOCK_TOKENS;
++			break;
+ 		default: tokens += estimateStructuralBlock(block);
+ 	}
+ 	return tokens;

@@ -1,0 +1,280 @@
+--- a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
++++ b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js
+@@ -1,5 +1,5 @@
+ import { launchEnvironmentOf } from "@deepseek-ai/dsh-launch-environment";
+-import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, IMAGE_OFFLOAD_REQUIRED_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadedImageText, projectOffloadedImages, requestImageHandleText, requiredImageOffload, resolveImageAttachmentAccess, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
++import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, IMAGE_OFFLOAD_REQUIRED_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, contentHasVideo, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadedImageText, projectOffloadedImages, requestImageHandleText, requiredImageOffload, resolveImageAttachmentAccess, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
+ import { deepEqualJson } from "@deepseek-ai/dsh-util-values";
+ import { MAX_TIMER_DELAY_MS, idleWatchdog, timeoutOf } from "@deepseek-ai/dsh-timeout";
+ import { brandString } from "@deepseek-ai/dsh-brand";
+@@ -279,7 +279,8 @@
+ /** Every request modality a profile may declare. */
+ const MODALITIES = Object.keys({
+ 	text: true,
+-	image: true
++	image: true,
++	video: true
+ });
+ /**
+ * One entry's modality list, or `undefined` when it states no answer. Absent
+@@ -1181,6 +1182,98 @@
+ 		if (message.role !== "user" && message.role !== "tool" && contentHasImage(message.content)) throw new LlmError(`pi-ai cannot represent an image in an in-history ${message.role} message`, "UNSUPPORTED_CONTENT");
+ 	}
+ }
++// P20-BEGIN: video -> frames fallback for upstreams that only accept images.
++// The upstream model does not declare video input, so we extract up to
++// P20_MAX_FRAMES stills with ffmpeg and hand them over as ordinary images.
++const P20_MAX_FRAMES = 10;
++async function findFfmpeg() {
++	const fsN = await import("node:fs");
++	const pathMod = await import("node:path");
++	const dirs = [];
++	const seen = /* @__PURE__ */ new Set();
++	for (const d of (process.env.PATH || "").split(";")) if (d && !seen.has(d)) { seen.add(d); dirs.push(d); }
++	try {
++		const pkgRoot = pathMod.join(process.env.LOCALAPPDATA ?? "", "Microsoft", "WinGet", "Packages");
++		if (fsN.existsSync(pkgRoot)) for (const entry of fsN.readdirSync(pkgRoot)) if (/^Gyan\.FFmpeg/i.test(entry)) dirs.push(pathMod.join(pkgRoot, entry));
++	} catch {}
++	for (const dir of dirs) for (const c of [pathMod.join(dir, "ffmpeg.exe"), pathMod.join(dir, "bin", "ffmpeg.exe")]) if (fsN.existsSync(c)) return c;
++	return null;
++}
++async function videoBlockToWireItems(block) {
++	const fsN = await import("node:fs");
++	const pathMod = await import("node:path");
++	const osMod = await import("node:os");
++	const cpMod = await import("node:child_process");
++	const url = block.url ?? block.attachment?.url ?? "";
++	const mediaType = block.mediaType ?? block.attachment?.mediaType ?? "video/mp4";
++	let dataBuf;
++	if (url.startsWith("data:")) {
++		dataBuf = Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
++	} else if (/^https?:\/\//i.test(url)) {
++		const res = await fetch(url);
++		if (!res.ok) throw new LlmError(`video frame extraction: fetch ${url} -> HTTP ${res.status}`, "UNSUPPORTED_CONTENT");
++		dataBuf = Buffer.from(await res.arrayBuffer());
++	} else if (url && fsN.existsSync(url)) {
++		dataBuf = fsN.readFileSync(url);
++	} else {
++		throw new LlmError("video frame extraction: video block has no usable url", "UNSUPPORTED_CONTENT");
++	}
++	const ffmpeg = await findFfmpeg();
++	if (!ffmpeg) throw new LlmError("video frame extraction: ffmpeg.exe not found on PATH or the WinGet location", "UNSUPPORTED_CONTENT");
++	const tmpDir = await fsN.promises.mkdtemp(pathMod.join(osMod.tmpdir(), "dsh-video-frames-"));
++	try {
++		const ext = mediaType.includes("webm") ? ".webm" : mediaType.includes("quicktime") || mediaType.includes("mov") ? ".mov" : ".mp4";
++		await fsN.promises.writeFile(pathMod.join(tmpDir, "input" + ext), dataBuf);
++		const framePat = pathMod.join(tmpDir, "f-%04d.png");
++		await new Promise((resolve, reject) => {
++			const child = cpMod.spawn(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", pathMod.join(tmpDir, "input" + ext), "-vf", "fps=1,scale=w='min(iw,1280)':h=-2", "-frames:v", "64", framePat], { stdio: ["ignore", "ignore", "ignore"], windowsHide: true });
++			child.on("error", reject);
++			child.on("close", (code) => code === 0 ? resolve() : reject(new LlmError(`ffmpeg frame extraction failed (exit ${code})`, "UNSUPPORTED_CONTENT")));
++		});
++		let frames = fsN.readdirSync(tmpDir).filter((x) => x.startsWith("f-") && x.endsWith(".png")).sort();
++		if (frames.length === 0) throw new LlmError("ffmpeg frame extraction produced no frames", "UNSUPPORTED_CONTENT");
++		if (frames.length > P20_MAX_FRAMES) {
++			const picked = [];
++			for (let i = 0; i < P20_MAX_FRAMES; i++) picked.push(frames[Math.round(i * (frames.length - 1) / (P20_MAX_FRAMES - 1))]);
++			frames = [...new Set(picked)];
++		}
++		const out = [];
++		for (let i = 0; i < frames.length; i++) {
++			const b64 = fsN.readFileSync(pathMod.join(tmpDir, frames[i])).toString("base64");
++			out.push({ type: "text", text: `[video ${block.name ?? ""} - frame ${i + 1}/${frames.length}, t~${i}s]`.trim() });
++			out.push({ type: "image_url", image_url: { url: `data:image/png;base64,${b64}` } });
++		}
++		return out;
++	} finally {
++		try { fsN.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
++	}
++}
++// P25: gateway body-size guard - only the most recent inline video keeps its data
++// URL; earlier ones degrade to a text note (the same pattern image offload uses),
++// so a long multi-video history stays under the gateway read-body limit.
++function offloadOldVideos(messages) {
++	let changed = false;
++	const out = new Array(messages.length);
++	let keptNewest = false;
++	for (let mi = messages.length - 1; mi >= 0; mi--) {
++		const msg = messages[mi];
++		const blocks = Array.isArray(msg?.content) ? msg.content : null;
++		if (!blocks) { out[mi] = msg; continue; }
++		let msgChanged = false;
++		const nb = blocks.slice();
++		for (let bi = nb.length - 1; bi >= 0; bi--) {
++			const b = nb[bi];
++			if (b?.type === "video") {
++				if (!keptNewest) { keptNewest = true; continue; }
++				nb[bi] = { type: "text", text: "[earlier video omitted to keep the request within gateway limits]" };
++				msgChanged = true;
++			}
++		}
++		if (msgChanged) { changed = true; out[mi] = { ...msg, content: nb }; } else out[mi] = msg;
++	}
++	return changed ? out : messages;
++}
++const __p20Pending = /* @__PURE__ */ new WeakMap();
+ function userContent(blocks, requestImages, resolveImageAccess) {
+ 	const content = [];
+ 	for (const block of blocks) switch (block.type) {
+@@ -1203,6 +1296,20 @@
+ 			});
+ 			break;
+ 		}
++		case "video": {
++			// P17: a video block carries a URL (data URL or external), pass it
++			// straight through as the wire's video_url part. P17c turns that part
++			// into the provider payload; the model must declare video input (P19b).
++			// P20: when the model only accepts images, the resolved frame items are
++			// staged on a side channel and spliced in by __p20ResolveVideos below.
++			const staged = __p20Pending.get(block);
++			if (staged !== void 0) content.push(...staged);
++			else content.push({
++				type: "video_url",
++				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? "" }
++			});
++			break;
++		}
+ 		default: break;
+ 	}
+ 	if (content.every((block) => block.type === "text")) return content.map((block) => block.text).join("");
+@@ -1262,6 +1369,49 @@
+ 		...tools !== void 0 && tools.length > 0 ? { tools } : {}
+ 	};
+ }
++/* P43: normalise the tool_call ids DSH itself mints before they leave the process.
++   Some OpenAI-compatible relays refuse a replayed assistant turn whose parallel
++   tool_calls carry hyphenated ids, and report it as HTTP 200 with an in-band
++   `data: {...,"error":{...}}` chunk instead of a status the client can read —
++   which surfaces as the opaque `PI_AI_ERROR: JSON error injected into SSE
++   stream` and is NOT retryable, so the turn dies on the first attempt.
++
++   Scope is deliberately narrow: only ids matching DSH's own minting format
++   (/^chatcmpl-/) are rewritten. Measured with every other field held constant
++   (same name, same arguments, same content, same three-message shape), seven
++   neutral 32-char id shapes were accepted 4/4 each while the real
++   `chatcmpl-tool-*` ids were refused 0/4; id length (8..40), character class,
++   underscores and word+digit mixes were all irrelevant, so the rewrite targets
++   the one form this process actually produces. Ids the model returns arrive
++   already rewritten and pass through untouched, so the rewrite is one-shot per
++   history rather than repeated on every turn.
++
++   The mapping is built once per request and applied to BOTH sides of every
++   call/result pair, because the relay matches a tool result to its call by
++   id: renaming only the assistant side would orphan all 100+ results. */
++const P43_ID_PATTERN = /^chatcmpl-/;
++const P43_ID_PREFIX = "dshcall";
++function rewriteRelayHostileToolCallIds(context) {
++	const messages = context?.messages;
++	if (!Array.isArray(messages) || messages.length === 0) return;
++	const mapping = /* @__PURE__ */ new Map();
++	const rewrite = (id) => {
++		if (typeof id !== "string" || !P43_ID_PATTERN.test(id)) return id;
++		let next = mapping.get(id);
++		if (next === void 0) {
++			next = `${P43_ID_PREFIX}${String(mapping.size).padStart(24, "0")}`;
++			mapping.set(id, next);
++		}
++		return next;
++	};
++	for (const message of messages) {
++		const content = message?.content;
++		if (Array.isArray(content)) for (const block of content) {
++			if (block?.type === "toolCall" && block.id !== void 0) block.id = rewrite(block.id);
++		}
++		if (message?.toolCallId !== void 0) message.toolCallId = rewrite(message.toolCallId);
++	}
++}
+ function appendAssistant(message, messages, toolNames, onReplayDegrade) {
+ 	const assistant = toPiAssistant(message, onReplayDegrade);
+ 	for (const block of assistant.content) if (block.type === "toolCall") toolNames.set(brandString(block.id), block.name);
+@@ -1310,10 +1460,19 @@
+ 		maxBytes: budget.maxBytes
+ 	};
+ }
+-function toPiContext(options, images, onReplayDegrade) {
+-	return images === void 0 ? textOnlyContext(options, onReplayDegrade) : toPiContextWithImages(options, images, onReplayDegrade);
++// P20: when the routed model cannot take video, extract frames once per video
++// block and stage them where userContent picks them up. Staging keeps userContent
++// synchronous, which the 0.2.0 shape relies on.
++async function resolveVideoFrames(blocks, enabled) {
++	if (!enabled) return;
++	for (const block of blocks) {
++		if (block?.type === "video" && !__p20Pending.has(block)) __p20Pending.set(block, await videoBlockToWireItems(block));
++	}
++}
++function toPiContext(options, images, onReplayDegrade, videoToFrames = false) {
++	return images === void 0 ? textOnlyContext(options, onReplayDegrade) : toPiContextWithImages(options, images, onReplayDegrade, videoToFrames);
+ }
+-async function toPiContextWithImages(options, images, onReplayDegrade) {
++async function toPiContextWithImages(options, images, onReplayDegrade, videoToFrames = false) {
+ 	const { attachments, resolveImageAccess, maxRequestImageBytes } = images;
+ 	const requestImagePolicy = images.requestImagePolicy ?? {
+ 		maxPixels: 4194304,
+@@ -1330,6 +1489,7 @@
+ 		if (offloadImages > 0) throw new LlmError(`pi-ai request images exceed the ${maxRequestImageBytes}-byte base64 bound; ${offloadImages} more oldest occurrence(s) must be offloaded.`, IMAGE_OFFLOAD_REQUIRED_CODE, { offloadImages });
+ 	}
+ 	const exactMessages = projectOffloadedImages(split.messages, (ref) => offloadedImageText(ref, resolveImageAccess(ref)));
++	if (videoToFrames) for (const message of exactMessages) await resolveVideoFrames(message.content, true);
+ 	const toolNames = /* @__PURE__ */ new Map();
+ 	const messages = [];
+ 	for (const message of exactMessages) {
+@@ -1375,6 +1535,17 @@
+ }
+ function classifyPiAiError(message) {
+ 	if (/\b(?:401|403)\b/.test(message)) return "AUTH";
++	// P41: an OpenAI-compatible relay that fails upstream answers HTTP 200 with
++	// text/event-stream and puts the failure INSIDE the stream as an in-band
++	// `data: {...,"error":{"code":502,"message":"JSON error injected into SSE
++	// stream","metadata":{"error_type":"provider_unavailable"}}}`. pi-ai keeps
++	// only `error.message`, so the status code and error_type are gone by the
++	// time we classify, and the bare text matches no rule below — it used to
++	// fall through to PI_AI_ERROR, which is absent from DEFAULT_RETRYABLE_CODES
++	// and therefore killed the turn on the first transient blip no matter what
++	// retryPolicy.maxRetries said. The wording names an upstream outage, so
++	// classify it the way the dropped 502 would have been classified.
++	if (/\bJSON error injected into\b/i.test(message) || /\binjected into (?:the )?SSE stream\b/i.test(message)) return "SERVER";
+ 	if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE;
+ 	if (/\b429\b|rate.?limit/i.test(message)) return "RATE_LIMIT";
+ 	if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return "INVALID_REQUEST";
+@@ -1852,7 +2023,18 @@
+ 			const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, streamIdleTimeoutMs, "LLM_STREAM_IDLE_TIMEOUT"), false);
+ 			try {
+ 				const containsImage = options.messages.some((message) => contentHasImage(message.content));
++				// P19b: a video block must reach the provider through the structured
++				// content path (P17 -> video_url, P17c -> wire part), never through the
++				// text-only projection. Gate on the model actually declaring video.
++				const containsVideo = options.messages.some((message) => contentHasVideo(message.content));
++				// P20: an image-only upstream degrades video to extracted stills instead
++				// of failing the turn; only a model that takes neither is a hard error.
++				const modelTakesVideo = model.input.includes("video");
++				const videoToFrames = containsVideo && !modelTakesVideo && model.input.includes("image");
+ 				if (containsImage && !model.input.includes("image")) throw new LlmError(`pi-ai model "${model.id}" does not support image input`, "UNSUPPORTED_CONTENT");
++				// Hard error only when the model can take neither the video itself nor
++				// extracted frames. A video-capable route must NOT land here.
++				if (containsVideo && !modelTakesVideo && !videoToFrames) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
+ 				const attachments = containsImage ? this.config.resolveAttachments?.() : void 0;
+ 				if (containsImage && attachments === void 0) throw new LlmError("pi-ai image input requires the durable attachment service", "UNSUPPORTED_CONTENT");
+ 				const onReplayDegrade = (reason) => {
+@@ -1862,8 +2044,11 @@
+ 						reason
+ 					});
+ 				};
+-				const context = attachments === void 0 ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
++				// P25: keep only the newest inline video data URL within the request body
++				const p25Messages = containsVideo ? offloadOldVideos(options.messages) : options.messages;
++				const context = (attachments === void 0 && !containsVideo) ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
+ 					...options,
++					messages: p25Messages,
+ 					signal: watchdog.signal
+ 				}, {
+ 					attachments,
+@@ -1873,7 +2058,8 @@
+ 						maxPixels: profile.requestImagePixelBudget,
+ 						maxBytes: profile.requestImageMaxBytes
+ 					}
+-				}, onReplayDegrade);
++				}, onReplayDegrade, videoToFrames);
++				rewriteRelayHostileToolCallIds(context);
+ 				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {
+ 					...profileOptions(profile, reasoning, apiKey),
+ 					...options.temperature === void 0 ? {} : { temperature: options.temperature },

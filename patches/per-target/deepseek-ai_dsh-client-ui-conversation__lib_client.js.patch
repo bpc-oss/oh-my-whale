@@ -1,0 +1,222 @@
+--- a/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
++++ b/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
+@@ -3266,10 +3266,10 @@
+ 		* through one property read; assignment through the tracker proxy and `#`
+ 		* private fields bypass that rebinding.
+ 		*/
+-		/** Create one browser-only image draft descriptor; only its id enters input state. */
++		/** Create one browser-only image or video draft descriptor; only its id enters input state. */
+ 		function browserDraftAttachment(file) {
+ 			return {
+-				kind: "image",
++				kind: isVideoMediaType(file.type) ? "video" : "image",
+ 				id: randomUUID(),
+ 				previewUrl: URL.createObjectURL(file),
+ 				file
+@@ -3369,7 +3369,7 @@
+ 					await Promise.allSettled([...this.pendingFileUploads]);
+ 					this.fileUploadOperations.clear();
+ 					this.fileUploadQueue.length = 0;
+-					for (const attachment of this.draftAttachments.values()) if (attachment.kind === "image") revokePreview(attachment.previewUrl);
++					for (const attachment of this.draftAttachments.values()) if (attachment.kind === "image" || attachment.kind === "video") revokePreview(attachment.previewUrl);
+ 					this.draftAttachments.clear();
+ 					this.fileUploads.set({});
+ 				}, "conversation draft attachments");
+@@ -3418,6 +3418,12 @@
+ 						...attachment.width === void 0 ? {} : { width: attachment.width },
+ 						...attachment.height === void 0 ? {} : { height: attachment.height }
+ 					}
++				} : attachment.kind === "video" ? {
++					type: "video",
++					value: {
++						previewUrl: attachment.previewUrl,
++						...attachment.file.name === "" ? {} : { name: attachment.file.name }
++					}
+ 				} : {
+ 					type: "file",
+ 					value: uploadFor(attachment).file
+@@ -3425,6 +3431,9 @@
+ 				const serializeAttachments = () => Promise.all(attachments.map(async (attachment) => attachment.kind === "image" ? {
+ 					type: "image",
+ 					...await this.encodeImage(attachment.file)
++				} : attachment.kind === "video" ? {
++					type: "video",
++					...await this.encodeVideo(attachment.file)
+ 				} : {
+ 					type: "file",
+ 					receiptId: uploadFor(attachment).receiptId
+@@ -3466,20 +3475,20 @@
+ 			}
+ 			/**
+ 			* Create runtime-only draft attachments. Files whose browser MIME is an
+-			* accepted image type become image drafts (object URL preview, bytes sent
+-			* with the prompt); every other file becomes a file draft whose background
+-			* upload starts immediately and remains owned by this service across Session
+-			* navigation until completion or explicit removal.
++			* accepted image or video type become inline drafts (object URL preview,
++			* bytes sent with the prompt); every other file becomes a file draft whose
++			* background upload starts immediately and remains owned by this service
++			* across Session navigation until completion or explicit removal.
+ 			* @param sessionId - target Agent-scope identity.
+ 			* @param files - browser files to register.
+ 			* @returns ordered draft descriptors.
+ 			*/
+ 			createDrafts(sessionId, files) {
+ 				return files.map((file) => {
+-					if (isImageMediaType(file.type)) {
++					if (isDraftMediaType(file.type)) {
+ 						const attachment = browserDraftAttachment(file);
+ 						this.draftAttachments.set(attachment.id, attachment);
+-						probeDimensions(attachment);
++						if (attachment.kind === "image") probeDimensions(attachment);
+ 						return attachment;
+ 					}
+ 					const attachment = {
+@@ -3608,8 +3617,9 @@
+ 			}
+ 			/**
+ 			* Serialize ordered draft attachments to command-submit wire payloads without
+-			* sending or releasing them. Images are encoded; generic files cite receipts
+-			* from their completed background uploads and never reread browser bytes.
++			* sending or releasing them. Images and videos are encoded inline; generic
++			* files cite receipts from their completed background uploads and never
++			* reread browser bytes.
+ 			* @param attachmentIds - ordered draft-local attachment ids.
+ 			* @returns wire payloads in id order.
+ 			*/
+@@ -3622,6 +3632,10 @@
+ 						type: "image",
+ 						...await this.encodeImage(attachment.file)
+ 					};
++					if (attachment.kind === "video") return {
++						type: "video",
++						...await this.encodeVideo(attachment.file)
++					};
+ 					const upload = uploads[attachment.id];
+ 					if (upload === void 0 || upload.status !== "ready") throw new Error("conversation.serializeDraftAttachments: one or more files have not finished uploading");
+ 					return {
+@@ -3641,7 +3655,7 @@
+ 				this.fileUploadOperations.delete(id);
+ 				operation?.controller.abort();
+ 				this.draftAttachments.delete(id);
+-				if (attachment.kind === "image") {
++				if (attachment.kind === "image" || attachment.kind === "video") {
+ 					revokePreview(attachment.previewUrl);
+ 					return;
+ 				}
+@@ -3710,6 +3724,12 @@
+ 						continue;
+ 					}
+ 					this.draftAttachments.delete(attachment.id);
++					// Video blocks carry their bytes inline (no durable attachment), so
++					// the image cache has no reference to adopt the preview URL into.
++					if (attachment.kind === "video") {
++						revokePreview(attachment.previewUrl);
++						continue;
++					}
+ 					if (ref !== void 0 && "mediaType" in ref && uiConversation?.seedImageUrl(sessionId, ref, attachment.previewUrl) === true) continue;
+ 					revokePreview(attachment.previewUrl);
+ 				}
+@@ -3722,24 +3742,60 @@
+ 					...file.name === "" ? {} : { name: file.name }
+ 				};
+ 			}
++			/**
++			* Video wire form: data URL carried on the block (no attachment store).
++			* @param file - browser video file whose bytes ride the prompt block.
++			* @returns the canonical media type, a base64 data URL, and the file name.
++			*/
++			async encodeVideo(file) {
++				const type = mediaType(file.type);
++				return {
++					mediaType: type,
++					url: `data:${type};base64,${await base64ImageOf(file)}`,
++					...file.name === "" ? {} : { name: file.name }
++				};
++			}
+ 		};
+-		function imageMediaType(value) {
++		/**
++		* Canonical wire MIME gate for inline media drafts: the raster images the
++		* composer has always carried as base64 blocks, plus the video types P18b
++		* carries on the block as a data URL.
++		* @param value - browser-declared MIME type.
++		* @returns the accepted MIME, or throws for an unsupported value.
++		*/
++		function mediaType(value) {
+ 			switch (value) {
+ 				case "image/png":
+ 				case "image/jpeg":
+ 				case "image/webp":
+-				case "image/gif": return value;
++				case "image/gif":
++				case "video/mp4":
++				case "video/webm":
++				case "video/quicktime":
++				case "video/x-msvideo":
++				case "video/mpeg": return value;
+ 				default: throw new UnsupportedImageMediaTypeError(value);
+ 			}
+ 		}
++		function imageMediaType(value) {
++			return mediaType(value);
++		}
+ 		/**
+-		* Whether a browser-declared MIME selects the image draft path (all other files upload verbatim).
++		* Whether a browser-declared MIME selects the image draft path.
+ 		* @param value - the browser's declared MIME type.
+ 		* @returns whether the file is an accepted raster image.
+ 		*/
+ 		function isImageMediaType(value) {
+ 			return value === "image/png" || value === "image/jpeg" || value === "image/webp" || value === "image/gif";
+ 		}
++		/** Whether a browser-declared MIME selects the video draft path. */
++		function isVideoMediaType(value) {
++			return value === "video/mp4" || value === "video/webm" || value === "video/quicktime" || value === "video/x-msvideo" || value === "video/mpeg";
++		}
++		/** Whether a file rides the prompt inline (image or video) instead of the upload path. */
++		function isDraftMediaType(value) {
++			return isImageMediaType(value) || isVideoMediaType(value);
++		}
+ 		function revokePreview(url) {
+ 			if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+ 		}
+@@ -14807,6 +14863,7 @@
+ 			"queue.count": "{n} 条排队消息",
+ 			"queue.sending": "发送中…",
+ 			"queue.image": "排队消息图片",
++			"queue.video": "排队消息视频 {name}",
+ 			"queue.file": "排队文件 {name}",
+ 			"queue.edit": "编辑排队消息",
+ 			"queue.edit.unsupported": "包含非文本内容，暂不支持编辑",
+@@ -15173,6 +15230,7 @@
+ 			"queue.count": "{n} queued messages",
+ 			"queue.sending": "Sending…",
+ 			"queue.image": "Queued message image",
++			"queue.video": "Queued message video {name}",
+ 			"queue.file": "Queued file {name}",
+ 			"queue.edit": "Edit queued message",
+ 			"queue.edit.unsupported": "Contains non-text content; editing is not supported yet",
+@@ -15602,6 +15660,13 @@
+ 											className: QueueDock_module_css_default.thumb,
+ 											src: attachment.value.previewUrl,
+ 											alt: t("queue.image")
++										}, `${attachment.value.previewUrl}:${index}`) : attachment.type === "video" ? (0, react_jsx_runtime.jsx)("video", {
++											className: QueueDock_module_css_default.thumb,
++											src: attachment.value.previewUrl,
++											muted: true,
++											playsInline: true,
++											preload: "metadata",
++											"aria-label": t("queue.video", { name: attachment.value.name })
+ 										}, `${attachment.value.previewUrl}:${index}`) : (0, react_jsx_runtime.jsx)(QueueFile, {
+ 											attachment: attachment.value,
+ 											label: t("queue.file", { name: attachment.value.name })
+@@ -18355,7 +18420,7 @@
+ 								if (bridge === void 0 && directory) return t("attachment.directoryDesktopOnly");
+ 								const path = bridge?.pathFor(file) ?? "";
+ 								if (directory && path === "") return t("attachment.pathUnavailable");
+-								if (path === "" || !directory && isImageMediaType(file.type)) {
++								if (path === "" || !directory && isDraftMediaType(file.type)) {
+ 									uploads.push(file);
+ 									continue;
+ 								}

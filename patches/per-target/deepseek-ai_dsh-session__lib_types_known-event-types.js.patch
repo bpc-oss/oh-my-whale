@@ -1,0 +1,19 @@
+--- a/@deepseek-ai/dsh-session/lib/types/known-event-types.js
++++ b/@deepseek-ai/dsh-session/lib/types/known-event-types.js
+@@ -32,6 +32,8 @@
+     'compaction/prune',
+     'compaction/start',
+     'compaction/summary',
++    // P4: registered out-of-repo event names (continuous-worker / verification plugins).
++    'continuous-worker/change',
+     'deliverables/presented',
+     'developer/message',
+     'feedback/message-delete',
+@@ -76,6 +78,7 @@
+     'turn/end',
+     'turn/start',
+     'user/message',
++    'verification/change',
+     'web/deepseek-search-llm-request',
+     'workspace/changes',
+ ]);

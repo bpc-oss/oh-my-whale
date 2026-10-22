@@ -1,0 +1,21 @@
+--- a/@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/manager.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/types/client/sessions/manager.js
+@@ -454,7 +454,8 @@
+      * preserve it or lower it after an exact cut before the first `turn/start`;
+      * lineage rides parentSessionId. A child published before Workspace
+      * attachment fails is also reconciled into the list.
+-     * @param opts - source session and the optional exact inclusive boundary seq.
++     * @param opts - source session, the optional exact inclusive boundary seq, and
++     *   the optional target preset to fork the child under.
+      * @returns the fork result (the child session id).
+      */
+     async fork(opts) {
+@@ -462,6 +463,8 @@
+         const result = await this.remote.session.fork({
+             sessionId: opts.sessionId,
+             ...opts.atSeq === undefined ? {} : { atSeq: opts.atSeq },
++            // P10: forward an explicit target so the child can run a different preset.
++            ...opts.agentPreset === undefined ? {} : { agentPreset: opts.agentPreset },
+         });
+         const childId = result.ok
+             ? result.value.sessionId

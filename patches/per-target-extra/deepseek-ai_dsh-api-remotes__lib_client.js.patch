@@ -1,0 +1,26 @@
+--- a/@deepseek-ai/dsh-api-remotes/lib/client.js
++++ b/@deepseek-ai/dsh-api-remotes/lib/client.js
+@@ -10465,7 +10465,9 @@
+ 		let _deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema$value;
+ 		const _deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema = () => _deepseek_ai_dsh_api_session_controller_session_fork_parameter_0$schema$value ??= object({
+ 			"sessionId": intersection(string(), unknown()).readonly(),
+-			"atSeq": number().readonly().optional()
++			"atSeq": number().readonly().optional(),
++			// P9/P12: fork the child under an explicitly requested preset.
++			"agentPreset": string().readonly().optional()
+ 		});
+ 		let _deepseek_ai_dsh_api_session_controller_session_fork_result$schema$value;
+ 		const _deepseek_ai_dsh_api_session_controller_session_fork_result$schema = () => _deepseek_ai_dsh_api_session_controller_session_fork_result$schema$value ??= object({ "sessionId": intersection(string(), unknown()).readonly() });
+@@ -10890,6 +10892,12 @@
+ 				object({
+ 					"type": literal("file").readonly(),
+ 					"receiptId": intersection(string(), unknown()).readonly()
++				}),
++				object({
++					"type": literal("video").readonly(),
++					"mediaType": string().readonly(),
++					"url": string().readonly(),
++					"name": string().readonly().optional()
+ 				})
+ 			])).readonly(),
+ 			"clientTimeZone": string().readonly().optional()

@@ -1,0 +1,70 @@
+--- a/@deepseek-ai/dsh-session-projection/lib/types/index.js
++++ b/@deepseek-ai/dsh-session-projection/lib/types/index.js
+@@ -72,7 +72,9 @@
+             key: definition.key,
+             stateSchema: definition.stateSchema,
+             init: (header, inheritedEventCount) => definition.init(header, inheritedEventCount),
+-            apply: (state, event) => definition.apply(state, event),
++            // `context` is the same fork-inherited seam `init` receives, so a unit
++            // that seeds from the header can tell an inherited event from a live one.
++            apply: (state, event, context) => definition.apply(state, event, context),
+             wire: wire === undefined
+                 ? undefined
+                 : { viewSchema: wire.viewSchema, view: state => wire.view(state) },
+@@ -317,13 +319,15 @@
+                 : def.init(header, inheritedEventCount);
+             const from = usable ? row.seq : beforeBase;
+             const startIndex = from - baseSeq + 1;
++            const context = { seq: 0, inheritedEventCount };
+             for (let index = startIndex; index < events.length; index++) {
+                 const event = events[index];
+                 const expectedSeq = SessionSeq(baseSeq + index);
+                 if (event === undefined || event.seq !== expectedSeq) {
+                     throw new Error(`session projection ${JSON.stringify(def.key)} cannot restore across missing seq ${String(expectedSeq)}`);
+                 }
+-                state = def.apply(state, event);
++                context.seq = expectedSeq;
++                state = def.apply(state, event, context);
+             }
+             if (def.wire !== undefined)
+                 values[def.key] = def.wire.viewSchema.parse(def.wire.view(state));
+@@ -388,8 +392,11 @@
+     /** Fold one unit from init over `events`, producing a cell watermarked at the last folded event. */
+     buildCell(def, header, inheritedEventCount, events) {
+         let state = def.init(header, inheritedEventCount);
+-        for (const event of events)
+-            state = def.apply(state, event);
++        const context = { seq: 0, inheritedEventCount };
++        for (const event of events) {
++            context.seq = event.seq;
++            state = def.apply(state, event, context);
++        }
+         return { state, observedSeq: (events.at(-1)?.seq ?? -1), views: [undefined, undefined] };
+     }
+     /** Read (or lazily build, folding the full in-memory log) one unit's cell. */
+@@ -410,13 +417,15 @@
+     advanceCell(def, cell, session, throughSeq) {
+         if (cell.observedSeq >= throughSeq)
+             return;
++        const context = { seq: 0, inheritedEventCount: session.inheritedEventCount };
+         for (let seq = cell.observedSeq + 1; seq <= throughSeq; seq++) {
+             // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
+             const event = session.eventAt(SessionSeq(seq));
+             if (event === undefined || event.seq !== seq) {
+                 throw new Error(`session projection ${JSON.stringify(def.key)} cannot advance across missing seq ${String(seq)}`);
+             }
+-            const next = def.apply(cell.state, event);
++            context.seq = seq;
++            const next = def.apply(cell.state, event, context);
+             if (!Object.is(next, cell.state)) {
+                 cell.views[0] = cell.views[1];
+                 cell.views[1] = undefined;
+@@ -443,7 +452,7 @@
+                 this.advanceCell(registration.def, cell, session, event.seq === 0 ? -1 : SessionSeq(event.seq - 1));
+             }
+             const previousState = cell.state;
+-            const next = registration.def.apply(previousState, event);
++            const next = registration.def.apply(previousState, event, { seq: event.seq, inheritedEventCount: session.inheritedEventCount });
+             const changed = !Object.is(next, previousState);
+             cell.state = next;
+             cell.observedSeq = event.seq;

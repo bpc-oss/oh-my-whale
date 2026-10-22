@@ -1,0 +1,19 @@
+--- a/@deepseek-ai/dsh-llm/lib/index.js
++++ b/@deepseek-ai/dsh-llm/lib/index.js
+@@ -593,6 +593,10 @@
+ function contentHasImage(content) {
+ 	return content.some((block) => block.type === "image");
+ }
++/** P19: does this content carry a video block? Gates video modality end to end. */
++function contentHasVideo(content) {
++	return content.some((block) => block.type === "video");
++}
+ /**
+ * True when typed model content contains a file block.
+ * Reads current content on every call without retaining scan results.
+@@ -2387,4 +2391,4 @@
+ 	};
+ }
+ //#endregion
+-export { ACCOUNT_QUOTA_EXCEEDED_CODE, APP_IDENTITY, AssistantStreamAccumulator, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, HarnessError, IMAGE_OFFLOAD_REQUIRED_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmAttemptId, LlmError, LlmRuntime, LlmRuntime as default, MessageId, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, ToolCallId, assembleAssistantStream, assertUsableApiKey, assistantStreamChunks, assistantStreamFirstTokenTime, assistantStreamHasVisibleContent, assistantStreamHasVisibleText, attributionHeaders, boundContextSummary, callConfigEquals, chunkHasVisibleText, contentHasFile, contentHasImage, createAssistantMessage, createDeveloperMessage, createMessage, createSystemMessage, createToolResultMessage, createUserMessage, errorChain, expandAssistantStream, fileHandleText, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, isVisibleChunk, joinAssistantStreamText, lastAssistantStreamChunk, markAgentLoopRequest, normalizeApiKey, offloadedImageText, projectFilesToText, projectImagesForTextModel, projectOffloadedImages, projectToolUpdates, requestImageHandleText, requiredImageOffload, resolveImageAttachmentAccess, resolveRetryPolicy, runFirstTokenTime, runFirstVisibleTime, textOnlyImageText, userAgent };
++export { ACCOUNT_QUOTA_EXCEEDED_CODE, APP_IDENTITY, AssistantStreamAccumulator, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, HarnessError, IMAGE_OFFLOAD_REQUIRED_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmAttemptId, LlmError, LlmRuntime, LlmRuntime as default, MessageId, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, ToolCallId, assembleAssistantStream, assertUsableApiKey, assistantStreamChunks, assistantStreamFirstTokenTime, assistantStreamHasVisibleContent, assistantStreamHasVisibleText, attributionHeaders, boundContextSummary, callConfigEquals, chunkHasVisibleText, contentHasFile, contentHasImage, contentHasVideo, createAssistantMessage, createDeveloperMessage, createMessage, createSystemMessage, createToolResultMessage, createUserMessage, errorChain, expandAssistantStream, fileHandleText, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, isVisibleChunk, joinAssistantStreamText, lastAssistantStreamChunk, markAgentLoopRequest, normalizeApiKey, offloadedImageText, projectFilesToText, projectImagesForTextModel, projectOffloadedImages, projectToolUpdates, requestImageHandleText, requiredImageOffload, resolveImageAttachmentAccess, resolveRetryPolicy, runFirstTokenTime, runFirstVisibleTime, textOnlyImageText, userAgent };

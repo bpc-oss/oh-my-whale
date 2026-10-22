@@ -1,0 +1,43 @@
+--- a/@deepseek-ai/dsh-api-session-controller/lib/client.js
++++ b/@deepseek-ai/dsh-api-session-controller/lib/client.js
+@@ -2718,14 +2718,17 @@
+ 			* preserve it or lower it after an exact cut before the first `turn/start`;
+ 			* lineage rides parentSessionId. A child published before Workspace
+ 			* attachment fails is also reconciled into the list.
+-			* @param opts - source session and the optional exact inclusive boundary seq.
++			* @param opts - source session, the optional exact inclusive boundary seq, and
++			*   the optional target preset to fork the child under.
+ 			* @returns the fork result (the child session id).
+ 			*/
+ 			async fork(opts) {
+ 				const source = this.summaries.find((s) => s.sessionId === opts.sessionId);
+ 				const result = await this.remote.session.fork({
+ 					sessionId: opts.sessionId,
+-					...opts.atSeq === void 0 ? {} : { atSeq: opts.atSeq }
++					...opts.atSeq === void 0 ? {} : { atSeq: opts.atSeq },
++					// P10: forward an explicit target so the child can run a different preset.
++					...opts.agentPreset === void 0 ? {} : { agentPreset: opts.agentPreset }
+ 				});
+ 				const childId = result.ok ? result.value.sessionId : workspaceAttachSessionId(result.error);
+ 				if (childId !== void 0) this.recordMutation({
+@@ -3334,7 +3337,8 @@
+ 			* @param opts - source session id, the optional exact inclusive boundary
+ 			*   seq (a real event seq the caller already knows; a cut inside an open
+ 			*   turn is balanced Host-side with synthetic closers, and omission selects
+-			*   the latest completed-turn prefix), and whether to increment an
++			*   the latest completed-turn prefix), the optional preset to run the child
++			*   under instead of the source's, and whether to increment an
+ 			*   inherited durable title before resolving.
+ 			* @returns the child session id.
+ 			* @throws {SessionForkError} with the source id.
+@@ -3344,7 +3348,9 @@
+ 				const sourceTitle = opts.increaseTitle ? this.list.getSnapshot().byId[opts.sessionId]?.title : void 0;
+ 				const result = await this.manager.fork({
+ 					sessionId: opts.sessionId,
+-					...opts.atSeq === void 0 ? {} : { atSeq: SessionSeq(opts.atSeq) }
++					...opts.atSeq === void 0 ? {} : { atSeq: SessionSeq(opts.atSeq) },
++					// P10: forward an explicit target so the child can run a different preset.
++					...opts.agentPreset === void 0 ? {} : { agentPreset: opts.agentPreset }
+ 				});
+ 				if (!result.ok) throw new SessionForkError(result.error, opts.sessionId);
+ 				this.projectList();
