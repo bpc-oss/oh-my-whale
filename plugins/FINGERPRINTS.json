@@ -1,6 +1,6 @@
 {
     "profileDir":  "{{USER_HOME}}\\.dsh\\profiles\\web",
-    "generatedAt":  "2026-10-20T11:57:32.1150921+08:00",
+    "generatedAt":  "2026-10-22T17:46:53.0128479+08:00",
     "version":  "1",
     "entries":  [
                     {
@@ -30,15 +30,6 @@
                         "install_type":  "file-dir"
                     },
                     {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\.\\local-presets",
-                        "id":  "dsh-local-presets",
-                        "gitHead":  "",
-                        "version":  "0.0.0",
-                        "dirty":  -1,
-                        "spec":  "file:./local-presets",
-                        "install_type":  "file-dir"
-                    },
-                    {
                         "source":  "{{PLUGIN_SOURCES_DIR}}\\dsh-routed-subagent",
                         "id":  "dsh-routed-subagent",
                         "gitHead":  "6085f65bbc1a4662b7c43901ba983a7f66b351d1",
@@ -51,12 +42,24 @@
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{USER_HOME}}/dsh-voice-input",
-                        "id":  "dsh-voice-input",
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\.\\local-presets",
+                        "id":  "dsh-local-presets",
                         "gitHead":  "",
-                        "version":  "0.1.0",
+                        "version":  "0.0.0",
                         "dirty":  -1,
-                        "spec":  "link:{{USER_HOME}}/dsh-voice-input",
+                        "spec":  "file:./local-presets",
+                        "install_type":  "file-dir"
+                    },
+                    {
+                        "source":  "{{PLUGIN_SOURCES_DIR}}/AI DEV WITH REA/vendor/dsh-purge",
+                        "id":  "dsh-purge",
+                        "gitHead":  "5e757260a0be055892b48ec520d451cc82e1c191",
+                        "version":  "1.1.71",
+                        "dirtyFiles":  [
+
+                                       ],
+                        "dirty":  0,
+                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/AI DEV WITH REA/vendor/dsh-purge",
                         "install_type":  "link"
                     },
                     {
@@ -74,6 +77,23 @@
                         "install_type":  null
                     },
                     {
+                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-experimental/m2-demo-plugin",
+                        "id":  "m2-demo-plugin",
+                        "version":  "0.1.0",
+                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-experimental\\m2-demo-plugin",
+                        "install_type":  "link",
+                        "unlisted_in_deps":  true
+                    },
+                    {
+                        "source":  "{{USER_HOME}}/dsh-voice-input",
+                        "id":  "dsh-voice-input",
+                        "gitHead":  "",
+                        "version":  "0.1.0",
+                        "dirty":  -1,
+                        "spec":  "link:{{USER_HOME}}/dsh-voice-input",
+                        "install_type":  "link"
+                    },
+                    {
                         "source":  "{{PLUGIN_SOURCES_DIR}}\\dsh-web-billing",
                         "id":  "dsh-web-billing",
                         "gitHead":  "69410660b59960ddcd61a333864357ffd00e962d",
@@ -84,33 +104,6 @@
                         "dirty":  0,
                         "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-web-billing",
                         "install_type":  "link"
-                    },
-                    {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-experimental/m2-demo-plugin",
-                        "id":  "m2-demo-plugin",
-                        "version":  "0.1.0",
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-experimental\\m2-demo-plugin",
-                        "install_type":  "link",
-                        "unlisted_in_deps":  true
-                    },
-                    {
-                        "source":  "{{USER_HOME}}/dev/dsh-global-tool-discovery",
-                        "id":  "dsh-global-tool-discovery",
-                        "gitHead":  "7607c3ae3508e4ea310c7ffc0d95cf00bfa0a4f9",
-                        "version":  "0.2.1",
-                        "dirtyFiles":  [
-
-                                       ],
-                        "dirty":  0,
-                        "spec":  "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
-                        "install_type":  "link"
-                    },
-                    {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
-                        "id":  "@bpc-oss/dsh-evidence",
-                        "sha256":  "45ae082917d7a016fb8135376d35c823667fd31fa58b20ca644cde2c4690a337",
-                        "spec":  "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
-                        "install_type":  "local-tgz"
                     },
                     {
                         "source":  "{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
@@ -124,6 +117,20 @@
                         "gitRoot":  "{{CHROME_FAITHFUL_DIR}}",
                         "spec":  "file:{{CHROME_FAITHFUL_DIR}}/packages/dsh-plugin-chrome-faithful",
                         "install_type":  "file-dir"
+                    },
+                    {
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
+                        "id":  "@bpc-oss/dsh-verification",
+                        "sha256":  "fe50df592d2b6217e44b8e0c11ef57975aafdff17b27ec7f3fb9f859733c2d8c",
+                        "spec":  "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
+                        "install_type":  "local-tgz"
+                    },
+                    {
+                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
+                        "id":  "@bpc-oss/dsh-evidence",
+                        "sha256":  "45ae082917d7a016fb8135376d35c823667fd31fa58b20ca644cde2c4690a337",
+                        "spec":  "file:vendor-archives/bpc-oss-dsh-evidence-1.0.0-355cd8ca.tgz",
+                        "install_type":  "local-tgz"
                     },
                     {
                         "source":  "{{USER_HOME}}/dev/dsh-governance",
@@ -142,14 +149,28 @@
                         "install_type":  "local-tgz"
                     },
                     {
-                        "source":  "{{USER_HOME}}\\.dsh\\profiles\\web\\vendor-archives\\bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
-                        "id":  "@bpc-oss/dsh-verification",
-                        "sha256":  "fe50df592d2b6217e44b8e0c11ef57975aafdff17b27ec7f3fb9f859733c2d8c",
-                        "spec":  "file:vendor-archives/bpc-oss-dsh-verification-1.0.0-e2b031f3.tgz",
-                        "install_type":  "local-tgz"
+                        "source":  "{{USER_HOME}}\\.dsh\\vendor-pkgs\\fr\\package",
+                        "id":  "dsh-full-remote",
+                        "gitHead":  "",
+                        "version":  "0.3.7",
+                        "dirty":  -1,
+                        "spec":  "link:{{USER_HOME}}\\.dsh\\vendor-pkgs\\fr\\package",
+                        "install_type":  "link"
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}\\\\dsh-fork-to-preset",
+                        "source":  "{{USER_HOME}}/dev/dsh-global-tool-discovery",
+                        "id":  "dsh-global-tool-discovery",
+                        "gitHead":  "7607c3ae3508e4ea310c7ffc0d95cf00bfa0a4f9",
+                        "version":  "0.2.1",
+                        "dirtyFiles":  [
+
+                                       ],
+                        "dirty":  0,
+                        "spec":  "link:{{USER_HOME}}/dev/dsh-global-tool-discovery",
+                        "install_type":  "link"
+                    },
+                    {
+                        "source":  "E:\\\\ai-files\\\\dsh-fork-to-preset",
                         "id":  "dsh-fork-to-preset",
                         "gitHead":  "1cb7b9f60e52adf5702d37668c81792d748a0aa6",
                         "version":  "0.1.1",
@@ -157,16 +178,7 @@
 
                                        ],
                         "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\\\dsh-fork-to-preset",
-                        "install_type":  "link"
-                    },
-                    {
-                        "source":  "{{USER_HOME}}\\.dsh\\vendor-pkgs\\fr\\package",
-                        "id":  "dsh-full-remote",
-                        "gitHead":  "",
-                        "version":  "0.3.7",
-                        "dirty":  -1,
-                        "spec":  "link:{{USER_HOME}}\\.dsh\\vendor-pkgs\\fr\\package",
+                        "spec":  "link:E:\\\\ai-files\\\\dsh-fork-to-preset",
                         "install_type":  "link"
                     },
                     {
