@@ -259,11 +259,12 @@ pnpm build              # tsup → lib/index.js
 ### 结论
 多模态路由上 `vision_*` 工具是**历史包袱**：它们为纯文本 agent 而生，把图片上传到外部 VLM 换回一段文字。宿主模型自带视觉 + DSH 原生 `read_image`（图片直接进请求）才是正解，且零额外模型调用、零外传。
 
-### 三个坑（下次遇到直接对号入座）
+### 四个坑（下次遇到直接对号入座）
 1. **工具未挂载 ≠ keep-set 能救**：toolkit 的 schema 在技能加载前不进装配集，任何 keep 过滤都是空集。要么改用原生工具，要么让技能预加载。
 2. **disabled 条目的 id 必须是行 id，不是包名**：`super-injector` 的自动卸载写 `id: dsh-vision-toolkit`，而 bundle patch 的行 id 是 `vision-toolkit` → 拦不住；日志只留一行 `client 模块表已移除`，插件仍然活着。真正生效要重启宿主。
 3. **loader 按路径缓存 mjs**：改 preset 的 `.mjs` 后新会话可能仍跑旧代码（本次靠重启才看到常量切换生效）；`agent.cordis.yml` 则是每次请求重算。
 
+4. **uninject 写入的 disabled 行是内核级 loader 语义**：id 匹配到已安装的 bundle 插件时会把它在 loader 层禁用（UI 消失、宿主日志安静）；插件未装时才退化为无害 not-found。卸载 bundle 型插件后必须摘行或核对 UI，不能只看注入器 exit 0（2026-10-22 dsh-context 实录，修复=摘 cordis.patch.yml 尾部 3 行）。
 ### 能力实测表（写声明前先探，别照抄同级模型）
 | 声明 | 探针 | 结论 |
 |---|---|---|
