@@ -1,10 +1,10 @@
 {
     "profileDir":  "{{USER_HOME}}\\.dsh\\profiles\\web",
-    "generatedAt":  "2026-10-22T17:46:53.0128479+08:00",
+    "generatedAt":  "2026-10-24T01:11:01.9352754+08:00",
     "version":  "1",
     "entries":  [
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+                        "source":  "E:/ai-files/dsh-subagent-model",
                         "id":  "dsh-subagent-model",
                         "gitHead":  "88253d25a6bf3c499bab1b57f90fd0036d2ecdd5",
                         "version":  "0.1.0",
@@ -12,7 +12,7 @@
 
                                        ],
                         "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/dsh-subagent-model",
+                        "spec":  "link:E:/ai-files/dsh-subagent-model",
                         "install_type":  "link"
                     },
                     {
@@ -30,15 +30,15 @@
                         "install_type":  "file-dir"
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}\\dsh-routed-subagent",
+                        "source":  "E:\\ai-files\\dsh-routed-subagent",
                         "id":  "dsh-routed-subagent",
-                        "gitHead":  "6085f65bbc1a4662b7c43901ba983a7f66b351d1",
+                        "gitHead":  "933399d265abbda5c4a28d88c106ff21de95ba85",
                         "version":  "0.4.0",
                         "dirtyFiles":  [
 
                                        ],
                         "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-routed-subagent",
+                        "spec":  "link:E:\\ai-files\\dsh-routed-subagent",
                         "install_type":  "link"
                     },
                     {
@@ -51,7 +51,7 @@
                         "install_type":  "file-dir"
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/AI DEV WITH REA/vendor/dsh-purge",
+                        "source":  "E:/ai-files/AI DEV WITH REA/vendor/dsh-purge",
                         "id":  "dsh-purge",
                         "gitHead":  "5e757260a0be055892b48ec520d451cc82e1c191",
                         "version":  "1.1.71",
@@ -59,7 +59,7 @@
 
                                        ],
                         "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}/AI DEV WITH REA/vendor/dsh-purge",
+                        "spec":  "link:E:/ai-files/AI DEV WITH REA/vendor/dsh-purge",
                         "install_type":  "link"
                     },
                     {
@@ -77,10 +77,10 @@
                         "install_type":  null
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}/dsh-experimental/m2-demo-plugin",
+                        "source":  "E:/ai-files/dsh-experimental/m2-demo-plugin",
                         "id":  "m2-demo-plugin",
                         "version":  "0.1.0",
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-experimental\\m2-demo-plugin",
+                        "spec":  "link:E:\\ai-files\\dsh-experimental\\m2-demo-plugin",
                         "install_type":  "link",
                         "unlisted_in_deps":  true
                     },
@@ -94,7 +94,7 @@
                         "install_type":  "link"
                     },
                     {
-                        "source":  "{{PLUGIN_SOURCES_DIR}}\\dsh-web-billing",
+                        "source":  "E:\\ai-files\\dsh-web-billing",
                         "id":  "dsh-web-billing",
                         "gitHead":  "69410660b59960ddcd61a333864357ffd00e962d",
                         "version":  "2.5.0",
@@ -102,7 +102,7 @@
 
                                        ],
                         "dirty":  0,
-                        "spec":  "link:{{PLUGIN_SOURCES_DIR}}\\dsh-web-billing",
+                        "spec":  "link:E:\\ai-files\\dsh-web-billing",
                         "install_type":  "link"
                     },
                     {
