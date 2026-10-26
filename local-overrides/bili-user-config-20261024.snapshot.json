@@ -1,0 +1,15 @@
+{
+  "autoUpdate": false,
+  "advisoryCheck": false,
+  "compress": {
+    "modelContextLimit": 2600000,
+    "nudgeGrowthTokens": 1000
+  },
+  "plugin": {
+    "snapshotCapBytes": 104857600
+  },
+  "storage": {
+    "archiveAfterDays": 30
+  },
+  "logFile": "{{USER_HOME}}/.dsh/artifacts/bili-pilot/bili.log"
+}

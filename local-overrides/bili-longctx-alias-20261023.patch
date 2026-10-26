@@ -1,0 +1,54 @@
+# 2026-10-23 long-ctx alias for session 9eb26135 preflight-loop escape
+# root cause: bili estimator ~2.32M tokens vs 384K window (6x) -> preflight deficit bogus -> 502 loop;
+# tier-distill refused (no-shrink +275) and summary dial 502 ('upstream Errno 111') in the same window.
+# fix: same-model same-lane alias, contextWindow 2.6M / maxTokens 65536 (real 512K: 384+64<<512).
+# switch ONLY the affected session to provider dgx-spark-glm53-exl3-ctx after host restart.
+--- profiles/web/cordis.patch.yml.bak-20261023-before-longctx-alias	2026-10-23 18:47:10.597722200 +0800
++++ profiles/web/cordis.patch.yml	2026-10-23 18:47:34.168524100 +0800
+@@ -394,6 +394,46 @@
+               high: high
+               max: max
+         apiKeyEnv: DGX_SPARK_VLLM_API_KEY
++      # 2026-10-23 长窗别名：会话 9eb26135 的 bili 估计器把上下文算到 ~2.32M（384K 窗的 6 倍），
++      # 预压缩赤子虚高 → 502 重试死循环。同模型同 lane，仅放宽 window/maxTokens：
++      # 真实约束 512K 下 wire≈384K + out 64K = 448K < 512K 仍安全。仅该会话切到此条目。
++      dgx-spark-glm53-exl3-ctx:
++        displayName: DGX Spark GLM-5.3 Flash EXL3 (LongCtx)
++        api: openai-completions
++        baseURL: http://192.168.31.221:8899/v1
++        streamIdleTimeoutMs: 1800000
++        retryPolicy:
++          mode: normal
++          maxRetries: 100
++          retryableCodes:
++            - EMPTY_RESPONSE
++            - RATE_LIMIT
++            - SERVER
++            - TIMEOUT
++            - TRANSPORT
++            - PI_AI_ERROR
++          backoff:
++            initialDelayMs: 2000
++            maxDelayMs: 30000
++            jitterRatio: 0.3
++        defaultInput:
++          - text
++          - image
++          - video
++        models:
++          - id: GLM-5.3-Flash-EXL3
++            name: Local GLM-5.3 Flash EXL3 (DFlash2 · LongCtx)
++            contextWindow: 2600000
++            maxTokens: 65536
++            input:
++              - text
++              - image
++              - video
++            reasoningEfforts:
++              low: low
++              high: high
++              max: max
++        apiKeyEnv: DGX_SPARK_VLLM_API_KEY
+       dgx-spark-deepseek-v41:
+         displayName: DGX Spark DeepSeek-V4.1-Flash-1017 (ABLIT, TensorFold 1M)
+         api: openai-completions

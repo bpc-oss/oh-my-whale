@@ -127,3 +127,18 @@ with it. They are recoverable by re-adding the bundle; nothing else depends on t
   而是直接删掉。
 
 复核脚本：`scripts/audit-compatibility.mjs`（当前 12 条全部仍在承重，0 条死条目）。
+
+## billion-context (bili 0.1.203) — 专项登记（2026-10-26 汇总）
+
+| 文件 | 内容 | 目标 |
+|---|---|---|
+| `bili-dist-local-patches-20261026.patch` | **唯一权威 dist 补丁**（基线=官方 0.1.203 原始 dist）：四门 usage-trust cap + 摘要缓存 + dsh committed-ranges + ref 提示不屏蔽 + covered=无操作 | `~/.dsh/profiles/web/node_modules/billion-context/dist/index.js` |
+| `bili-promotion-20261022.patch` | 安装层：dependencies/bundles/13 条 preset gate/pnpm-workspace 修法 | `~/.dsh/profiles/web/{package.json,cordis.patch.yml,pnpm-workspace.yaml}` |
+| `bili-longctx-alias-20261023.patch` | 长窗 provider 别名（历史应急物，512K 正名后**非必需**；保留 id 不冲突） | `~/.dsh/profiles/web/cordis.patch.yml` |
+| `bili-user-config-20261024.snapshot.json` | 用户级 bili 配置快照（snapshotCap 100MiB/modelContextLimit 等） | `~/.config/billion-context/billion-context.json` |
+| `archive/bili-est-fix-20261024.patch`, `archive/bili-ref-lifecycle-fix-20261026.patch` | 已并入上面的权威补丁，留作历史；**不要重复应用** | — |
+
+环境变量（用户级 setx）：`BILI_EST_DEBUG=1`、`BILI_EST_TRUST_USAGE_CAP=1.0`、
+`BILI_EST_FITS_CAP`（缺省 min(TRUST,1.02)）、`BILI_EGRESS_BYTES_PER_TOKEN=7.5`。
+重装/升级 bili 后：重放权威 dist 补丁 → 重启 DSH Desktop → `python - <<`… 验证
+`__bili/health` 与一次紧凑 compress 成功。验证记录见 `~/.dsh/artifacts/bili-pilot/`。
