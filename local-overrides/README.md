@@ -142,3 +142,15 @@ with it. They are recoverable by re-adding the bundle; nothing else depends on t
 `BILI_EST_FITS_CAP`（缺省 min(TRUST,1.02)）、`BILI_EGRESS_BYTES_PER_TOKEN=7.5`。
 重装/升级 bili 后：重放权威 dist 补丁 → 重启 DSH Desktop → `python - <<`… 验证
 `__bili/health` 与一次紧凑 compress 成功。验证记录见 `~/.dsh/artifacts/bili-pilot/`。
+
+## 2026-10-27 bili 升级 0.1.203 → 0.1.208（上游根治）
+
+上游 0.1.204–0.1.208 修复了我们本地补丁所针对的几乎全部 bug 类（identity/digest drift
+#4390/#4323、preflight 死锁 #4370、compress-from-store #3982、保护区截断 #3953、
+压缩回执老化 #4348、CJK estimator #4337、dsh-authored compaction #3723、DSH 归因 #4082、
+settings hang #4436、empty tool_calls #4466）。升级后：
+- 本地 dist 补丁（bili-dist-local-patches-20261026.patch）**已废弃，不再应用**——v0.1.208 已含修复；
+- v8 迁移实测 22/22 会话 1.7s 回填成功（0.1.207 的砖库缺陷不含在内，必须 ≥0.1.208）；
+- 升级前完整备份：`~/.dsh/backups/bili-0.1.208-upgrade-20261027/`（sessions-backup + config）；
+- 仍属本地增值而非上游能力：退化 reasoning 的**出站清洗**（上游只有 degenerateTurnWarning 检测）。
+  若复发，按 v0.1.208 代码重新注入 sanitizeDegenerateReasoning，勿复用 203 的 bundle diff。
